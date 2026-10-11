@@ -187,7 +187,7 @@ describe('the sentence of a specification against what the run does with it', ()
       const m = await import('../src/core/ids/model'), v = await import('../src/core/ids/value');
       const { describeSpecification } = await import('../src/core/ids/words');
       const { writeIds } = await import('../src/core/ids/write');
-      const s = { ...m.newSpecification(), name: 'S', applicability: [{ ...m.newFacet('entity', 'applicability'), name: m.simple('IFCWALL') }], ...c.make(m, v) } as import('../src/core/ids/model').Specification;
+      const s = { ...m.newSpecification(), minOccurs: '1', ifcVersion: ['IFC4'], name: 'S', applicability: [{ ...m.newFacet('entity', 'applicability'), name: m.simple('IFCWALL') }], ...c.make(m, v) } as import('../src/core/ids/model').Specification;
       expect(describeSpecification(s)).toEqual({ mode: 'sentence', text: c.says });
       const xml = writeIds({ info: { ...m.blankDocument().info, title: 't' }, specifications: [s] });
       expect((await run(xml, ifc('IFC4', c.truthy))).verdict).toBe('pass');

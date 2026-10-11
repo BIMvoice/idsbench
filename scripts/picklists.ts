@@ -22,7 +22,7 @@ for (const v of IFC_VERSIONS) schemas.set(v, await loadSchema(v));
 
 const entity = (cls: string, type?: string): Facet => ({ ...newFacet('entity', 'applicability'), name: simple(cls), predefinedType: type ? simple(type) : null } as Facet);
 const make = (versions: string[], cls: string, type: string | undefined, requirements: Facet[]): Specification =>
-  ({ ...newSpecification(), name: 's', ifcVersion: versions, applicability: [entity(cls, type)], requirements });
+  ({ ...newSpecification(), minOccurs: '1', name: 's', ifcVersion: versions, applicability: [entity(cls, type)], requirements });
 
 interface Case { kind: string; versions: string[]; what: string; spec: Specification }
 interface Rejected { kind: string; versions: string; what: string; codes: string[]; message: string }

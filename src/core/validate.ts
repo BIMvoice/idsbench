@@ -7,6 +7,7 @@ import { checkIdsDocument, precheckIdsText } from './idsfile';
 import { inspectIfc } from './ifcfile';
 import { assembleReport, hasNoApplicability, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
 import type { RunResult } from './types';
+import { coverageOf, namedByLibrarySpec, tableVersion } from './coverage';
 
 export type Phase = 'reading-ids' | 'reading-ifc' | 'checking';
 
@@ -168,6 +169,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       if (hasNoApplicability(s)) accs[i].feed({ specification: s, status: 'not_applicable', applicableCount: 0, passedCount: 0, failedCount: 0, entityResults: [] });
     }
     const done = accs.map((a) => a.finish());
+    await addCoverage(done.map((d) => d.row), doc, store, loaded.schema);
     return assembleReport(
       done.map((d) => d.row),
       input.spill ? done.map((d) => d.spilled) : null,
@@ -178,6 +180,33 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     console.error('Validation failed', e);
     const m = mapError(e, 'validate');
     throw new AppError(m.kind, m.message);
+  }
+}
+
+/**
+ * Beside each specification that names a class: the elements of its subtypes, supertype or siblings that the model holds
+ * and the specification does not cover. Reads the model's class counts only; it changes no count, state or verdict. The
+ * sentence is also added to the reason a specification failed as a whole, so that the CSV row says it too.
+ */
+async function addCoverage(rows: RunResult['specs'], doc: IDSDocument, store: LoadedModel['store'], modelSchema: string): Promise<void> {
+  const version = tableVersion(modelSchema);
+  const byType = store.entityIndex?.byType;
+  if (!version || !byType) return;
+  let tables: Awaited<ReturnType<typeof import('@idsbench/check/ifc').loadSchema>> | null = null;
+  for (const [i, row] of rows.entries()) {
+    if (row.state === 'unchecked') continue;
+    const names = namedByLibrarySpec(doc.specifications[i] as never);
+    if (!names) continue;
+    try {
+      tables ??= await (await import('@idsbench/check/ifc')).loadSchema(version);
+      const coverage = coverageOf(names.named, row.applicable, (u) => byType.get(u)?.length ?? 0, tables, names.other);
+      if (!coverage) continue;
+      row.coverage = coverage;
+      if (row.wholeFailure) row.wholeFailure = `${row.wholeFailure} ${coverage.text}`;
+    } catch (e) {
+      // The hint is an extra: a table that cannot be loaded leaves the result as it is.
+      console.error('class coverage skipped', e);
+    }
   }
 }
 

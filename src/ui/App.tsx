@@ -13,8 +13,10 @@ import { SpecRow } from './page/SpecRow';
 import { mark, modelMark, TitleBlock } from './page/TitleBlock';
 import { ToFix } from './page/ToFix';
 import { usePage } from './page/usePage';
-import { addSubtypes, namedClasses, subtypeNote } from '../core/subtypes';
-import { useSchemaMap, versionsFor } from './write/useSchema';
+import { addSubtypes, familyOf, subtypeNote, withDefaultSubtypes } from '../core/subtypes';
+import { syncName } from '../core/ids/naming';
+import type { WordsOptions } from '../core/ids/words';
+import { classNameIn, loadSchemas, useSchemaMap, versionsFor } from './write/useSchema';
 
 /** One page around one document: the IDS file. It is checked when it arrives, run when a model is there, and edited in place. */
 export function App() {
@@ -31,11 +33,29 @@ export function App() {
   const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
 
   // ---- the classes a specification names leave their subtypes out: IDS matches the exact class ----
-  const schemaMap = useSchemaMap(doc ? doc.specifications.filter((s) => namedClasses(s.applicability.find((f) => f.kind === 'entity')) !== null).flatMap((s) => versionsFor(s.ifcVersion)) : []);
+  const schemaMap = useSchemaMap(doc ? doc.specifications.flatMap((s) => versionsFor(s.ifcVersion)) : []);
+  const tablesOf = (s: Specification) => {
+    const have = versionsFor(s.ifcVersion).map((v) => schemaMap[v]);
+    return have.every(Boolean) ? (have as NonNullable<(typeof have)[number]>[]) : null;
+  };
   const subtypesOf = (s: Specification) => {
-    const wanted = versionsFor(s.ifcVersion);
-    const have = wanted.map((v) => schemaMap[v]);
-    return have.every(Boolean) ? subtypeNote(s, have as NonNullable<(typeof have)[number]>[]) : null;
+    const have = tablesOf(s);
+    return have ? subtypeNote(s, have) : null;
+  };
+  /** What a sentence needs from the IFC tables: the plain name of a class, and whether the classes it lists are one class and its subtypes. */
+  const wordsOf = (s: Specification): WordsOptions => {
+    const have = tablesOf(s);
+    return { className: classNameIn(have ?? Object.values(schemaMap)), family: have ? familyOf(s, have) : null };
+  };
+  /** A specification the page makes: it applies to the class and its subtypes in every version ticked, and its name is worked out from what it says. */
+  const startSpec = async (made: Specification) => {
+    let s = made;
+    try {
+      const tables = await loadSchemas(versionsFor(made.ifcVersion));
+      s = syncName(withDefaultSubtypes(made, tables), { className: classNameIn(tables) });
+    } catch (e) { console.error(e); }
+    pendingFocus.current = s.uid;
+    addSpec(s);
   };
 
   // ---- files dropped anywhere on the page ----
@@ -280,6 +300,7 @@ export function App() {
                     return { ...x, specifications: list };
                   })}
                   subtypes={subtypesOf(s)}
+                  words={wordsOf(s)}
                   onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
                   onDelete={() => { page.change(`Deleted "${s.name || 'Untitled specification'}"`, (x) => ({ ...x, specifications: x.specifications.filter((y) => y.uid !== s.uid) })); page.setEditing(null); }}
                 />
@@ -291,12 +312,12 @@ export function App() {
                 <ul>
                   {PATTERNS.map((p) => (
                     <li key={p.id}>
-                      <button type="button" className="btn small" onClick={() => { const s = p.make(); pendingFocus.current = s.uid; addSpec(s); }}>{p.label}</button>
+                      <button type="button" className="btn small" onClick={() => { void startSpec(p.make()); }}>{p.label}</button>
                       <span className="hint">{p.about}</span>
                     </li>
                   ))}
                   <li>
-                    <button type="button" className="btn small" onClick={() => { const s = newSpecification(); pendingFocus.current = s.uid; addSpec(s); }}>An empty specification</button>
+                    <button type="button" className="btn small" onClick={() => { void startSpec({ ...newSpecification(), autoName: true }); }}>An empty specification</button>
                     <span className="hint">Fill in everything yourself.</span>
                   </li>
                 </ul>

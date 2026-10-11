@@ -2,6 +2,7 @@
 // outside what it can say truthfully, it lists the parts neutrally instead of guessing.
 import { specChoice, type Facet, type Specification, type Value } from './model';
 import { lengthOf, listOf, modeOf, patternOf, rangeOf } from './value';
+import { plainName } from '../picks';
 
 export const NOUNS: Record<string, string> = {
   IFCWALL: 'wall', IFCDOOR: 'door', IFCWINDOW: 'window', IFCSLAB: 'slab', IFCCOLUMN: 'column',
@@ -15,6 +16,17 @@ const RELATIONS: Record<string, string> = {
   IFCRELAGGREGATES: 'a component of', IFCRELASSIGNSTOGROUP: 'a member of', IFCRELCONTAINEDINSPATIALSTRUCTURE: 'located in',
   IFCRELNESTS: 'nested in', 'IFCRELVOIDSELEMENT IFCRELFILLSELEMENT': 'in an opening of',
 };
+
+/** What the sentence may be told that the specification itself does not say. Both come from the IFC tables, which load after the page. */
+export interface WordsOptions {
+  /** The class as the standard writes it ("IfcBuildingElementProxy") from the name in capitals; undefined when not known. */
+  className?: (upper: string) => string | undefined;
+  /** The classes the entity facet lists are one class and subtypes of it: said as "wall, including wall standard case". */
+  family?: { head: string; others: string[] } | null;
+}
+
+/** "a wall", "an element". */
+export const withArticle = (noun: string): string => `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
 
 class TooComplex extends Error {}
 const q = (s: string) => `"${s}"`;
@@ -51,26 +63,40 @@ export function valueWords(v: Value): string {
 }
 const nameWords = (v: Value) => (v.kind === 'simple' ? v.value : valueWords(v));
 
-function noun(f: Facet | undefined): string {
+/** A class in words: the plain name; for a class without one here, the plain name with the technical one beside it. */
+function classNoun(upper: string, o: WordsOptions): string {
+  const known = NOUNS[upper];
+  if (known) return known;
+  const display = o.className?.(upper);
+  return display ? `${plainName(display).toLowerCase()} (${display})` : `element of class ${upper}`;
+}
+
+/** A class by its plain name alone, for a list that is one class and its subtypes (the technical names are in the form). */
+function plainNoun(upper: string, o: WordsOptions): string {
+  const display = NOUNS[upper] ? undefined : o.className?.(upper);
+  return NOUNS[upper] ?? (display ? plainName(display).toLowerCase() : classNoun(upper, o));
+}
+
+function noun(f: Facet | undefined, o: WordsOptions = {}, useFamily = false, inside = false): string {
   if (!f || f.kind !== 'entity') return 'element';
-  if (f.name.kind === 'simple') {
-    const n = NOUNS[f.name.value];
-    const base = n ?? `element of class ${f.name.value}`;
-    if (f.predefinedType) return `${base} of type ${valueWords(f.predefinedType)}`;
-    return base;
-  }
+  const type = f.predefinedType ? ` of type ${valueWords(f.predefinedType)}` : '';
+  if (f.name.kind === 'simple') return `${classNoun(f.name.value, o)}${type}`;
   if (modeOf(f.name) === 'list') {
-    const items = listOf(f.name).map((c) => NOUNS[c] ?? c);
-    const base = items.join(' or ');
-    return f.predefinedType ? `${base} of type ${valueWords(f.predefinedType)}` : base;
+    const names = listOf(f.name);
+    const fam = useFamily ? o.family : null;
+    if (fam && names.length === fam.others.length + 1 && [fam.head, ...fam.others].every((c) => names.includes(c))) {
+      const rest = fam.others.map((c) => plainNoun(c, o));
+      return `${plainNoun(fam.head, o)}${rest.length <= 2 && !inside ? `, including ${rest.join(' and ')}` : ` (and its ${rest.length} ${rest.length === 1 ? 'subtype' : 'subtypes'})`}${type}`;
+    }
+    return `${names.map((c) => classNoun(c, o)).join(' or ')}${type}`;
   }
   throw new TooComplex();
 }
 
 /** One condition on an element, with its verb: "has the property X in Y", "is located in a space". */
-function clause(f: Facet): { verb: 'has' | 'is'; text: string } {
+function clause(f: Facet, o: WordsOptions = {}): { verb: 'has' | 'is'; text: string } {
   switch (f.kind) {
-    case 'entity': return { verb: 'is', text: `a ${noun(f)}` };
+    case 'entity': return { verb: 'is', text: withArticle(noun(f, o)) };
     case 'attribute': return { verb: 'has', text: `the attribute ${nameWords(f.name)}${f.value ? valueClause(f.value) : ''}` };
     case 'property':
       return { verb: 'has', text: `the property ${nameWords(f.baseName)} in ${nameWords(f.propertySet)}${f.value ? valueClause(f.value) : ''}` };
@@ -80,7 +106,7 @@ function clause(f: Facet): { verb: 'has' | 'is'; text: string } {
     case 'partOf': {
       const rel = f.relation ? RELATIONS[f.relation] : 'part of';
       if (!rel) throw new TooComplex();
-      return { verb: 'is', text: `${rel === 'part of' ? 'part of' : rel} a ${noun({ kind: 'entity', uid: '', instructions: null, ...f.entity })}` };
+      return { verb: 'is', text: `${rel} ${withArticle(noun({ kind: 'entity', uid: '', instructions: null, ...f.entity }, o))}` };
     }
   }
 }
@@ -90,8 +116,8 @@ function join(items: string[]): string {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 /** "has A and B, and is C": consecutive clauses share their verb. */
-function clauses(fs: Facet[], must: 'must' | 'must not' | 'may' | null): string {
-  const cs = fs.map(clause);
+function clauses(fs: Facet[], must: 'must' | 'must not' | 'may' | null, o: WordsOptions = {}): string {
+  const cs = fs.map((f) => clause(f, o));
   const groups: { verb: string; texts: string[] }[] = [];
   for (const c of cs) {
     const g = groups[groups.length - 1];
@@ -103,22 +129,26 @@ function clauses(fs: Facet[], must: 'must' | 'must not' | 'may' | null): string 
 
 export interface Words { text: string; mode: 'sentence' | 'listing' }
 
-export function describeSpecification(s: Specification): Words {
-  try { return { text: sentence(s), mode: 'sentence' }; } catch (e) {
+export function describeSpecification(s: Specification, o: WordsOptions = {}): Words {
+  try { return { text: sentence(s, o), mode: 'sentence' }; } catch (e) {
     if (!(e instanceof TooComplex)) throw e;
-    return { text: listing(s), mode: 'listing' };
+    return { text: listing(s, o), mode: 'listing' };
   }
 }
 
-function sentence(s: Specification): string {
+const sameValue = (a: Value | null, b: Value | null) => JSON.stringify(a) === JSON.stringify(b);
+
+function sentence(s: Specification, o: WordsOptions): string {
   const choice = specChoice(s);
   if (choice === 'custom') throw new TooComplex();
   if (s.applicability.length === 0) throw new TooComplex();
   const entities = s.applicability.filter((f) => f.kind === 'entity');
-  if (entities.length > 1 || s.applicability.length + s.requirements.length > 8) throw new TooComplex();
+  if (entities.length > 1 || s.applicability.length + s.requirements.length > 12) throw new TooComplex();
   const rest = s.applicability.filter((f) => f.kind !== 'entity');
-  const subject = noun(entities[0]);
-  const who = rest.length ? `${subject} that ${clauses(rest, null)}` : subject;
+  const subject = noun(entities[0], o, true, rest.length > 0);
+  const who = rest.length ? `${subject} that ${clauses(rest, null, o)}` : subject;
+  // "wall, including wall standard case" is followed by a comma where a verb comes next.
+  const lead = /, including [^,]*$/.test(who) ? `${who},` : who;
 
   if (choice === 'prohibited') return `The model must not contain any ${who}.`;
   // Requirement facets with their own cardinality.
@@ -126,34 +156,41 @@ function sentence(s: Specification): string {
   const parts: string[] = [];
   const by = (c: string, must: 'must' | 'must not' | 'may') => {
     const fs = reqs.filter((f) => f.kind !== 'entity' && f.cardinality === c);
-    if (fs.length) parts.push(clauses(fs, must));
+    if (fs.length) parts.push(clauses(fs, must, o));
   };
-  const ents = reqs.filter((f) => f.kind === 'entity');
-  if (ents.length) parts.push(clauses(ents, 'must'));
+  // A requirement that names the very class the specification applies to says nothing more than the applicability does.
+  const ents = reqs.filter((f) => f.kind === 'entity' && !(entities[0] && f.kind === 'entity' && entities[0].kind === 'entity' && sameValue(f.name, entities[0].name) && sameValue(f.predefinedType, entities[0].predefinedType)));
+  if (ents.length) parts.push(clauses(ents, 'must', o));
   by('required', 'must'); by('prohibited', 'must not'); by('optional', 'may');
   const optionalNote = reqs.some((f) => f.kind !== 'entity' && f.cardinality === 'optional') ? ' (an optional item only has to match when the element has it)' : '';
   const existence = choice === 'required' ? `The model must contain at least one ${who}` : '';
   if (parts.length === 0) return existence ? `${existence}.` : `Every ${who} is accepted.`;
-  const main = `Every ${who} ${parts.join(', and ')}${optionalNote}`;
+  const main = `Every ${lead} ${parts.join(', and ')}${optionalNote}`;
   return existence ? `${main}. ${existence}.` : `${main}.`;
 }
 
 /** The neutral listing: names the kinds and values, claims nothing about how they combine. */
-function listing(s: Specification): string {
+function listing(s: Specification, o: WordsOptions): string {
   const one = (f: Facet): string => {
     const v = (x: Value | null) => (x ? safe(x) : 'any');
     switch (f.kind) {
-      case 'entity': return `type of element ${v(f.name)}${f.predefinedType ? ` (${v(f.predefinedType)})` : ''}`;
+      case 'entity': return `type of element ${classes(f.name)}${f.predefinedType ? ` (${v(f.predefinedType)})` : ''}`;
       case 'attribute': return `attribute ${v(f.name)}, value ${v(f.value)}`;
       case 'property': return `property ${v(f.baseName)} in ${v(f.propertySet)}, value ${v(f.value)}`;
       case 'classification': return `classification ${v(f.system)}, code ${v(f.value)}`;
       case 'material': return `material ${v(f.value)}`;
-      case 'partOf': return `part of ${v(f.entity.name)}${f.relation ? ` by ${f.relation}` : ''}`;
+      case 'partOf': return `${f.relation && RELATIONS[f.relation] ? RELATIONS[f.relation] : 'part of'} ${classes(f.entity.name)}`;
     }
+  };
+  const classes = (x: Value): string => {
+    try { return x.kind === 'simple' ? classNoun(x.value, o) : modeOf(x) === 'list' ? listOf(x).map((c) => classNoun(c, o)).join(' or ') : nameWords(x); } catch { return 'a combined condition'; }
   };
   const safe = (x: Value) => { try { return nameWords(x); } catch { return 'a combined condition'; } };
   const list = (fs: Facet[]) => (fs.length ? fs.map((f) => ('cardinality' in f && fs === s.requirements ? `${f.cardinality}: ` : '') + one(f)).join('; ') : 'nothing');
   const choice = specChoice(s);
-  const occurs = choice === 'custom' ? `Between ${s.minOccurs} and ${s.maxOccurs} matching elements are allowed.` : `Matching elements are ${choice}.`;
+  const min = Number(s.minOccurs), max = s.maxOccurs === 'unbounded' ? Infinity : Number(s.maxOccurs);
+  const occurs = choice !== 'custom' ? `Matching elements are ${choice}.`
+    : min > max ? `Its limits contradict each other: at least ${s.minOccurs} matching elements but at most ${s.maxOccurs}.`
+    : `Between ${s.minOccurs} and ${s.maxOccurs} matching elements are allowed.`;
   return `Applies to: ${list(s.applicability)}. Must have: ${list(s.requirements)}. ${occurs}`;
 }

@@ -4,6 +4,7 @@ import { Field, TextField } from './fields';
 import { modeOf, listOf, patternOf, rangeOf, lengthOf, switchMode, fromList, fromPattern, fromRange, fromLength, type ValueMode } from '../../core/ids/value';
 import type { Value } from '../../core/ids/model';
 import type { Option } from '../../core/picks';
+import { FILL_IN } from '../../core/ids/check';
 
 interface Props {
   label: string;
@@ -16,6 +17,10 @@ interface Props {
   /** Names the standard defines for this field. With them the field is a pick-list; other text stays possible. */
   options?: Option[];
   customNote?: string;
+  /** Names only some of the ticked IFC versions define (see Combo). */
+  extraOptions?: Option[];
+  /** Said while text is typed that names nothing in the list (see Combo). */
+  typedNote?: (text: string, found: number) => string | null;
   error?: string | null;
   advice?: string | null;
   dataKey?: string;
@@ -30,7 +35,9 @@ const MODES: { value: ValueMode; label: string }[] = [
 ];
 
 /** One value of an item. The field itself comes first; beside it, the choice of how the value is compared. */
-export function ValueField({ label, value, onChange, optional, base = 'xs:string', options = [], customNote, error, advice, dataKey }: Props) {
+export function ValueField({ label, value, onChange, optional, base = 'xs:string', options = [], customNote, extraOptions, typedNote, error, advice, dataKey }: Props) {
+  // What is being typed in the pick-list: a field with text in it does not say "Fill this in".
+  const [drafting, setDrafting] = useState<string | null>(null);
   // A rule with nothing filled in yet has no shape to read the choice from, so the choice just made is kept.
   const [picked, setPicked] = useState<ValueMode | null>(null);
   const mode = value?.kind === 'restriction' && value.facets.length === 0 && picked ? picked : modeOf(value);
@@ -55,11 +62,11 @@ export function ValueField({ label, value, onChange, optional, base = 'xs:string
         {mode !== 'any' && (
           <div className="value-inputs">
             {mode === 'exact' && value?.kind === 'simple' && (
-              <Combo label={label} value={value.value} options={options} customNote={customNote} onChange={(v) => onChange({ kind: 'simple', value: v })} />
+              <Combo label={label} value={value.value} options={options} customNote={customNote} extraOptions={extraOptions} typedNote={typedNote} onDraft={setDrafting} onChange={(v) => onChange({ kind: 'simple', value: v })} />
             )}
             {mode === 'list' && <ListInput label={label} value={value} base={restBase} onChange={onChange} />}
             {mode === 'pattern' && (
-              <TextField label={`${label}: pattern`} value={patternOf(value)} hint="A dot is any one character, .* is anything. DT[0-9]{2} matches DT01 and DT02."
+              <TextField label={`${label}: pattern`} value={patternOf(value)} placeholder="for example L[0-9]{2}.*" hint="A dot is any one character, .* is anything. DT[0-9]{2} matches DT01 and DT02."
                 onChange={(v) => onChange(fromPattern(v, restBase))} />
             )}
             {mode === 'range' && <RangeInput value={value} base={restBase} onChange={onChange} />}
@@ -69,7 +76,7 @@ export function ValueField({ label, value, onChange, optional, base = 'xs:string
         )}
         <div className={mode === 'any' ? 'value-mode' : 'value-mode beside'}>{select(mode === 'any')}</div>
       </div>
-      {error && <span className="msg error-msg">{error}</span>}
+      {error && !(error === FILL_IN && (drafting ?? '').trim() !== '') && <span className="msg error-msg">{error}</span>}
       {!error && advice && <span className="msg advice-msg">{advice}</span>}
     </div>
   );

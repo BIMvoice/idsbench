@@ -6,7 +6,7 @@ import { loadSchema, type IfcVersion, type SchemaData } from '@idsbench/check/if
 import { checkText } from '../src/core/checkview';
 import { readIdsText } from '../src/core/ids/read';
 import { writeIds } from '../src/core/ids/write';
-import { addSubtypes, subtypeAction, subtypeNote } from '../src/core/subtypes';
+import { addSubtypes, familyOf, subtypeAction, subtypeNote } from '../src/core/subtypes';
 import { describeSpecification } from '../src/core/ids/words';
 import { idsText, ifcText, line, nameIs, runText, specXml } from './helpers/small-model';
 import { nodeEnv } from './helpers/dom';
@@ -83,7 +83,12 @@ describe('the action that adds the subtypes as a list', () => {
     expect(subtypeNote(changed, [schema])).toBeNull();
     const entity = changed.applicability[0];
     expect(entity.kind === 'entity' && entity.name.kind === 'restriction' && entity.name.facets.map((f) => f.value)).toEqual(['IFCWALL', 'IFCWALLELEMENTEDCASE', 'IFCWALLSTANDARDCASE']);
-    expect(describeSpecification(changed).text).toBe('The model must contain at least one wall or IFCWALLELEMENTEDCASE or IFCWALLSTANDARDCASE.');
+    // Without the tables a class the sentence has no plain name for is named as it is written; with them it is a family.
+    expect(describeSpecification(changed).text).toBe('The model must contain at least one wall or element of class IFCWALLELEMENTEDCASE or element of class IFCWALLSTANDARDCASE.');
+    const family = familyOf(changed, [schema]);
+    expect(family).toEqual({ head: 'IFCWALL', others: ['IFCWALLELEMENTEDCASE', 'IFCWALLSTANDARDCASE'] });
+    expect(describeSpecification(changed, { family, className: (u) => schema.classes.get(u)?.name }).text)
+      .toBe('The model must contain at least one wall, including wall elemented case (IfcWallElementedCase) and wall standard case (IfcWallStandardCase).');
   });
 });
 

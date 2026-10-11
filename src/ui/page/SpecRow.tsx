@@ -3,8 +3,8 @@ import { failureTotalOf } from '../../core/csv';
 import { capGroups, groupFailures, ownValues } from '../../core/groups';
 import type { Issue } from '../../core/ids/check';
 import type { Specification } from '../../core/ids/model';
-import { describeSpecification } from '../../core/ids/words';
-import type { SubtypeNote } from '../../core/subtypes';
+import { describeSpecification, type WordsOptions } from '../../core/ids/words';
+import { subtypeAction, type SubtypeNote } from '../../core/subtypes';
 import { SubtypeLine } from './SubtypeLine';
 import { plural } from '../../core/shape';
 import { FAILURE_CAP, type SpecRow as Result, type SpecState } from '../../core/types';
@@ -76,12 +76,14 @@ interface Props {
   /** What the specification's classes leave out (their subtypes), when it leaves any out; and the action that adds them. */
   subtypes?: SubtypeNote | null;
   onAddSubtypes?: () => void;
+  /** What the IFC tables tell the sentence (plain class names, classes that are one class and its subtypes). */
+  words?: WordsOptions;
 }
 
 /** One specification: its sentence first, then its result, what the engine found in it, and its form when it is being edited. */
-export function SpecRow({ spec: s, index, count, result, waiting, findings, xml, issues, editing, primary, focusKey, onEdit, onChange, onMove, onDelete, subtypes, onAddSubtypes }: Props) {
+export function SpecRow({ spec: s, index, count, result, waiting, findings, xml, issues, editing, primary, focusKey, onEdit, onChange, onMove, onDelete, subtypes, onAddSubtypes, words: wordsOptions }: Props) {
   const label = s.name.trim() || 'Untitled specification';
-  const words = describeSpecification(s);
+  const words = describeSpecification(s, wordsOptions);
   // While a row is being edited its result is not shown as its state.
   const state = editing ? <span className="state waiting">Editing</span>
     : result ? <span className={`state ${result.state}`}>{STATE_TEXT[result.state]}</span>
@@ -97,7 +99,13 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
           <button type="button" className={primary ? 'btn small primary' : 'btn small'} aria-expanded={editing} aria-controls={`body-${s.uid}`} aria-label={`${editing ? 'Done editing' : 'Edit'} ${label}`} onClick={() => onEdit(!editing)}>{editing ? 'Done' : 'Edit'}</button>
         </span>
       </div>
-      {subtypes && !editing && <SubtypeLine note={subtypes} onAdd={onAddSubtypes} />}
+      {result?.coverage && !editing && (
+        <p className="note coverage-note">
+          {result.coverage.text}{' '}
+          {subtypes && subtypeAction(subtypes) && onAddSubtypes && <button type="button" className="btn small" onClick={onAddSubtypes}>{subtypeAction(subtypes)}</button>}
+        </p>
+      )}
+      {subtypes && !editing && !result?.coverage && <SubtypeLine note={subtypes} onAdd={onAddSubtypes} />}
       {result && !editing && result.note && <p className="note">{result.note}</p>}
       {result && !editing && result.schemaNote && <p className="note schema-note">{result.schemaNote}</p>}
       <Findings findings={findings} xml={xml} label={`What was found in ${label}`} />

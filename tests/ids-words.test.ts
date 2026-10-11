@@ -50,7 +50,7 @@ describe('a specification in words', () => {
   it('falls back to a neutral listing when it cannot say it truthfully', () => {
     const odd = describeSpecification(spec({ minOccurs: '2', maxOccurs: '5', requirements: [property('P', 'N')] }));
     expect(odd.mode).toBe('listing');
-    expect(odd.text).toBe('Applies to: type of element IFCWALL. Must have: required: property N in P, value any. Between 2 and 5 matching elements are allowed.');
+    expect(odd.text).toBe('Applies to: type of element wall. Must have: required: property N in P, value any. Between 2 and 5 matching elements are allowed.');
   });
   it('falls back for two entity facets', () => {
     expect(describeSpecification(spec({ applicability: [entity('IFCWALL'), entity('IFCDOOR')] })).mode).toBe('listing');

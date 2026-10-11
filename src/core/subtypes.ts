@@ -102,3 +102,35 @@ export function subtypeAction(note: SubtypeNote): string | null {
 export function addSubtypes<S extends Pick<Specification, 'applicability'>>(spec: S, note: SubtypeNote): S {
   return { ...spec, applicability: spec.applicability.map((f) => (f.kind === 'entity' ? { ...f, name: withSubtypes(f.name, note) } : f)) };
 }
+
+// ---- the default for a specification made by this page: the class and its subtypes ----
+
+/** A class and subtypes of it, as the entity facet of a specification lists them. */
+export interface Family {
+  /** The class every other one in the list is a subtype of, in capitals. */
+  head: string;
+  /** The others, in capitals, in the order the list has them. */
+  others: string[];
+}
+
+/**
+ * The class that all the other classes of the entity facet's list are subtypes of (in every ticked version that has
+ * both), or null when the facet is not such a list.
+ */
+export function familyOf(spec: Pick<Specification, 'applicability'>, schemas: SchemaData[]): Family | null {
+  const named = namedClasses(spec.applicability.find((f) => f.kind === 'entity'));
+  if (!named || named.length < 2 || schemas.length === 0) return null;
+  const head = named.find((c) => named.every((o) => o === c || schemas.some((s) => s.classes.has(o) && s.classes.has(c) && s.isA(o, c))));
+  return head ? { head, others: named.filter((c) => c !== head) } : null;
+}
+
+/** The specification applying to the class it names and its subtypes: what a specification made by this page does, unless the person narrowed it. Unchanged when there is nothing to add. */
+export function withDefaultSubtypes<S extends Pick<Specification, 'applicability'>>(spec: S, schemas: SchemaData[]): S {
+  const note = subtypeNote(spec, schemas);
+  return note && note.subtypes.length ? addSubtypes(spec, note) : spec;
+}
+
+/** The specification applying to the head class alone. */
+export function narrowToHead<S extends Pick<Specification, 'applicability'>>(spec: S, family: Family): S {
+  return { ...spec, applicability: spec.applicability.map((f) => (f.kind === 'entity' ? { ...f, name: { kind: 'simple' as const, value: family.head } } : f)) };
+}

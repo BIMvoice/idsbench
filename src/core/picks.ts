@@ -1,8 +1,18 @@
 // Pick-lists for the names the IFC standard defines, built from the tables the Check engine ships (one per IFC
 // version, loaded when first needed). The value of an option is the form that goes into the IDS file.
 import type { SchemaData } from '@idsbench/check/ifc';
+import { meaningOf } from './meanings';
 
-export interface Option { value: string; label: string }
+export interface Option {
+  value: string;
+  label: string;
+  /** A plain meaning of the name in one line, for a name people look for by what it means (see core/meanings.ts). */
+  meaning?: string;
+  /** Words people use for it, which type-ahead also finds it by. */
+  words?: string[];
+  /** Set on a name that only some of the ticked IFC versions define: those versions. Such a name is not offered with the rest. */
+  onlyIn?: string[];
+}
 
 /** "IfcWallStandardCase" reads "Wall standard case"; "Pset_WallCommon" reads "Wall common"; "FireRating" reads "Fire rating". */
 export function plainName(technical: string): string {
@@ -15,6 +25,11 @@ export function plainName(technical: string): string {
 const withPlain = (technical: string, value: string): Option => {
   const plain = plainName(technical);
   return { value, label: plain === technical ? technical : `${plain} (${technical})` };
+};
+/** An option for a property or an attribute: with its plain meaning and the words people look for it by, where the page has them. */
+const withMeaning = (technical: string): Option => {
+  const m = meaningOf(technical);
+  return m ? { ...withPlain(technical, technical), meaning: m.means, words: m.words } : withPlain(technical, technical);
 };
 const byLabel = (a: Option, b: Option) => a.label.localeCompare(b.label, 'en');
 
@@ -50,7 +65,7 @@ export function propertyOptions(s: SchemaData, psetName: string): Option[] {
   const seen = new Set<string>();
   return s.psets.filter((p) => p.name === psetName).flatMap((p) => p.props)
     .filter((p) => !seen.has(p.name) && seen.add(p.name))
-    .map((p) => withPlain(p.name, p.name));
+    .map((p) => withMeaning(p.name));
 }
 
 /** The data type the standard gives a property of a standard set, in capitals, or null. */
@@ -71,7 +86,9 @@ export function filterOptions(options: Option[], query: string, limit = 50): Opt
     if (l === q || v === q) return 0;
     if (l.startsWith(q) || v.startsWith(q) || v.startsWith(`ifc${q}`)) return 1;
     if (l.split(/[\s(_]+/).some((w) => w.startsWith(q))) return 2;
-    return l.includes(q) || v.includes(q) ? 3 : -1;
+    if (l.includes(q) || v.includes(q)) return 3;
+    // By meaning: a word people use for it ("number" for Reference), or a word of its plain meaning.
+    return o.words?.some((w) => w.toLowerCase().startsWith(q) || w.toLowerCase().includes(` ${q}`)) ? 4 : -1;
   };
   return options.map((o, i) => ({ o, r: rank(o), i })).filter((x) => x.r >= 0).sort((a, b) => a.r - b.r || a.i - b.i).slice(0, limit).map((x) => x.o);
 }
@@ -93,9 +110,13 @@ export interface Lists {
   properties: (psetName: string) => Option[];
   dataTypeFor: (psetName: string, propName: string) => string | null;
   dataTypes: Option[];
+  /** The property sets some, not all, of the ticked versions define for the class, each with those versions. Empty when one version is ticked. */
+  propertySetsPartial: (classUpper?: string) => Option[];
+  /** The properties some, not all, of the ticked versions give a property set, each with those versions. */
+  propertiesPartial: (psetName: string) => Option[];
 }
 
-const attributeOption = (n: string): Option => ({ value: n, label: plainName(n) === n ? n : `${plainName(n)} (${n})` });
+const attributeOption = (n: string): Option => withMeaning(n);
 
 /** The attribute names a class has; every attribute name of the version when no class is given or the class is not known. */
 export function attributeOptions(s: SchemaData, classUpper?: string): Option[] {
@@ -113,6 +134,8 @@ function listsOfOne(s: SchemaData): Lists {
     properties: (p) => propertyOptions(s, p),
     dataTypeFor: (p, n) => dataTypeFor(s, p, n),
     dataTypes: dataTypeOptions(s),
+    propertySetsPartial: () => [],
+    propertiesPartial: () => [],
   };
 }
 
@@ -130,6 +153,12 @@ export function listsFor(schemas: SchemaData[]): Lists {
   const each = schemas.map(listsOfOne);
   if (each.length === 1) return each[0];
   const [first, ...rest] = each;
+  // The names some versions have and others do not, each with the versions that have it, in the order of the versions.
+  const partial = (lists: Option[][]): Option[] => {
+    const found = new Map<string, { option: Option; versions: string[] }>();
+    lists.forEach((l, i) => l.forEach((o) => { const e = found.get(o.value) ?? { option: o, versions: [] }; e.versions.push(schemas[i].version); found.set(o.value, e); }));
+    return [...found.values()].filter((e) => e.versions.length < lists.length).map((e) => ({ ...e.option, onlyIn: e.versions })).sort(byLabel);
+  };
   const inAll = (own: Option[], others: Option[][]) => {
     const sets = others.map((o) => new Set(o.map((x) => x.value)));
     return own.filter((o) => sets.every((set) => set.has(o.value)));
@@ -143,5 +172,7 @@ export function listsFor(schemas: SchemaData[]): Lists {
     // A data type is filled in only when every version gives the property the same one.
     dataTypeFor: (p, n) => { const t = first.dataTypeFor(p, n); return t !== null && rest.every((l) => l.dataTypeFor(p, n) === t) ? t : null; },
     dataTypes: inAll(first.dataTypes, rest.map((l) => l.dataTypes)),
+    propertySetsPartial: (c) => partial(each.map((l) => l.propertySets(c))),
+    propertiesPartial: (p) => partial(each.map((l) => l.properties(p))),
   };
 }

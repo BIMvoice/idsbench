@@ -64,7 +64,8 @@ describe('pick-lists from the engine\'s IFC tables', async () => {
   });
   it('choosing a property set narrows the properties, and a property brings its data type', () => {
     const props = propertyOptions(s, 'Pset_WallCommon');
-    expect(props).toContainEqual({ value: 'FireRating', label: 'Fire rating (FireRating)' });
+    // A property people look for by what it means also carries its plain meaning and search words (core/meanings.ts).
+    expect(props).toContainEqual(expect.objectContaining({ value: 'FireRating', label: 'Fire rating (FireRating)', meaning: expect.stringMatching(/resists fire/) }));
     expect(props.map((o) => o.value)).not.toContain('HandicapAccessible');
     expect(propertyOptions(s, 'My_Custom_Set')).toEqual([]);
     expect(dataTypeFor(s, 'Pset_WallCommon', 'FireRating')).toBe('IFCLABEL');
@@ -124,7 +125,7 @@ describe('pick-lists hold for every IFC version the specification ticks, and for
   const values = (o: { value: string }[]) => o.map((x) => x.value);
   const entity = (cls: string) => ({ ...newFacet('entity', 'applicability'), name: simple(cls) });
   const rejected = async (versions: string[], specs: { cls: string; req?: object }[]) => {
-    const d = doc(...specs.map((x) => ({ ...newSpecification(), name: 's', ifcVersion: versions, applicability: [entity(x.cls)], requirements: x.req ? [x.req] : [] })) as never[]);
+    const d = doc(...specs.map((x) => ({ ...newSpecification(), minOccurs: '1', name: 's', ifcVersion: versions, applicability: [entity(x.cls)], requirements: x.req ? [x.req] : [] })) as never[]);
     const r = await checkIds(writeIds(d));
     return r.findings.filter((f) => f.severity === 'error').map((f) => `${f.code}: ${f.message}`);
   };

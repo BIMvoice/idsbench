@@ -3,9 +3,9 @@ import { Combo } from './Combo';
 import { SelectField, TextField } from './fields';
 import { ValueField } from './ValueField';
 import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple } from '../../core/ids/model';
-import { baseForDataType } from '../../core/ids/value';
+import { baseForDataType, fromPattern } from '../../core/ids/value';
 import type { Issue } from '../../core/ids/check';
-import type { Lists, Option } from '../../core/picks';
+import { plainName, type Lists, type Option } from '../../core/picks';
 
 export const FACET_INFO: Record<FacetKind, { name: string; about: string }> = {
   entity: { name: 'Type of element', about: 'The exact kind of element, such as a wall or a door. A class does not include its subtypes.' },
@@ -41,14 +41,23 @@ interface Props {
   several: boolean;
   /** The IFC class this specification applies to, when it names exactly one: it narrows the lists. */
   appliesTo: string;
+  /** Apply the specification to these IFC versions only (the person pressed the button beside a name that only they define). */
+  onLimitVersions?: (versions: string[]) => void;
 }
 
-export function FacetFields({ facet: f, requirement, issues, onChange, lists, several, appliesTo }: Props) {
+/** The sentence for a name typed in a standard property set that the set does not define. */
+export function noSuchProperty(pset: string, name: string, standard: Option[]): string {
+  const shown = standard.slice(0, 8).map((o) => o.value).join(', ');
+  const rest = standard.length - 8;
+  return `${pset} has no property called ${name}. Standard ones are: ${shown}${rest > 0 ? ` and ${rest} more` : ''}. Use a custom property set for your own properties.`;
+}
+
+export function FacetFields({ facet: f, requirement, issues, onChange, lists, several, appliesTo, onLimitVersions }: Props) {
   const notListed = several ? NOT_IN_ALL : NOT_STANDARD;
   const err = (k: string) => issues.find((i) => i.key === `${f.uid}.${k}` && i.level === 'error')?.message ?? null;
   const adv = (k: string) => issues.find((i) => i.key === `${f.uid}.${k}` && i.level === 'advice')?.message ?? null;
   const set = (patch: Partial<Record<string, unknown>>) => onChange({ ...f, ...patch } as Facet);
-  const vf = (label: string, key: string, value: Value | null, optional: boolean, apply: (v: Value | null) => void, extra: { base?: string; options?: Option[]; customNote?: string } = {}) => (
+  const vf = (label: string, key: string, value: Value | null, optional: boolean, apply: (v: Value | null) => void, extra: { base?: string; options?: Option[]; customNote?: string; extraOptions?: Option[]; typedNote?: (text: string, found: number) => string | null } = {}) => (
     <ValueField key={key} dataKey={`${f.uid}.${key}`} label={label} value={value} optional={optional} onChange={(v) => apply(v)} error={err(key)} advice={adv(key)} {...extra} />
   );
   const classes = lists?.classes ?? NONE;
@@ -60,6 +69,13 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
   const psets = useMemo(() => (lists && f.kind === 'property' ? lists.propertySets(appliesTo || undefined) : NONE), [lists, f.kind, appliesTo]);
   const psetName = f.kind === 'property' ? text(f.propertySet) : '';
   const props = useMemo(() => (lists && psetName ? lists.properties(psetName) : NONE), [lists, psetName]);
+  const psetsPartial = useMemo(() => (lists && f.kind === 'property' ? lists.propertySetsPartial(appliesTo || undefined) : NONE), [lists, f.kind, appliesTo]);
+  const propsPartial = useMemo(() => (lists && psetName ? lists.propertiesPartial(psetName) : NONE), [lists, psetName]);
+  const baseName = f.kind === 'property' ? text(f.baseName) : '';
+  // A name that only some of the ticked versions define: the file would be rejected for the others, so the person is told which have it.
+  const onlySome = f.kind === 'property' ? [...psetsPartial.filter((o) => o.value === psetName), ...propsPartial.filter((o) => o.value === baseName)][0] ?? null : null;
+  // A property typed into a standard set that does not define it, said before the field is left (and after).
+  const mentionable = (t: string) => (props.length > 0 && !propsPartial.some((o) => o.value === t) ? noSuchProperty(psetName, t, props) : null);
   const allowed = requirement ? allowedCardinalities(f.kind) : null;
   return (
     <div className="facet-fields">
@@ -70,18 +86,29 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
       {f.kind === 'attribute' && <>
         {vf('Attribute', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: attributes, customNote: requirement && appliesTo ? 'Not an attribute of the class this specification applies to.' : notListed })}
         {vf('Value', 'value', f.value, true, (v) => set({ value: v }))}
+        {requirement && f.value === null && text(f.name) && (
+          <p className="next-choice">
+            <button type="button" className="btn small quiet" onClick={() => set({ value: fromPattern('', 'xs:string') })}>...and the {plainName(text(f.name)).toLowerCase()} must follow a pattern</button>
+          </p>
+        )}
       </>}
       {f.kind === 'classification' && <>
         {vf('Classification system', 'system', f.system, false, (v) => set({ system: v ?? simple() }))}
         {vf('Code', 'value', f.value, true, (v) => set({ value: v }))}
       </>}
       {f.kind === 'property' && <>
-        {vf('Property set', 'propertySet', f.propertySet, false, (v) => set({ propertySet: v ?? simple() }), { options: psets, customNote: appliesTo || several ? 'A custom property set: not one the IFC standard defines for this class and the IFC versions ticked.' : 'A custom property set: it is not one the IFC standard defines.' })}
+        {vf('Property set', 'propertySet', f.propertySet, false, (v) => set({ propertySet: v ?? simple() }), { options: psets, extraOptions: psetsPartial, customNote: appliesTo || several ? 'A custom property set: not one the IFC standard defines for this class and the IFC versions ticked.' : 'A custom property set: it is not one the IFC standard defines.' })}
         {vf('Property', 'baseName', f.baseName, false, (v) => {
           // A property of a standard set brings its data type with it.
           const type = lists && v?.kind === 'simple' && psetName ? lists.dataTypeFor(psetName, v.value) : null;
           set(type ? { baseName: v ?? simple(), dataType: type } : { baseName: v ?? simple() });
-        }, { options: props, customNote: props.length ? 'A custom property: this property set does not define it.' : undefined })}
+        }, { options: props, extraOptions: propsPartial, typedNote: (t, found) => (found === 0 ? mentionable(t) : null), customNote: mentionable(baseName) ?? undefined })}
+        {onlySome?.onlyIn && (
+          <p className="msg advice-msg limit-versions">
+            {onlySome.value} is defined by {onlySome.onlyIn.join(' and ')} only, and this specification also lists the other IFC versions, so the check would refuse it.{' '}
+            <button type="button" className="btn small" onClick={() => onLimitVersions?.(onlySome.onlyIn!)}>Apply this specification to {onlySome.onlyIn.join(' and ')} only</button>
+          </p>
+        )}
         <Combo label="Data type" dataKey={`${f.uid}.dataType`} value={f.dataType ?? ''} options={dataTypes} hint="Needed when you give a value."
           error={err('dataType')} advice={adv('dataType')} onChange={(v) => set({ dataType: v === '' ? null : v })} />
         {vf('Value', 'value', f.value, true, (v) => set({ value: v }), { base: baseForDataType(f.dataType) ?? 'xs:string' })}

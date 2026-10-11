@@ -30,7 +30,7 @@ function usable(d: Draft): boolean {
   try {
     writeIds(d.doc);
     checkDocument(d.doc);
-    d.doc.specifications.forEach(describeSpecification);
+    d.doc.specifications.forEach((s) => describeSpecification(s));
   } catch { return false; }
   if (d.source !== undefined && (typeof d.source?.text !== 'string' || !Array.isArray(d.source.specUids))) return false;
   return true;

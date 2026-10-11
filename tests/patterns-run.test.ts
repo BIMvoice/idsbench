@@ -32,46 +32,46 @@ const card = (c: Cardinality) => (s: Specification) => req(s, 0, { cardinality: 
 /** What each pattern is, then the choices that follow it. `meets` and `fails` are bodies of IFC4 models. */
 const PLAN: Record<string, { says: string; meets: string; fails: string; choices: Choice[] }> = {
   property: {
-    says: 'Every wall must have the property FireRating in Pset_WallCommon. The model must contain at least one wall.',
+    says: 'Every wall must have the property FireRating in Pset_WallCommon.',
     meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1),
     choices: [
-      { title: 'a value', change: (s) => req(s, 0, { value: simple('2HR') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon set to "2HR". The model must contain at least one wall.', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
-      { title: 'a list of values', change: (s) => req(s, 0, { value: fromList(['1HR', '2HR'], 'xs:string') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR". The model must contain at least one wall.', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '3HR') },
-      { title: 'a pattern', change: (s) => req(s, 0, { value: fromPattern('[0-9]HR', 'xs:string') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon with a value matching the pattern "[0-9]HR". The model must contain at least one wall.', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', 'two hours') },
-      { title: 'the item optional', change: (s) => card('optional')(req(s, 0, { value: simple('2HR') } as never)), says: 'Every wall may have the property FireRating in Pset_WallCommon set to "2HR" (an optional item only has to match when the element has it). The model must contain at least one wall.', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
-      { title: 'the item prohibited', change: (s) => card('prohibited')(req(s, 0, {} as never)), says: 'Every wall must not have the property FireRating in Pset_WallCommon. The model must contain at least one wall.', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR') },
-      { title: 'the specification optional', change: (s) => ({ ...s, ...occursFor('optional') }), says: 'Every wall must have the property FireRating in Pset_WallCommon.', meets: slab(1), fails: wall(1) },
+      { title: 'a value', change: (s) => req(s, 0, { value: simple('2HR') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon set to "2HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
+      { title: 'a list of values', change: (s) => req(s, 0, { value: fromList(['1HR', '2HR'], 'xs:string') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '3HR') },
+      { title: 'a pattern', change: (s) => req(s, 0, { value: fromPattern('[0-9]HR', 'xs:string') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon with a value matching the pattern "[0-9]HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', 'two hours') },
+      { title: 'the item optional', change: (s) => card('optional')(req(s, 0, { value: simple('2HR') } as never)), says: 'Every wall may have the property FireRating in Pset_WallCommon set to "2HR" (an optional item only has to match when the element has it).', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
+      { title: 'the item prohibited', change: (s) => card('prohibited')(req(s, 0, {} as never)), says: 'Every wall must not have the property FireRating in Pset_WallCommon.', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR') },
+      { title: 'the specification required', change: (s) => ({ ...s, ...occursFor('required') }), says: 'Every wall must have the property FireRating in Pset_WallCommon. The model must contain at least one wall.', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: slab(1) },
       { title: 'the specification prohibited', change: (s) => ({ ...s, ...occursFor('prohibited') }), says: 'The model must not contain any wall.', meets: slab(1), fails: wall(1) },
     ],
   },
   classification: {
-    says: 'Every door must have a classification in Uniclass 2015. The model must contain at least one door.',
+    says: 'Every door must have a classification in Uniclass 2015.',
     meets: door(1) + classified(1, 'Uniclass 2015', 'Ss_25_10'), fails: door(1) + classified(1, 'OmniClass', '23-17 11 00'),
     choices: [
-      { title: 'a code', change: (s) => req(s, 0, { value: simple('Ss_25_10') } as never), says: 'Every door must have a classification in Uniclass 2015 with the code "Ss_25_10". The model must contain at least one door.', meets: door(1) + classified(1, 'Uniclass 2015', 'Ss_25_10'), fails: door(1) + classified(1, 'Uniclass 2015', 'Ss_30') },
-      { title: 'a list of codes', change: (s) => req(s, 0, { value: fromList(['Ss_25_10', 'Ss_25_20'], 'xs:string') } as never), says: 'Every door must have a classification in Uniclass 2015 with the code one of "Ss_25_10", "Ss_25_20". The model must contain at least one door.', meets: door(1) + classified(1, 'Uniclass 2015', 'Ss_25_20'), fails: door(1) + classified(1, 'Uniclass 2015', 'Ss_99') },
-      { title: 'the item optional', change: card('optional'), says: 'Every door may have a classification in Uniclass 2015 (an optional item only has to match when the element has it). The model must contain at least one door.', meets: door(1), fails: door(1) + classified(1, 'OmniClass', 'x') },
+      { title: 'a code', change: (s) => req(s, 0, { value: simple('Ss_25_10') } as never), says: 'Every door must have a classification in Uniclass 2015 with the code "Ss_25_10".', meets: door(1) + classified(1, 'Uniclass 2015', 'Ss_25_10'), fails: door(1) + classified(1, 'Uniclass 2015', 'Ss_30') },
+      { title: 'a list of codes', change: (s) => req(s, 0, { value: fromList(['Ss_25_10', 'Ss_25_20'], 'xs:string') } as never), says: 'Every door must have a classification in Uniclass 2015 with the code one of "Ss_25_10", "Ss_25_20".', meets: door(1) + classified(1, 'Uniclass 2015', 'Ss_25_20'), fails: door(1) + classified(1, 'Uniclass 2015', 'Ss_99') },
+      { title: 'the item optional', change: card('optional'), says: 'Every door may have a classification in Uniclass 2015 (an optional item only has to match when the element has it).', meets: door(1), fails: door(1) + classified(1, 'OmniClass', 'x') },
       { title: 'the specification prohibited', change: (s) => ({ ...s, ...occursFor('prohibited') }), says: 'The model must not contain any door.', meets: wall(1), fails: door(1) },
     ],
   },
   material: {
-    says: 'Every slab must have a material. The model must contain at least one slab.',
+    says: 'Every slab must have a material.',
     meets: slab(1) + material(1, 'Concrete'), fails: slab(1),
     choices: [
-      { title: 'a named material', change: (s) => req(s, 0, { value: simple('Concrete') } as never), says: 'Every slab must have the material "Concrete". The model must contain at least one slab.', meets: slab(1) + material(1, 'Concrete'), fails: slab(1) + material(1, 'Timber') },
-      { title: 'one of several materials', change: (s) => req(s, 0, { value: fromList(['Concrete', 'Steel'], 'xs:string') } as never), says: 'Every slab must have the material one of "Concrete", "Steel". The model must contain at least one slab.', meets: slab(1) + material(1, 'Steel'), fails: slab(1) + material(1, 'Timber') },
-      { title: 'the specification optional', change: (s) => ({ ...s, ...occursFor('optional') }), says: 'Every slab must have a material.', meets: wall(1), fails: slab(1) },
+      { title: 'a named material', change: (s) => req(s, 0, { value: simple('Concrete') } as never), says: 'Every slab must have the material "Concrete".', meets: slab(1) + material(1, 'Concrete'), fails: slab(1) + material(1, 'Timber') },
+      { title: 'one of several materials', change: (s) => req(s, 0, { value: fromList(['Concrete', 'Steel'], 'xs:string') } as never), says: 'Every slab must have the material one of "Concrete", "Steel".', meets: slab(1) + material(1, 'Steel'), fails: slab(1) + material(1, 'Timber') },
+      { title: 'the specification required', change: (s) => ({ ...s, ...occursFor('required') }), says: 'Every slab must have a material. The model must contain at least one slab.', meets: slab(1) + material(1, 'Concrete'), fails: wall(1) },
       { title: 'the specification prohibited', change: (s) => ({ ...s, ...occursFor('prohibited') }), says: 'The model must not contain any slab.', meets: wall(1), fails: slab(1) },
     ],
   },
   name: {
-    says: 'Every space must have the attribute Name with a value matching the pattern "L[0-9]{2}.*". The model must contain at least one space.',
-    meets: space(1, 'L01 Hall'), fails: space(1, 'Hall'),
+    says: 'Every space must have the attribute Name.',
+    meets: space(1, 'Hall'), fails: `#1=IFCSPACE('${G(1)}',$,$,$,$,$,$,$,$,$,$);\n`,
     choices: [
-      { title: 'an exact name', change: (s) => req(s, 0, { value: simple('L01 Hall') } as never), says: 'Every space must have the attribute Name set to "L01 Hall". The model must contain at least one space.', meets: space(1, 'L01 Hall'), fails: space(1, 'L02 Hall') },
-      { title: 'a list of names', change: (s) => req(s, 0, { value: fromList(['Hall', 'Lobby'], 'xs:string') } as never), says: 'Every space must have the attribute Name set to one of "Hall", "Lobby". The model must contain at least one space.', meets: space(1, 'Lobby'), fails: space(1, 'Office') },
-      { title: 'any name', change: (s) => req(s, 0, { value: null } as never), says: 'Every space must have the attribute Name. The model must contain at least one space.', meets: space(1, 'x'), fails: `#1=IFCSPACE('${G(1)}',$,$,$,$,$,$,$,$,$,$);\n` },
-      { title: 'the specification optional', change: (s) => ({ ...s, ...occursFor('optional') }), says: 'Every space must have the attribute Name with a value matching the pattern "L[0-9]{2}.*".', meets: wall(1), fails: space(1, 'Hall') },
+      { title: 'an exact name', change: (s) => req(s, 0, { value: simple('L01 Hall') } as never), says: 'Every space must have the attribute Name set to "L01 Hall".', meets: space(1, 'L01 Hall'), fails: space(1, 'L02 Hall') },
+      { title: 'a list of names', change: (s) => req(s, 0, { value: fromList(['Hall', 'Lobby'], 'xs:string') } as never), says: 'Every space must have the attribute Name set to one of "Hall", "Lobby".', meets: space(1, 'Lobby'), fails: space(1, 'Office') },
+      { title: 'a pattern, which is a choice after the start', change: (s) => req(s, 0, { value: fromPattern('L[0-9]{2}.*', 'xs:string') } as never), says: 'Every space must have the attribute Name with a value matching the pattern "L[0-9]{2}.*".', meets: space(1, 'L01 Hall'), fails: space(1, 'Hall') },
+      { title: 'the specification required', change: (s) => ({ ...s, ...occursFor('required') }), says: 'Every space must have the attribute Name. The model must contain at least one space.', meets: space(1, 'Hall'), fails: wall(1) },
     ],
   },
   prohibited: {
@@ -124,8 +124,8 @@ const partOfSpec = (subject: string, relation: string, whole: string, where: 're
   const part = { ...newFacet('partOf', where), relation, entity: { name: simple(whole), predefinedType: null } } as Facet;
   const entity = { ...newFacet('entity', 'applicability'), name: simple(subject) } as Facet;
   return where === 'requirements'
-    ? { ...newSpecification(), name: 'S', applicability: [entity], requirements: [part], ...extra }
-    : { ...newSpecification(), name: 'S', applicability: [entity, part], requirements: [], ...extra };
+    ? { ...newSpecification(), minOccurs: '1', name: 'S', applicability: [entity], requirements: [part], ...extra }
+    : { ...newSpecification(), minOccurs: '1', name: 'S', applicability: [entity, part], requirements: [], ...extra };
 };
 
 describe('part of, in the sentence and in the run', () => {

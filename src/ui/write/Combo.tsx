@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { exactOption, filterOptions, type Option } from '../../core/picks';
+import { FILL_IN } from '../../core/ids/check';
 
 interface Props {
   label: string;
@@ -13,25 +14,39 @@ interface Props {
   dataKey?: string;
   /** Said under the field when the text is not one of the options. */
   customNote?: string;
+  /** Names only some of the ticked IFC versions define: offered after the rest, each with its versions. */
+  extraOptions?: Option[];
+  /** Said under the field while text is being typed that is not one of the options: given the text and how many options it finds. */
+  typedNote?: (text: string, found: number) => string | null;
+  /** Told the text being typed (null when the field is not being edited), so that the message around the field can follow it. */
+  onDraft?: (text: string | null) => void;
 }
+
+const versionLabel = (o: Option) => (o.onlyIn ? `${o.label} (only ${o.onlyIn.join(', ')})` : o.label);
 
 /**
  * A pick-list with type-ahead (the ARIA combobox pattern with a list popup). Choosing an option writes its technical
  * form; text that names no option is kept as typed, so a custom name stays possible.
  */
-export function Combo({ label, value, options, onChange, hint, error, advice, dataKey, customNote }: Props) {
+export function Combo({ label, value, options, onChange, hint, error, advice, dataKey, customNote, extraOptions = [], typedNote, onDraft }: Props) {
   const id = useId();
   const listId = `${id}-list`;
   const [text, setText] = useState<string | null>(null); // null: not being edited, show the value
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
-  const chosen = options.find((o) => o.value === value) ?? null;
-  const shown = text ?? (chosen ? chosen.label : value);
-  const matches = open ? filterOptions(options, text ?? '') : [];
+  const chosen = options.find((o) => o.value === value) ?? extraOptions.find((o) => o.value === value) ?? null;
+  const shown = text ?? (chosen ? (chosen.onlyIn ? chosen.value : chosen.label) : value);
+  const typed = (text ?? '').trim();
+  const matches = open ? [...filterOptions(options, text ?? ''), ...filterOptions(extraOptions, text ?? '', 20)].slice(0, 50) : [];
+  const found = typed ? filterOptions(options, typed).length + filterOptions(extraOptions, typed).length : 0;
+  useEffect(() => { onDraft?.(text); }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
   const expanded = open && matches.length > 0;
   const custom = value !== '' && options.length > 0 && !chosen && text === null;
-  const message = error ?? advice ?? (custom ? customNote : null) ?? null;
+  // A field with text in it never says "Fill this in": the text is not taken into the file until the field is left, but it is there.
+  const shownError = error === FILL_IN && typed ? null : error;
+  const typedMessage = typed && typedNote && !exactOption(options, typed) ? typedNote(typed, found) : null;
+  const message = shownError ?? advice ?? typedMessage ?? (custom ? customNote : null) ?? null;
 
   // The list of a pick-list is loaded when the form opens, and a quick typist is there first: what is typed before the
   // list has arrived is taken as it is. When the list arrives, text typed here that names one of its options (a plain
@@ -78,7 +93,7 @@ export function Combo({ label, value, options, onChange, hint, error, advice, da
         ref={input} id={id} type="text" role="combobox" autoComplete="off" spellCheck={false}
         aria-expanded={expanded} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={expanded ? `${id}-o${active}` : undefined}
-        aria-invalid={error ? true : undefined} aria-describedby={message || hint ? `${id}-msg` : undefined}
+        aria-invalid={shownError ? true : undefined} aria-describedby={message || hint ? `${id}-msg` : undefined}
         value={shown}
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => {
@@ -94,11 +109,12 @@ export function Combo({ label, value, options, onChange, hint, error, advice, da
         {matches.map((o, i) => (
           <li key={o.value} id={`${id}-o${i}`} role="option" aria-selected={i === active} className={i === active ? 'combo-option active' : 'combo-option'}
             onMouseDown={(e) => { e.preventDefault(); pick(o); }} onMouseEnter={() => setActive(i)}>
-            {o.label}
+            {versionLabel(o)}
+            {o.meaning && <span className="combo-meaning">{o.meaning}</span>}
           </li>
         ))}
       </ul>
-      <span id={`${id}-msg`} className={error ? 'msg error-msg' : message ? 'msg advice-msg' : 'hint'}>{message ?? hint ?? ''}</span>
+      <span id={`${id}-msg`} className={shownError ? 'msg error-msg' : message ? 'msg advice-msg' : 'hint'}>{message ?? hint ?? ''}</span>
     </div>
   );
 }

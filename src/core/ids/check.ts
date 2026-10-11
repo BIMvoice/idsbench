@@ -45,10 +45,13 @@ export function patternProblem(p: string): string | null {
   }
 }
 
+/** What a required field says while it is empty. */
+export const FILL_IN = 'Fill this in.';
+
 /** Problems with one value, as [message] list. `required` means an empty simple value is not allowed. */
 export function valueProblems(v: Value | null, required: boolean): string[] {
-  if (v === null) return required ? ['Fill this in.'] : [];
-  if (v.kind === 'simple') return required && v.value.trim() === '' ? ['Fill this in.'] : [];
+  if (v === null) return required ? [FILL_IN] : [];
+  if (v.kind === 'simple') return required && v.value.trim() === '' ? [FILL_IN] : [];
   const out: string[] = [];
   if (v.facets.length === 0) return ['Say how to match: add a value, a pattern, a range or a length.'];
   switch (modeOf(v)) {

@@ -26,16 +26,32 @@ export function useSchema(version: IfcVersion | null): SchemaData | null {
  * them have loaded, so a list is never shown for fewer versions than are ticked.
  */
 export function useLists(listed: string[]): Lists | null {
+  const schemas = useSchemas(listed);
+  return useMemo(() => (schemas ? listsFor(schemas) : null), [schemas]);
+}
+
+/** The IFC tables of every version a specification lists (those IDS knows), in the order ticked; null until all have loaded. */
+export function useSchemas(listed: string[]): SchemaData[] | null {
   const key = versionsFor(listed).join(' ');
   const [got, setGot] = useState<{ key: string; schemas: SchemaData[] } | null>(null);
   useEffect(() => {
     let live = true;
-    import('@idsbench/check/ifc').then((m) => Promise.all((key.split(' ') as IfcVersion[]).map((v) => m.loadSchema(v))))
-      .then((schemas) => { if (live) setGot({ key, schemas }); }, (e) => console.error(e));
+    loadSchemas(key.split(' ') as IfcVersion[]).then((schemas) => { if (live) setGot({ key, schemas }); }, (e) => console.error(e));
     return () => { live = false; };
   }, [key]);
-  const schemas = got && got.key === key ? got.schemas : null;
-  return useMemo(() => (schemas ? listsFor(schemas) : null), [schemas]);
+  return got && got.key === key ? got.schemas : null;
+}
+
+/** The IFC tables of these versions, from the Check engine's own data. */
+export async function loadSchemas(versions: IfcVersion[]): Promise<SchemaData[]> {
+  const m = await import('@idsbench/check/ifc');
+  return Promise.all(versions.map((v) => m.loadSchema(v)));
+}
+
+/** A class as the standard writes it ("IfcWall") from its name in capitals, in any of these tables; undefined when no table has it. */
+export function classNameIn(schemas: Iterable<SchemaData | undefined>): (upper: string) => string | undefined {
+  const all = [...schemas].filter((s): s is SchemaData => !!s);
+  return (upper) => all.map((s) => s.classes.get(upper)?.name).find(Boolean);
 }
 
 /**

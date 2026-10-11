@@ -69,6 +69,12 @@ export interface Specification {
    * what the opened file says, because the file's own text of it holds something the standard does not allow.
    */
   rewrite?: true;
+  /** Set on a specification this page made (from a starter shape or an empty form), never on one read from a file. */
+  made?: true;
+  /** Set while the name is the one this page worked out from the content: it follows the content until the person types a name. */
+  autoName?: true;
+  /** Set when the person narrowed the class to exactly that class: choosing another class then does not bring its subtypes in. */
+  exact?: true;
 }
 
 export interface Info {
@@ -113,10 +119,16 @@ export function newFacet(kind: FacetKind, where: 'applicability' | 'requirements
   void where;
 }
 
+/**
+ * A specification made by this page. It ticks all three IFC versions and is optional: it applies to every matching
+ * element the model has, and a model with none is not failed for that. (The standard's own default for a file that
+ * says nothing is "required"; that is what a file read from disk still gets, see ids/read.ts.)
+ */
 export function newSpecification(): Specification {
   return {
-    uid: newUid(), name: '', ifcVersion: ['IFC4'], identifier: null, description: null, instructions: null,
-    minOccurs: '1', maxOccurs: 'unbounded', applicability: [], requirements: [], requirementsDescription: null,
+    uid: newUid(), name: '', ifcVersion: [...IFC_VERSIONS], identifier: null, description: null, instructions: null,
+    minOccurs: '0', maxOccurs: 'unbounded', applicability: [], requirements: [], requirementsDescription: null,
+    made: true,
   };
 }
 

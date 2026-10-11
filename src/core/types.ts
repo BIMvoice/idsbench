@@ -26,6 +26,14 @@ export interface FailingElement {
   found?: (string | null)[];
 }
 
+/** Elements in the model of a class beside the ones a specification names (a subtype, a supertype or a sibling), which it does not cover. */
+export interface Coverage {
+  /** The sentence for the row and for the CSV. */
+  text: string;
+  /** Those classes, most elements first, with how many elements of each the model has. */
+  related: { name: string; upper: string; count: number; how: 'subtype' | 'supertype' | 'sibling' }[];
+}
+
 export interface SpecRow {
   name: string;
   state: SpecState;
@@ -56,6 +64,8 @@ export interface SpecRow {
   wholeFailure?: string;
   /** How many failing elements the page does not list. Absent in a row built by hand. */
   notListed?: number;
+  /** Set when the model holds elements the specification does not cover because it names their class's supertype, subtype or sibling (see core/coverage.ts). Counts and verdict are not affected by it. */
+  coverage?: Coverage;
 }
 
 /** The failing elements of one specification as the text of the two downloads, kept as pieces the browser may hold on disk. */
