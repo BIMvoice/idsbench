@@ -17,7 +17,7 @@ import {
 
 const CHOICES: { value: Cardinality; label: string; about: (what: string) => string }[] = [
   { value: 'optional', label: 'That is fine', about: (w) => `The specification applies to all ${w} the model has. A model with none passes.` },
-  { value: 'required', label: 'That is a failure', about: (w) => `The model must contain at least one of the ${w}, and each must meet "Must have".` },
+  { value: 'required', label: 'That is a failure', about: (w) => `The model must contain ${w}, at least one, and each must meet "Must have".` },
   { value: 'prohibited', label: 'None may exist', about: (w) => `The model must not contain any ${w}. "Must have" is not checked.` },
 ];
 const KINDS: FacetKind[] = ['entity', 'attribute', 'classification', 'property', 'material', 'partOf'];

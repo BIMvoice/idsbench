@@ -58,7 +58,7 @@ try {
   await click(s3.getByRole('region', { name: 'Must have' }).getByRole('button', { name: 'Property', exact: true }));
   const prop = s3.getByRole('region', { name: 'Must have' }).locator('li.facet').nth(1);
   await pickAfterTyping(prop, 'Property set', 'space common');
-  await pickAfterTyping(prop, 'Property', 'number');       // ... and a number: found by what it means, not by its name Reference
+  await pickAfterTyping(prop, 'Property', 'type mark');    // ... and the reference of its type: found by what it means, not by its name Reference (the room number is the Name)
   names.push(await s3.getByLabel('Name', { exact: true }).inputValue());
   await add('Elements must not exist in the model');       // no building element proxies
   names.push(await spec(3).getByLabel('Name', { exact: true }).inputValue());
