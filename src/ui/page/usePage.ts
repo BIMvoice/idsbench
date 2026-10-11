@@ -21,6 +21,7 @@ import { blankDocument, type IdsDocument } from '../../core/ids/model';
 import { readIdsText } from '../../core/ids/read';
 import { writeIds } from '../../core/ids/write';
 import { outline, placeFindings, targetOf, type Outline, type Placed, type Target } from '../../core/place';
+import { plainFinding } from '../../core/plain';
 import { kindOfFile, type FileKind } from '../../core/sniff';
 import type { AppErrorInfo } from '../../core/types';
 import type { Phase } from '../../core/validate';
@@ -207,11 +208,16 @@ export function usePage() {
     for (const [f, t] of targets) {
       if (t.kind !== 'field' && t.kind !== 'info') continue;
       if (own.some((i) => i.key === t.key && i.level === 'error')) continue;
-      fromEngine.push({ key: t.key, where: '', message: f.message, level: f.severity === 'error' ? 'error' : 'advice' });
+      fromEngine.push({ key: t.key, where: '', message: plainFinding(f).plain, level: f.severity === 'error' ? 'error' : 'advice' });
     }
     return [...own, ...fromEngine];
   }, [doc, targets]);
   const guardErrors = useMemo(() => (doc ? checkDocument(doc).filter((i) => i.level === 'error') : []), [doc]);
+  /** The form's own problems that the engine does not already say in the same words: they join the list of things to fix, so that the count in the header and the list agree. */
+  const extraGuard = useMemo(() => {
+    const said = new Set((report?.findings ?? []).map((f) => plainFinding(f).plain));
+    return guardErrors.filter((g) => !said.has(g.message));
+  }, [guardErrors, report]);
 
   // ---- actions ----
   const discardOk = useCallback(() => !dirty || window.confirm('You have unsaved changes. Discard them?'), [dirty]);
@@ -321,6 +327,13 @@ export function usePage() {
     setUndo(null);
   };
 
+  /** Open the field a problem of the form's own concerns ("About this IDS" for a key of the info, else the specification the key names). */
+  const goToIssue = (key: string) => {
+    if (!doc) return;
+    if (key.startsWith('info.')) { setEditing('about'); setFocusKey((p) => ({ key, n: (p?.n ?? 0) + 1 })); return; }
+    const owner = doc.specifications.find((s) => key.startsWith(`${s.uid}.`));
+    if (owner) { setEditing(owner.uid); setFocusKey((p) => ({ key, n: (p?.n ?? 0) + 1 })); }
+  };
   const goTo = (t: Target) => {
     if (!doc) return;
     if (t.kind === 'info') { setEditing('about'); setFocusKey((p) => ({ key: t.key, n: (p?.n ?? 0) + 1 })); }
@@ -334,9 +347,11 @@ export function usePage() {
 
   // A file that was opened and not changed is saved as its own bytes: the form's own rules (a title, for one) say
   // what a change must not leave behind, and do not stand between a person and the file they opened.
+  /** The same count the list of things to fix shows. */
+  const thingsToFix = (report?.findings.length ?? 0) + extraGuard.length;
   const downloadBlocked: string | null = !doc ? null
-    : guardErrors.length > 0 && !(asOpened && source) ? `Download is off until this is fixed: ${guardErrors[0].where}: ${guardErrors[0].message}${guardErrors.length > 1 ? ` (and ${guardErrors.length - 1} more)` : ''}`
-    : report && !report.valid ? `Download is off until the IDS file is valid: ${report.findings.find((f) => f.severity === 'error')?.message ?? ''}`
+    : guardErrors.length > 0 && !(asOpened && source) ? `Download is off until this is fixed: ${(extraGuard[0] ?? guardErrors[0]).where}: ${(extraGuard[0] ?? guardErrors[0]).message}${thingsToFix > 1 ? ` (and ${thingsToFix - 1} more)` : ''}`
+    : report && !report.valid ? `Download is off until the IDS file is valid: ${plainFinding(report.findings.find((f) => f.severity === 'error') ?? { code: '', message: '' }).plain}`
     : null;
 
   /**
@@ -359,7 +374,7 @@ export function usePage() {
       if (view.kind === 'sentence') { setSaveProblem(view.text); return null; }
       if (view.errors > 0) {
         const first = view.findings.find((f) => f.severity === 'error');
-        setSaveProblem(`The Check engine found ${view.errors} ${view.errors === 1 ? 'problem' : 'problems'} in this IDS, so it was not saved. ${first ? first.message : ''}`);
+        setSaveProblem(`The Check engine found ${view.errors} ${view.errors === 1 ? 'problem' : 'problems'} in this IDS, so it was not saved. ${first ? plainFinding(first).plain : ''}`);
         return null;
       }
       if (asOpened && source) return { parts: [source.file], name };
@@ -411,9 +426,9 @@ export function usePage() {
     notice, clearNotice: () => setNotice(null), draftKept, saveNote, leftOut,
     check, report, valid, checking: text !== null && !blank && check === null,
     run, running, phase, runnable,
-    placed, targets, issues, guardErrors, lines,
+    placed, targets, issues, guardErrors, extraGuard, lines,
     editing, setEditing, focusKey, undo, saveProblem, downloadBlocked,
-    openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, save, idsBlob, textOf, asInFile, kept,
+    openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, goToIssue, save, idsBlob, textOf, asInFile, kept,
     setModel, clearRefusal: () => setRefusal(null),
     runAgain: () => { freshNext.current = true; setNonce((n) => n + 1); },
     /** The worker has been silent too long: end it, and with it the model it holds, and run again from the file. */

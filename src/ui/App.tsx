@@ -263,7 +263,6 @@ export function App() {
             </p>
           )}
           <ToFix page={page} />
-          {report && page.text !== null && <Findings findings={shownFindings(page.placed?.file)} xml={page.text} label="What was found in the file as a whole" />}
           {report && report.findings.length > ROW_CAP && (
             <p className="note-plain">The first {ROW_CAP} of {report.findings.length.toLocaleString('en')} are listed on this page. The downloaded report lists all of them.</p>
           )}
