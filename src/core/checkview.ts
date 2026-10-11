@@ -102,7 +102,7 @@ export function sentenceForText(text: string): string | null {
   return null;
 }
 
-/** Turn the engine's answer for `xml` into what the Check tab shows. */
+/** Turn the engine's answer for `xml` into what the page shows. */
 export function describeResult(xml: string, result: { valid: boolean; idsVersion?: string; findings: Finding[] }): CheckView {
   const first = result.findings[0];
   const t = xml.replace(/^﻿/, '').trimStart();

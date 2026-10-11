@@ -1,5 +1,6 @@
-// Runs both browser scripts against the built site (run `npm run build` first): the Write tab, then Check, Run and the
-// hand-offs between the three tabs. Headless Chromium with every non-local request blocked.
+// Runs both browser scripts against the built site (run `npm run build` first): writing and editing an IDS file,
+// then checking it, running a model against it and fixing it in place, all on the one page. Headless Chromium with
+// every non-local request blocked. scripts/ASSERTIONS.md lists what is asserted.
 // Usage: npm run check:browser -- <clone of buildingSMART/IDS>      (set CHROMIUM_PATH to use an already installed browser)
 import fs from 'node:fs';
 import path from 'node:path';

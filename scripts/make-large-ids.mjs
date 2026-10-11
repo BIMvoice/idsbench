@@ -1,4 +1,4 @@
-// Writes an IDS 1.0 file with many specifications, for timing the Check tab.
+// Writes an IDS 1.0 file with many specifications, for timing the check of a large file.
 // Usage: node scripts/make-large-ids.mjs <count> <output file>
 import fs from 'node:fs';
 const count = Number(process.argv[2] ?? 2000);

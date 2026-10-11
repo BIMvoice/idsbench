@@ -3,7 +3,7 @@
 // writer never hands Check a file Check would reject (tests/writer-accepted-by-check.test.ts pins each rule
 // against the engine). "advice" is a rule from the user manual that the engine does not report; it is shown
 // but never blocks. What needs the IFC tables (is this class real, is this property in that standard set)
-// is left to the Check engine, which Download and "Use this IDS in Run" run on the exact text first.
+// is left to the Check engine, which the page runs on the exact text after every change and before Download.
 import { translateXsdRegex } from '@ifc-lite/ids';
 import {
   IFC_VERSIONS, allowedCardinalities, specChoice,
@@ -89,7 +89,7 @@ export function valueProblems(v: Value | null, required: boolean): string[] {
       break;
     }
     default:
-      break; // 'other' restrictions are kept as they are; the Check tab judges them
+      break; // 'other' restrictions are kept as they are; the Check engine judges them
   }
   return out;
 }

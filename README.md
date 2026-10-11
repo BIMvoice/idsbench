@@ -1,18 +1,23 @@
 # idsbench
 
-idsbench is a small tool for IDS (Information Delivery Specification) files from buildingSMART. It runs entirely in your browser: there is no server, and your files are not uploaded anywhere. The aim is to take one IDS file from blank to proven, in three tabs: Write, Check and Run.
+idsbench is a small tool for IDS (Information Delivery Specification) files from buildingSMART. It runs entirely in your browser: there is no server, and your files are not uploaded anywhere. It is one page around one document, the IDS file: open it to see whether it is valid, add a model to see whether the model meets it, and change the file right there when something has to change.
 
-## What works today
+## What the page does
 
-- **Write**: create or open an IDS 1.0 file with plain forms, and download it. The form covers the document information, specifications (IFC versions, required / optional / prohibited), and the six facet kinds in "Applies to" and "Must have", with values that are exact, a list, a pattern, a number range or a text length. Each specification has a one-sentence reading of itself. Items the schema forbids are stopped as you type, and Download stays off with the reason shown. "Use this IDS in Run" hands the file to the Run tab without saving it. Write opens IDS 1.0 files only and refuses any other version. Your draft is kept in `sessionStorage` (this browser tab, gone when it closes), the page asks before you leave with unsaved changes, and nothing is uploaded.
-- **Check**: choose an IDS file and it is checked at once. You get one sentence (valid, or how many problems), the IDS version found, and one row per finding with what is wrong, where it is (line and column) and a short code. A row opens to show the line of the file with two lines around it. You can download the findings as one JSON file. A file that is not XML, not an IDS, empty, or an IFC model chosen by mistake gets one sentence saying what to do.
-- **Run**: choose an IDS file and an IFC model, press Run. Run first checks the IDS file with the same engine as Check; if it has problems, Run does not start, says how many there are, and "Show them in Check" opens the same file there. Otherwise you get one line saying how many specifications passed, failed or could not be checked, and one row per specification. Each failing row lists the first 200 failing elements with IFC class, name, GlobalId and the reason. You can download the result as one JSON file; it holds every failing element, not only the 200 on the page.
+- **An IDS file arrives** (opened, dropped anywhere on the page, or started with New). It is checked at once against the official IDS 1.0 schema and the rules of the buildingSMART audit tool. The stamp says Valid or Not valid. Every finding is shown at the specification it concerns, with its sentence, its line, a short code and, on demand, the lines of the file around it. Under the stamp a list says what there is to fix: "Fix" opens the specification and puts the keyboard in the field concerned; where the engine already names the answer (a class written in other letters, a missing data type of a standard property, requirements on a prohibited specification, a missing IFC version) the fix is one press, offered only after the engine has confirmed it on the changed file, and it can be undone.
+- **A model arrives** (optional, any time). If the IDS file is valid the model is checked by itself: there is no Run button. The stamp becomes Pass, Fail or Incomplete, each specification shows its own state and counts, and its failing elements are listed grouped by reason. "Download failing elements" gives the complete list as CSV for the people who model (UTF-8 with a byte order mark, so Excel reads it); "Download report" gives the check and the run as one JSON file. If the IDS file is not valid, the model waits and is checked the moment the file is.
+- **Editing in place.** Every specification reads as a sentence and has Edit, which opens its form in the row. IFC classes, predefined types, standard property sets, their properties, attributes and data types are chosen from pick-lists with type-ahead, built from the IFC tables the Check engine ships; a plain name stands beside the technical one ("Wall (IfcWall)") and the technical form is what goes into the file. A custom name can still be typed. A new specification starts from one of five common shapes or from an empty form. After a change the file is checked again and, with a model loaded, run again after a short pause.
+- **No files at hand?** "Try an example" loads a small IDS file and model that ship inside the page.
 
-Write, Check and Run accept IDS 1.0 only. A file that declares any other version (0.9.7 included) is refused with the same sentence in all three, which names the version. Write opens a file with its own quick reader, but it makes that decision with the same small module as the Check engine. The files Write offers to download or hand to Run have always been checked by the engine first, so Check never rejects what Write wrote.
+Two rules hold throughout. A result is never shown for another version of the document than the one on screen: each result is kept with the exact text and model it was made for, and is shown only while those are current. And a file that is opened and not changed is checked and run as it is, from the opened file itself; only a document that differs from the opened file is written out again, and the record under the stamp then says "with unsaved changes".
 
-Run reads IFC files in the STEP format (`.ifc`) for IFC2X3, IFC4 and IFC4X3. It does not read IFCX, ifcXML or zipped IFC files. A file it cannot use is refused with a sentence that says why: a model that is cut off, zipped or of another IFC version, an IDS file with problems, or the two files put in each other's box.
+idsbench accepts IDS 1.0 only. A file that declares any other version (0.9.7 included) is shown as Not valid with the engine's sentence, which names the version, and cannot be edited here.
 
-Each row has one of four states:
+Unsaved changes are kept in `sessionStorage` (this browser tab, gone when it closes), the page asks before you leave or open another file over them, and nothing is uploaded.
+
+The page reads IFC files in the STEP format (`.ifc`) for IFC2X3, IFC4 and IFC4X3. It does not read IFCX, ifcXML or zipped IFC files. A model it cannot use is refused with a sentence that says why: cut off, zipped, in an XML format or of another IFC version. A file that is not an IDS file at all is not opened, and what is on the page stays. An IDS file and a model are told apart by what they hold, so it does not matter which box a file is put in.
+
+With a model loaded, each specification has one of four states:
 
 | State | Meaning |
 | --- | --- |
@@ -50,19 +55,19 @@ Check is the package in `packages/check` (see its README). It validates the IDS 
 - Audit tool: [buildingSMART/IDS-Audit-tool](https://github.com/buildingSMART/IDS-Audit-tool), MIT licence. Its rules and IFC tables are ported to TypeScript. idsbench is not endorsed by buildingSMART.
 - Schema validator: [xmllint-wasm](https://github.com/noppa/xmllint-wasm) (libxml2 compiled to WebAssembly), MIT licence.
 
-The Check engine loads when a file is first checked (in Check, in Run, or when Write downloads or hands a file over), about 408 KB over the wire (gzip), so the first page load is not slowed.
+The Check engine is not part of the first load. It is fetched when the first IDS file arrives (about 456 KB over the wire, gzip, with its WebAssembly and the IFC 4 tables); the specifications are on screen before that, read by a small reader of the page's own, and the stamp says "Checking" until the engine answers.
 
 ## Privacy
 
-Files are read and checked in your browser, in Web Workers. The Write tab keeps an unsaved draft in `sessionStorage` only (cleared when the tab closes); Check and Run store nothing. Nothing is sent to a server, there is no analytics, and the page loads no fonts or scripts from other sites.
+Files are read and checked in your browser, in Web Workers. Unsaved changes to the IDS file are kept in `sessionStorage` only (cleared when the tab closes); nothing else is stored. Nothing is sent to a server, there is no analytics, and the page loads no fonts or scripts from other sites.
 
 ## Libraries
 
 | Library | Used for | Licence |
 | --- | --- | --- |
 | `@ifc-lite/parser` | reading the IFC model | MPL-2.0 |
-| `@ifc-lite/ids` | reading the IDS and checking the model against it (it cannot write IDS; the Write tab has its own writer) | MPL-2.0 |
-| `@idsbench/check` (`packages/check`) | checking the IDS file itself; uses `xmllint-wasm` and `@xmldom/xmldom` | MIT |
+| `@ifc-lite/ids` | reading the IDS and checking the model against it (it cannot write IDS; the page has its own writer) | MPL-2.0 |
+| `@idsbench/check` (`packages/check`) | checking the IDS file itself, and the IFC tables behind the pick-lists; uses `xmllint-wasm` and `@xmldom/xmldom` | MIT |
 | `react`, `react-dom` | the interface | MIT |
 | Atkinson Hyperlegible Next, Barlow Condensed | the two typefaces, bundled as local files in `src/fonts/` | SIL OFL 1.1 |
 
@@ -72,7 +77,7 @@ The first two are from the ifc-lite project. How the interface looks and reads i
 
 ```
 npm test                                          # the app's unit tests, then the Check package's tests
-npm run build && npm run check:browser -- <IDS clone>   # both browser scripts (Write; then Check, Run and the hand-offs) in headless Chromium, network blocked
+npm run build && npm run check:browser -- <IDS clone>   # both browser scripts in headless Chromium, network blocked (scripts/ASSERTIONS.md lists what they assert)
 npm run truth -- <TestCases dir>                  # every pass-/fail- pair of the buildingSMART IDS test cases through Check and Run
 npx vite-node scripts/roundtrip.ts <IDS clone> <ids.xsd with local imports> <out dir>   # read, write back and compare every IDS 1.0 file
 node scripts/local-xsd.mjs <official ids.xsd> <dir with xml.xsd and XMLSchema.xsd> <out>   # the schema xmllint can read without the network
@@ -80,16 +85,18 @@ node scripts/local-xsd.mjs <official ids.xsd> <dir with xml.xsd and XMLSchema.xs
 
 `<IDS clone>` is a clone of https://github.com/buildingSMART/IDS; `<TestCases dir>` is its `Documentation/ImplementersDocumentation/TestCases`. Set `CHROMIUM_PATH` to use an installed headless Chromium. The inputs are used as they are; nothing is rewritten and no file is special-cased.
 
-Measured on the combined app (not copied from the branches):
+Measured on the one-page app, on the machine it was built on:
 
-- Unit tests: 253 in the app, 44 in the Check package (1 more is skipped: it needs the official tool's output on disk).
-- `truth`: 307 of 307 `pass-` / `fail-` pairs give the verdict named in the file name, and Check rejects none of their IDS files. In 9 the specification lists IFC2X3 and the model is IFC4; they are checked like the others and carry a note. All 27 `invalid-*` files are refused by Run because Check finds problems in them.
+- Unit tests: 300 in the app (253 before the one page, 47 new), 44 in the Check package (1 more is skipped: it needs the official tool's output on disk).
+- `truth`: 307 of 307 `pass-` / `fail-` pairs give the verdict named in the file name, and Check rejects none of their IDS files. In 9 the specification lists IFC2X3 and the model is IFC4; they are checked like the others and carry a note. All 27 `invalid-*` files are refused because Check finds problems in them.
 - Check against the official audit tool: 425 of 425 IDS 1.0 files get the same valid or invalid verdict, and for the 80 it rejects the same error numbers. One file declares IDS 0.9.7 and is refused by design.
-- Write round trip (read, write back, compare): 319 files read; 319 schema-valid, 319 parse-equal, 319 equal as XML; the verdict is the same for 307 of 307 pairs.
-- What Write writes is accepted by Check: 32 varied documents, and 345 of the 345 official IDS 1.0 files Check accepts, written back and accepted with no error. 22 rules are pinned one by one against the engine (`tests/writer-accepted-by-check.test.ts`).
-- Browser: 51 assertions for Write and 121 for Check, Run and the hand-offs, all passed, with no request to anything but the local server. Storage holds Write's `sessionStorage` draft and nothing else.
-- Size: `dist` is 13.2 MB in all. The first load transfers about 444 KB (gzip) and does not change when the Write or Check tab is opened. The first file in Check fetches about 408 KB more (the engine, its WebAssembly and the IFC 4 tables). The Write tab loads neither the engine nor the IFC reader.
-- Run on 20,000 walls that all fail one specification: the result appeared 0.8 s after pressing Run, the page listed 200 rows and said that 19,800 more were in the report, and the downloaded report (2.7 MB) held all 20,000. A 2,000-specification IDS (1.3 MB) was checked in Check in 0.23 s with the page never frozen for more than 71 ms.
+- Round trip (read, write back, compare): 319 files read; 319 schema-valid, 319 parse-equal, 319 equal as XML; the verdict is the same for 307 of 307 pairs.
+- Where findings land, over the 66 invalid files of the corpus (139 findings): 134 at a specification, 0 at "About this IDS", 5 at the file as a whole. In the 57 of those files that open in the forms (116 findings), 105 lead to a field of the form and 11 to a specification; none is left without a place.
+- Browser: 149 assertions for the page and 66 for editing, all passed, with no request to anything but the local server. Storage holds the `sessionStorage` draft and nothing else. A watch on every change of the page found no moment at which a result of another version of the document was on screen; with the guard taken out of the code, 12 assertions fail.
+- Size: the first load transfers 476 KB (gzip); the tabbed app transferred 434 KB. The difference is the two typefaces (30 KB) and 13 KB more script and styles. The first IDS file fetches about 456 KB more (the engine, its WebAssembly and the IFC 4 tables).
+- First check after a cold load: the specifications were on screen 62 to 77 ms after the file was chosen and the verdict after 142 to 154 ms (local server, three runs).
+- A 36 MB model (638,340 entities) against a four-specification IDS file: the result appeared 0.8 s after the model was chosen. With that model loaded, typing 34 characters into a form field never blocked the page for more than 21 ms, the re-run that followed included.
+- 20,000 walls that all fail one specification: the result appeared 0.8 s after the files were chosen, the page listed 200 rows and said that 19,800 more were in the downloads, and the report (2.7 MB) and the CSV each held all 20,000. A 2,000-specification IDS (1.3 MB) was checked in 0.5 s with the page never frozen for more than 100 ms.
 
 ## Licence
 

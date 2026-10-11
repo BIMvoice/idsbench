@@ -87,6 +87,66 @@ On a phone the same order holds in one column: the stamp sits above its sentence
 
 **What was rejected as generic, and why.** The first plan had a blue button, green and red tinted pills with an icon, a verdict as a tinted banner with a coloured left edge, rounded cards for the file boxes, and a monospace face for GlobalIds. That is what any checker looks like, and it is what the old screen was. Each was replaced with something from the subject: the pill became a checklist box, the banner became the stamped cell of a title block, the card became a ruled box whose dashed or solid line says whether a file is there, and the monospace face went because the text face already tells similar characters apart. Three things were considered and left out as costume: a blueprint grid behind the page, a rotated ink stamp with a rough edge, and capital letters with wide spacing for the labels of the record (real title blocks use them; here they would be decoration). Two were in the plan and cut before building: numbers on the tabs, and a tally of states under the verdict (it would count "Nothing to check" apart from "Pass" and so could disagree with the headline, which counts it as passed). Two were built and removed after looking at the screens: a thick left bar on the notice, the excerpt and the chosen option, and a heavy rule above the list of rows, which competed with the verdict frame.
 
+## The one-page layout (added after the tabs were removed)
+
+idsbench is now one page around one document, the IDS file. The three tabs, and everything this file says about "Write", "Check" and "Run" as separate screens, describe the earlier layout; the tokens, the type and the components above are unchanged and are what the page is built from. This section is a short record of what the page adds. It was built for function first: the parts listed under "Left rough" have not had a design pass.
+
+```
+idsbench                                   Checks IDS 1.0 files, and IFC models against them.
+══════════════════════════════════════════════════════════════════════════════════════════
+┌ IDS file ─────────────────────────────┐  ┌ ─ IFC model ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+│ Riverside.ids (3.1 KB)                │    Optional. Add a model to check it ...
+│ [Open] [New] [Download .ids]  Close   │    [Choose a model]
+└───────────────────────────────────────┘  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+One line that says what to do next.
+
+Title of the IDS                                             <- h2, the document's own title
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ☒ Fail     ┃ 2 of 3 specifications passed. ...             ┃   <- or Valid / Not valid / Checking
+┣━━━━━━━━━━━━┻━━━━━┯━━━━━━━━━━━━━━┯━━━━━━━┯━━━━━━┯━━━━━━━━━━┫
+┃ IDS file         │ Model        │ IFC   │ Enti-│ Checked  ┃
+┗━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━┷━━━━━━━┷━━━━━━┷━━━━━━━━━━┛
+[Download failing elements] [Download report]
+N things to fix in this IDS file                             <- only when the file has findings
+ ☒ Problem   sentence. Specification 2.      [one-press fix] [Fix]
+About this IDS                                        [Edit]
+Specifications
+ 1  ☒ Fail   Walls have a fire rating                 [Edit]
+             Every wall must have the property ...           <- the sentence, always there
+             Applied to 4 elements: 2 passed, 2 failed.
+             ⌄ Show the 2 failing elements, by reason
+             (its findings; its form when it is being edited)
+[Add a specification]
+```
+
+On a phone the two boxes stack, the record folds as before, and each row puts its state above its name.
+
+**What the stamp says.** Pass, Fail and Incomplete are about a model. Valid and Not valid are about the IDS file. While a check or a run has not finished the stamp cell is dashed and says Checking; for a new, empty document it says New. Those two are not verdicts and take the dashed outline of everything that is waiting.
+
+**New classes** (all at the end of `src/styles.css`, built from existing tokens; no colour was added):
+
+| Component | Classes | Notes |
+| --- | --- | --- |
+| File box with actions | `.drop.static`, `.drop-actions` | The box is a place, not a button; it holds `.btn.small` buttons. `.btn.quiet` is an underlined text button for Close, Remove, Move, Delete. |
+| Whole-page drop | `.drop-overlay` | Shown while files are dragged over the page. |
+| Waiting stamp | `.verdict.waiting` | Dashed cell, soft word, no mark. |
+| Record of a file check | `.record.of-file` | Four cells: IDS file, Model, IDS version, Specifications. |
+| Waiting row state | `.state.waiting` | Dashed empty box with "Checking", "Waiting" or "Editing". |
+| Next step | `.next` | One sentence under the file boxes. |
+| To fix | `.to-fix`, `.fix-list`, `.fix-line` | One line per finding: severity, sentence, one-press fixes, Fix. |
+| Undo notice | `.notice-box.undo` | After a one-press change, a move or a delete. |
+| Specification row | `ol.specs.page-specs`, `.spec-head.no-state`, `.spec-words`, `.spec.editing`, `.spec-foot` | The state column exists only while a model is loaded. A row being edited has heavy rules above and below. |
+| Findings in a row | `ul.findings.attached` | The Check finding row, indented under its specification. |
+| Failing elements by reason | `details.more.fails`, `.fail-group`, `.group-reason` | One table per reason; the reason is the heading. |
+| Pick-list | `.combo`, `.combo-list`, `.combo-option` | ARIA combobox with a list popup. |
+| About | `.about`, `.section-head`, `.about-list`, `.about-form` | |
+
+**Fixed names of actions.** Open, New, Close, Try an example, Clear the example, Choose a model (Choose another model), Remove the model, Download .ids, Download report, Download failing elements, Edit, Done, Fix, Undo, Run again, Add a specification, Add an item, Remove, Move up, Move down, Delete.
+
+**One primary action at a time.** Nothing open: Open. Unsaved changes: Download .ids. No specifications: Add a specification. Not valid: Edit on the first specification with a problem. Valid, no model: Choose a model. Result with failures: Download failing elements. Result without: Download report.
+
+**Left rough** (to pick up in one pass): the open specification is far taller than a screen (1,849 px with two items at 1280 x 800); the items in "Applies to" and "Must have" are plain framed boxes with a select beside each field; the To fix list and the findings under a row say the same sentence twice; the pattern list is a column of small buttons; the dark theme, the phone layout and 200% text were only checked for sideways scroll at 390 px; `design/components.html` shows none of the components above; the words "applicability" and "facet" still appear inside sentences that come from the Check engine.
+
 ## Tokens
 
 All are CSS custom properties on `:root` in `src/styles.css`. The dark values apply under `prefers-color-scheme: dark`.

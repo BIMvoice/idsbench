@@ -1,0 +1,273 @@
+# Browser assertions: what became of each one
+
+The tabbed app had two browser scripts: `scripts/browser-check.mjs` with 121 assertions and `scripts/write-check.mjs` with 51. Both were rewritten for the one page. Every one of the 172 is listed here with what became of it:
+
+- **kept**: still asserted against the one-page app (the selectors and sometimes the wording of the title changed; the behaviour asserted is the same);
+- **replaced**: the behaviour changed shape with the page, and the named assertion covers what it protected;
+- **retired**: the behaviour no longer exists; the reason is given.
+
+| | kept | replaced | retired | total |
+| --- | --- | --- | --- | --- |
+| browser-check (121) | 80 | 31 | 10 | 121 |
+| write-check (51) | 44 | 4 | 3 | 51 |
+| both | 124 | 35 | 13 | 172 |
+
+The scripts now hold 149 assertions (browser-check) and 66 (write-check), 215 in all. 66 of them are new: they are not named in the tables below and are listed at the end.
+
+Several old assertions can point at one new one (two tabs asserted the same thing about the same file), which is why the numbers of kept and replaced do not add up to the number of assertions that carry them.
+
+## scripts/browser-check.mjs (121 before)
+
+| # | Assertion on the tabbed app | Outcome | On the one page |
+| --- | --- | --- | --- |
+| 1 | three tabs present | retired | There are no tabs: the page is one. The opposite is asserted ("one page: no tabs"). |
+| 2 | Write opens an editor (its own check is scripts/write-check.mjs) | replaced | empty page: Open, New and Try an example are offered; nothing else to press but Choose a model |
+| 3 | Check tab has its drop zone and no longer says it is not built | replaced | empty page: two file boxes, IDS file and IFC model |
+| 4 | Run disabled with no files | retired | There is no Run button: a valid IDS file and a model run by themselves (see "a valid IDS file and a model run by themselves"). |
+| 5 | a live region for announcements exists before any run, and is empty | kept | same title |
+| 6 | pass pair headline | kept | same title |
+| 7 | pass pair row state Pass | kept | same title |
+| 8 | file names and sizes shown in the boxes | kept | same title |
+| 9 | result names both files | kept | same title |
+| 10 | result says the IDS file was checked first and is valid, and no longer says it was not verified | kept | result says the IDS file was checked first and is valid |
+| 11 | headline sits inside the live region | kept | same title |
+| 12 | report download is JSON with specs | kept | report download is JSON with the check and the run |
+| 13 | fail pair headline | kept | same title |
+| 14 | fail pair row state Fail | kept | same title |
+| 15 | failing element listed | kept | same title |
+| 16 | IFC2X3 specification on an IFC4 model is checked and passes | kept | same title |
+| 17 | the row says the model version is not one the specification lists | kept | same title |
+| 18 | IFC2X3 specification that fails on an IFC4 model fails for its own reason | kept | same title |
+| 19 | states headline counts passed, failed and unchecked separately | kept | same title |
+| 20 | states headline is styled as a failure | kept | same title |
+| 21 | required and met shows Pass | kept | same title |
+| 22 | required and broken shows Fail with counts | kept | same title |
+| 23 | required with nothing matching shows Fail and why | kept | same title |
+| 24 | optional with nothing matching shows Nothing to check | kept | same title |
+| 25 | prohibited and none found shows Pass | kept | same title |
+| 26 | prohibited and found shows Fail and never "2 passed" | kept | same title |
+| 27 | an unsafe pattern shows Not checked and what to do | kept | same title |
+| 28 | IFC2X3 specification shows Pass with the version note | kept | same title |
+| 29 | every state has a word and a mark, not colour alone | kept | same title |
+| 30 | prohibited and found lists the elements that must not be there | kept | prohibited and found lists the elements that must not be there, under the reason said once |
+| 31 | no jargon in the states page | kept | same title |
+| 32 | one pass and one unchecked is not "all passed" | kept | same title |
+| 33 | IFC with a valid header and a cut-off body: plain sentence, no verdict | kept | IFC with a valid header and a cut-off body: plain sentence, no verdict on the model |
+| 34 | zipped IFC named .ifc: plain sentence, no verdict | kept | zipped IFC named .ifc: plain sentence, no verdict on the model |
+| 35 | ifcXML named .ifc: plain sentence, no verdict | kept | ifcXML named .ifc: plain sentence, no verdict on the model |
+| 36 | empty IFC file: plain sentence, no verdict | kept | empty IFC file: plain sentence, no verdict on the model |
+| 37 | IFC with a header and no data: plain sentence, no verdict | kept | IFC with a header and no data: plain sentence, no verdict on the model |
+| 38 | IFC2X2 model: plain sentence, no verdict | kept | IFC2X2 model: plain sentence, no verdict on the model |
+| 39 | text file named .ifc: plain sentence, no verdict | kept | text file named .ifc: plain sentence, no verdict on the model |
+| 40 | IDS file in the IFC box: plain sentence, no verdict | replaced | IDS file in the IFC box: recognised as the IDS file and opened as that |
+| 41 | IFC model in the IDS box: plain sentence, no verdict | replaced | IFC model in the IDS box: recognised as the model |
+| 42 | both files in the wrong boxes: plain sentence, no verdict | replaced | both files in the wrong boxes: each goes where it belongs and the pair runs |
+| 43 | IDS that is not XML: plain sentence, no verdict | kept | IDS that is not XML: plain sentence, no verdict, no rows, no report |
+| 44 | IDS cut off: plain sentence, no verdict, and Show them in Check offered | replaced | IDS cut off: Not valid, its problems listed on the page, and the model is not run |
+| 45 | empty IDS file: plain sentence, no verdict | kept | empty IDS file: plain sentence, no verdict, no rows, no report |
+| 46 | IDS with the wrong namespace: plain sentence, no verdict, and Show them in Check offered | replaced | IDS with the wrong namespace: Not valid, its problems listed on the page, and the model is not run |
+| 47 | IDS with no specifications: plain sentence, no verdict, and Show them in Check offered | replaced | IDS with no specifications: Not valid, its problems listed on the page, and the model is not run |
+| 48 | IDS 0.9.7 (refused: idsbench reads IDS 1.0 only): plain sentence, no verdict, and Show them in Check offered | replaced | IDS 0.9.7 (refused: idsbench reads IDS 1.0 only): Not valid, its problems listed on the page, and the model is not run |
+| 49 | HTML page named .ids: plain sentence, no verdict | kept | HTML page named .ids: plain sentence, no verdict, no rows, no report |
+| 50 | IFC with a UTF-8 byte order mark is checked | kept | same title |
+| 51 | IFC written as one long line is checked, all 3,000 walls | kept | same title |
+| 52 | first pair passes | kept | same title |
+| 53 | choosing another file removes the previous result at once | kept | same title |
+| 54 | second pair shows its own result under its own names | kept | same title |
+| 55 | Run is disabled while a check is in progress | replaced | while a run is in progress the stamp cell is not a verdict: it says Checking, with what is being done |
+| 56 | changing a file during a run stops it: no progress text, Run available again | replaced | changing a file during a run stops it: nothing of the first pair remains |
+| 57 | the stopped run never shows a result under the new file name | kept | same title |
+| 58 | a run after a stopped run gives the new pair its own result | kept | same title |
+| 59 | clicking Run twice starts one check, not two | replaced | typing three times in a row started one run, not three |
+| 60 | a crashed worker gives a plain sentence and no result | kept | same title |
+| 61 | Run works again after a crash | kept | Run again works after a crash |
+| 62 | Tab order: tabs, IDS box, IFC box, Run | replaced | keyboard: Open is the first stop, and both files are taken with Enter or Space |
+| 63 | both boxes take a file with Enter or Space | replaced | keyboard: Open is the first stop, and both files are taken with Enter or Space |
+| 64 | after Run: Download report, then each row that has elements to show | replaced | keyboard: after the result come Download failing elements, Download report, About, then the rows |
+| 65 | a row opens and closes from the keyboard | kept | same title |
+| 66 | focus is visible on the focused row | kept | same title |
+| 67 | the engine rejects the official invalid file, with a position | kept | same title |
+| 68 | Check tab, nothing chosen: no result, no button, the privacy line is there | replaced | empty page: no verdict, no rows, no report, no fake content / the privacy line is on the page from the start |
+| 69 | Check tab: one drop zone, labelled as in Run | replaced | empty page: two file boxes, IDS file and IFC model |
+| 70 | valid file: headline in words, no extra button pressed | kept | same title |
+| 71 | valid file: version found is shown, no rows | kept | same title |
+| 72 | valid file: report is one JSON file named after the IDS file | kept | same title |
+| 73 | invalid official file: headline counts the engine's errors | kept | same title |
+| 74 | invalid official file: one row per engine finding | kept | same title |
+| 75 | first row: message, position and short code | kept | same title |
+| 76 | rows start closed | kept | same title |
+| 77 | excerpt marks the engine's line and shows that line of the file | kept | same title |
+| 78 | excerpt has two lines of context each side (when the file has them) | kept | same title |
+| 79 | excerpt is monospaced, scrolls sideways, and is plain text | kept | same title |
+| 80 | report holds the same findings as the engine | kept | same title |
+| 81 | not an XML file: one plain sentence, no rows, no report | kept | IDS that is not XML: plain sentence, no verdict, no rows, no report |
+| 82 | an IFC model dropped by mistake: one plain sentence, no rows, no report | replaced | IFC model in the IDS box: recognised as the model |
+| 83 | an empty file: one plain sentence, no rows, no report | kept | empty IDS file: plain sentence, no verdict, no rows, no report |
+| 84 | an XML file that is not an IDS: one plain sentence, no rows, no report | kept | HTML page named .ids: plain sentence, no verdict, no rows, no report |
+| 85 | XML cut off: a sentence says what to do and one row points at the break | kept | same title |
+| 86 | choosing another file removes the old rows, headline and report at once | kept | same title |
+| 87 | of three files chosen in a row, only the last one shows a result | kept | same title |
+| 88 | keyboard: arrow to the Check tab, then its drop zone, a row, the excerpt and Download report are all reachable | replaced | keyboard: after the result come Download failing elements, Download report, About, then the rows / keyboard: Edit opens the form, a pick-list is a combobox with a list (arrows, Enter), and the change gives a new result |
+| 89 | keyboard: the focused row shows a focus ring | replaced | focus is visible on the focused row |
+| 90 | Run with an invalid IDS: refusal sentence with the count, no verdict, no result | replaced | a model with an IDS file that is not valid: the model waits, one sentence says the file comes first, nothing is run |
+| 91 | keyboard: Show them in Check is reachable by Tab | retired | The button is gone: the problems are listed on the same page, under the stamp and at their specification. |
+| 92 | Show them in Check switches to the Check tab and moves focus there | retired | There is no other tab to switch to. |
+| 93 | ...with the same file already loaded and the same findings | replaced | ...with its findings on the same page, one row per engine finding, and the list of things to fix |
+| 94 | back in Run, the refusal is still shown for that file | retired | There is no tab to come back to; the findings never leave the page. |
+| 95 | choosing another IDS file in Run clears the refusal and its button | replaced | opening a valid IDS file after one that was not valid clears the problems and runs the waiting model |
+| 96 | Run with a valid pair still works after a refusal | replaced | opening a valid IDS file after one that was not valid clears the problems and runs the waiting model |
+| 97 | large IDS (2,000 specifications): valid, and the page stayed responsive (no freeze over 500 ms) | kept | large IDS (2,000 specifications): valid, every specification on the page, and the page stayed responsive (no freeze over 500 ms) |
+| 98 | integration: an opened file edited in Write is unsaved | kept | an opened file that is edited is unsaved, and the page heading follows the title |
+| 99 | integration: Write -> Use this IDS in Run switches to Run with the file in the IDS box | retired | No hand-off exists: the document being edited is the IDS file the model is run against. |
+| 100 | integration: the file from Write passes Run's Check gate and gives a result | replaced | the page checks and runs again by itself after the pause: the new result is of the changed file |
+| 101 | integration: a dropped IDS replaces the handed one and clears its result at once | replaced | choosing another file removes the previous result at once |
+| 102 | integration: the run after the replacement is for the dropped file only | replaced | second pair shows its own result under its own names |
+| 103 | integration: Check holds nothing from this (Run only hands a file over when it refuses it) | retired | There is no separate Check screen that could hold a file of its own. |
+| 104 | integration: switching tabs keeps the Write draft, name and unsaved mark | retired | There are no tabs to switch between; the draft across a reload is still asserted in write-check. |
+| 105 | integration: handing the same file over again replaces the dropped one and leaves no result | retired | No hand-off exists. |
+| 106 | integration: storage holds only Write's sessionStorage draft | kept | storage holds only the sessionStorage draft |
+| 107 | integration: the form lets an unknown IFC class through (it has no IFC tables) | replaced | an unknown IFC class: the engine's finding is on the page at its specification, and Download .ids is off with the engine's sentence |
+| 108 | integration: Download is refused by the engine, with its sentence, and no file is saved | replaced | an unknown IFC class: the engine's finding is on the page at its specification, and Download .ids is off with the engine's sentence |
+| 109 | integration: Use this IDS in Run is refused the same way and stays on Write | retired | No hand-off exists; a model with an IDS file that is not valid waits (see "a model with an IDS file that is not valid"). |
+| 110 | integration: Write -> Show them in Check shows that file and the same problem | replaced | an unknown IFC class: the engine's finding is on the page at its specification, and Download .ids is off with the engine's sentence |
+| 111 | integration: Write's Open and Check give the identical sentence for an IDS 0.9.7 file | replaced | an IDS 0.9.7 file: one sentence, the engine's own, and it cannot be edited here |
+| 112 | integration: opening the Write tab at first paint loads neither the Check engine, nor the IFC parser (worker), nor the IFC tables | kept | first paint of the empty page loads neither the Check engine, nor the IFC parser (worker), nor the IFC tables |
+| 113 | scale: every wall fails one specification | kept | same title |
+| 114 | scale: the page lists 200 rows | kept | same title |
+| 115 | scale: the page says how many are not shown and where they are | kept | same title |
+| 116 | scale: the downloaded report holds every failing element | kept | same title |
+| 117 | scale: reasons are readable | kept | same title |
+| 118 | nothing stored: localStorage, sessionStorage, cookies, indexedDB, caches, service workers | kept | nothing stored when nothing is unsaved: localStorage, sessionStorage, cookies, indexedDB, caches, service workers |
+| 119 | no cookies in the browser context | kept | same title |
+| 120 | no request to anywhere but the local server | kept | same title |
+| 121 | no uncaught page errors | kept | same title |
+
+## scripts/write-check.mjs (51 before)
+
+| # | Assertion on the tabbed app | Outcome | On the one page |
+| --- | --- | --- | --- |
+| 1 | empty editor invites the first action | kept | same title |
+| 2 | top bar: New, Open…, Download .ids, Use this IDS in Run | replaced | the IDS box holds Open, New and Download .ids |
+| 3 | shows the file name and no unsaved mark on a blank document | kept | same title |
+| 4 | says where the draft is kept in one sentence | kept | says where unsaved work is kept in one sentence |
+| 5 | Download is off on a blank document, with a reason in words | kept | same title |
+| 6 | Use this IDS in Run is off too | retired | The button is gone: there is no hand-off. |
+| 7 | nothing is stored while nothing is written | kept | same title |
+| 8 | a bad email address gets a message beside the field | kept | same title |
+| 9 | a good email address clears it | kept | same title |
+| 10 | an unsaved mark appears | kept | same title |
+| 11 | a new specification opens in place with its Name field focused | kept | same title |
+| 12 | Download stays off while something is missing, and says what | kept | same title |
+| 13 | a pattern that is not valid gets a message beside the field | kept | same title |
+| 14 | and Download is off with the reason | kept | same title |
+| 15 | a valid pattern clears it | kept | same title |
+| 16 | "In words" line for the specification | kept | same title |
+| 17 | opening a new specification closes the other (accordion) | kept | same title |
+| 18 | only the inputs the choice needs are shown (text length) | kept | same title |
+| 19 | Download is on once nothing is missing | kept | same title |
+| 20 | the downloaded file is valid against the official IDS 1.0 schema (xmllint) | kept | same title |
+| 21 | the file name comes from the title | kept | same title |
+| 22 | the file holds two specifications | kept | same title |
+| 23 | facet kinds in the file: entity, property, attribute, classification | kept | same title |
+| 24 | restriction kinds in the file: list, pattern and length | kept | same title |
+| 25 | after download the unsaved mark is gone | kept | same title |
+| 26 | Use this IDS in Run switches to the Run tab with the file in the IDS box | retired | No hand-off exists: the model is added on the same page. |
+| 27 | Run shows the first specification as Pass and the second as Fail | kept | with a model, the first specification is Pass and the second is Fail |
+| 28 | opening a file shows its name and no unsaved mark | kept | same title |
+| 29 | editing marks the file unsaved | kept | same title |
+| 30 | only the one changed value differs between the example and the download | kept | same title |
+| 31 | the edited example is valid against the schema | kept | same title |
+| 32 | the download keeps the opened file name | kept | same title |
+| 33 | opening an IDS 0.9.7 file is refused with one plain sentence | replaced | an IDS 0.9.7 file is Not valid with one plain sentence, the engine's own |
+| 34 | and the document in the editor is untouched | replaced | a file that is not an IDS file is refused beside the document, which stays as it was, unsaved changes and all (browser-check). A 0.9.7 file is an IDS file with a problem, so it is shown, after the question about unsaved changes. |
+| 35 | at 390 px wide the page does not scroll sideways | kept | at 390 px wide the page does not scroll sideways: empty, with a result, and with a form open |
+| 36 | arrow keys reach the Write tab | retired | There are no tabs. |
+| 37 | Tab reaches the Title field | replaced | Tab reaches New / Enter starts a new IDS with the keyboard in the Title field |
+| 38 | Tab reaches "Add a specification" | kept | same title |
+| 39 | Enter adds a specification and focus lands in its Name field | kept | same title |
+| 40 | Tab reaches "Add an item to Applies to" | kept | same title |
+| 41 | Enter opens the list of kinds with focus on the first | kept | same title |
+| 42 | choosing a kind puts focus in the new item | kept | same title |
+| 43 | Tab reaches Download .ids, now on | kept | same title |
+| 44 | the file made without the mouse is valid against the schema | kept | same title |
+| 45 | and holds the typed values | kept | same title |
+| 46 | the draft is in sessionStorage only | kept | same title |
+| 47 | reloading the tab restores the draft | kept | same title |
+| 48 | closing the tab with unsaved changes asks first (beforeunload) | kept | same title |
+| 49 | New clears the draft | kept | same title |
+| 50 | no request to anywhere but the local server | kept | same title |
+| 51 | no uncaught page errors | kept | same title |
+
+## New assertions
+
+In `scripts/browser-check.mjs` (48):
+
+- one page: no tabs
+- empty page says what to do next in one line
+- empty page: one primary action, Open
+- a valid IDS file and a model run by themselves: no button was pressed, one worker started
+- pass: one primary action, Download report; and the next step is said
+- fail: one primary action, Download failing elements
+- every specification row reads as a sentence
+- files dragged over the page: the whole page says it takes them
+- both files dropped at once anywhere on the page: told apart by content, and run
+- Try an example: a bundled IDS file and model give a mixed result at once
+- the example is marked as an example and can be cleared in one press
+- clearing the example gives the empty page back
+- failing elements are grouped by reason: each reason once, with its count, and the counts add up to the engine's number
+- the reason is not repeated on every row
+- Download failing elements: a CSV named after the model, UTF-8 with a byte order mark, CRLF, one row per failing element
+- CSV: commas and quotes are quoted, letters outside ASCII are kept
+- valid file, no model: the stamp is about the file (Valid), never Pass, and the rows carry no state
+- valid file, no model: the next step and the one primary action are the model
+- findings are attached to the specification they concern
+- an unedited file is checked on its own text: the excerpt is the file's line, character for character
+- a one-press fix is offered on the line, beside Fix
+- pressing it makes the file valid, the list goes, and the waiting model runs by itself
+- the result names what was judged: the file with unsaved changes
+- the fix can be undone: nothing is applied silently
+- Undo brings the file back as it was opened: Not valid again, no unsaved changes, the result gone
+- a problem with no known answer has Fix and no one-press button
+- not valid: the one primary action is Edit on the specification with the problem
+- Fix opens that specification and puts the keyboard in the field concerned, marked with the problem's sentence
+- typing the correction and choosing it from the pick-list makes the file valid, and the model is run
+- a row being edited does not show its result as its state; the other parts of the result stay
+- the sentence of the row follows the form as it is typed
+- after a change the previous result is gone at once and the page says it is checking again
+- a change made while a run is in flight stops that run: only the result of the last version ever appears
+- the report says the IDS that was run holds unsaved changes
+- unsaved changes: the one primary action is Download .ids
+- an unedited file: the finding is at the position in the file as opened (line 1), and the excerpt is the file's own text
+- once it is edited the position is in the file as it will be saved, and the record says so
+- taking the change back returns to the file as opened: line 1 again, no unsaved changes
+- an unedited file is run from the opened file itself: every read is of that file at its own size, byte order mark and all
+- moving a specification with a result on screen: the rows change place and the result is made again for the new order
+- deleting a specification with a result on screen: no dialog, the row goes, the result is made again for the seven left, and Undo is offered
+- Undo puts the deleted specification back where it was
+- opening another IDS file over unsaved changes asks first
+- ...and the engine's own suggestion is offered as a one-press fix
+- after the fix the file is valid, Download .ids works, and the saved file is one the engine accepts
+- scale: the group says the full count, not the number listed
+- scale: the CSV holds every failing element, not only the 200 on the page
+- at no moment of this whole script did the page show a result made for another version of the document
+
+In `scripts/write-check.mjs` (18):
+
+- a new document is not judged before there is something to judge: no verdict, the stamp cell says New
+- New puts the keyboard in the Title field, and About this IDS asks for the title only
+- a specification starts from a pattern: five common shapes, or an empty one
+- the IFC class comes from a pick-list with type-ahead: plain name beside the technical one
+- choosing the class narrows the property sets offered to those of that class
+- the property set and the property come from pick-lists; the property list is that set's
+- choosing a standard property fills in its data type
+- plain words on screen: no "facet", "applicability", "cardinality", "restriction" or "how to match" in the form
+- the form shows what the common case needs; the rest is behind More options
+- a pattern arrives complete: it reads as a sentence and has nothing to fix
+- while writing, the page checks the file by itself: it is Valid, with nothing pressed
+- what the pick-lists wrote is the technical form, and the Check engine accepts the file
+- Done closes the form and the row shows its own result again
+- and it is not opened in the forms: no Edit, no Fix, and the page says to correct it in the tool that made it
+- changing "fire rating" to "acoustic rating" is one pick: no name is typed in its technical form
+- Enter opens the list of patterns with focus on the first
+- Tab reaches "An empty specification"
+- the pick-list is worked with the keyboard alone: type, Enter

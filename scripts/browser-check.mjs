@@ -209,6 +209,9 @@ try {
 
   // ---- keyboard only: from the empty page to a result to an edit ------------------------------
   await fresh();
+  // Another page was opened and closed above; the keyboard goes to the page that is in front.
+  await page.bringToFront();
+  await page.locator('h1').click();
   await page.keyboard.press('Tab');
   const f1 = await focused();
   const chooser1 = page.waitForEvent('filechooser', { timeout: 5000 });
@@ -376,6 +379,11 @@ try {
     const msg = await headline.innerText().catch(() => '');
     check(`${label}: Not valid, its problems listed on the page, and the model is not run`, (await word()) === 'Not valid' && pattern.test(msg) && /The model is checked as soon as the file is valid\.$/.test(msg) && (await noRun()) && (await page.locator('.fix-line').count()) === count && !JARGON.test(msg), msg);
   }
+  // (the last of those is on screen: an IDS 0.9.7 file with a model waiting)
+  await idsInput.setInputFiles(goodIds);
+  await opened(goodIds);
+  await settled();
+  check('opening a valid IDS file after one that was not valid clears the problems and runs the waiting model', (await headline.innerText()) === 'The one specification passed.' && (await page.locator('.to-fix, .finding, .error').count()) === 0 && (await page.locator('.meta.notice').innerText()) === 'The IDS file was checked first and is valid.');
   await load(oldDraft, null);
   await checkSettled();
   const draftSaid = await page.locator('.fix-line .fix-text').innerText();
