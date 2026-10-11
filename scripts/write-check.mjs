@@ -187,6 +187,11 @@ try {
   await page.locator('.verdict.pass .verdict-word', { hasText: 'Valid' }).waitFor({ timeout: 30000 });
   check('while writing, the page checks the file by itself: it is Valid, with nothing pressed', (await page.locator('.headline').innerText()) === 'This IDS file is valid.' && (await page.locator('.to-fix').count()) === 0);
 
+  // The description of the requirements, which the file can carry and the form used to hide.
+  const reqMore = s2.locator('section[aria-label="Must have"] details.requirements-more');
+  check('the Must have group has its own "More options", closed while there is no description', (await reqMore.locator('summary').innerText()) === 'More options' && (await reqMore.evaluate((d) => !d.open)));
+  await reqMore.locator('summary').click();
+  await reqMore.getByLabel('Description of the requirements').fill('The wall must carry its classification: "FireRating" <set>');
   check('Download is on once nothing is missing', await dlBtn.isEnabled());
   const f1 = await download(page, 'wall-checks.ids');
   const text1 = fs.readFileSync(f1, 'utf8');
@@ -200,6 +205,20 @@ try {
   check('restriction kinds in the file: list, pattern and length', /<xs:enumeration value="1HR"\/>/.test(text1) && /<xs:pattern value="Wal\.\*"\/>/.test(text1) && /<xs:minLength value="3"\/>/.test(text1));
   check('what the pick-lists wrote is the technical form, and the Check engine accepts the file', /<simpleValue>IFCWALL<\/simpleValue>/.test(text1) && /<simpleValue>Pset_WallCommon<\/simpleValue>/.test(text1) && /<simpleValue>FireRating<\/simpleValue>/.test(text1) && /dataType="IFCLABEL"/.test(text1) && JSON.parse(spawnSync(path.resolve('node_modules/.bin/vite-node'), ['scripts/engine-findings.ts', f1], { encoding: 'utf8' }).stdout.split('@@')[1]).findings.length === 0);
   check('after download the unsaved mark is gone', !(await status()).includes('unsaved'));
+  check('the description of the requirements is in the file, as the description attribute of the requirements element, and the file is valid', /<requirements description="The wall must carry its classification: &quot;FireRating&quot; &lt;set&gt;">/.test(text1) && lint1.ok);
+  {
+    const rp = await (await newContext({ width: 1280, height: 800 })).newPage();
+    await rp.goto(origin + '/');
+    await rp.locator('input[type=file]').first().setInputFiles(f1);
+    await rp.locator('#ids-status .file-name', { hasText: 'wall-checks.ids' }).waitFor();
+    await rp.getByRole('button', { name: /^Edit Walls are classified/ }).click();
+    const more = rp.locator('section[aria-label="Must have"] details.requirements-more').first();
+    check('a file with a description of its requirements shows it in the form, open, and it can be edited back to nothing', (await more.evaluate((d) => d.open)) && (await more.getByLabel('Description of the requirements').inputValue()) === 'The wall must carry its classification: "FireRating" <set>');
+    await more.getByLabel('Description of the requirements').fill('');
+    const f1b = await download(rp, 'wall-checks-no-description.ids');
+    check('emptying it removes the attribute from the file', !/<requirements description=/.test(fs.readFileSync(f1b, 'utf8')) && /<requirements>/.test(fs.readFileSync(f1b, 'utf8')));
+    await rp.close();
+  }
 
   // ---- the model, on the same page ------------------------------------------------
   await page.locator('input[type=file]').nth(1).setInputFiles(ifc);

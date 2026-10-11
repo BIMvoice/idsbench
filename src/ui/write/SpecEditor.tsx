@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FACET_INFO, FacetFields } from './FacetRow';
 import { TextField } from './fields';
 import { useLists } from './useSchema';
@@ -57,7 +57,14 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey }: Props) {
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={issues} groupError={err('applicability')} groupAdvice={adv('applicability')}
         dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={(f) => onChange({ ...s, applicability: sortApplicability(f) })} />
       <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={issues} groupError={err('requirements')} groupAdvice={adv('requirements')}
-        dataKey={`${s.uid}.requirements`} lists={lists} several={several} appliesTo={appliesTo} onChange={(f) => onChange({ ...s, requirements: f })} />
+        dataKey={`${s.uid}.requirements`} lists={lists} several={several} appliesTo={appliesTo} onChange={(f) => onChange({ ...s, requirements: f })}
+        extra={(
+          <details className="more requirements-more" open={s.requirementsDescription !== null && s.requirementsDescription !== '' ? true : undefined}>
+            <summary>More options</summary>
+            <TextField label="Description of the requirements" multiline hint="Says in words what the items above ask for. It is kept in the file as the description of the requirements."
+              dataKey={`${s.uid}.requirementsDescription`} value={s.requirementsDescription ?? ''} onChange={(v) => onChange({ ...s, requirementsDescription: v === '' ? null : v })} />
+          </details>
+        )} />
 
       <details className="more" open={more} onToggle={(e) => setMoreOpen((e.currentTarget as HTMLDetailsElement).open)}>
         <summary>More options</summary>
@@ -95,9 +102,11 @@ interface ListProps {
   title: string; help: string; kind: 'applicability' | 'requirements';
   facets: Facet[]; issues: Issue[]; groupError: string | null; groupAdvice?: string | null;
   onChange: (f: Facet[]) => void; dataKey: string; lists: Lists | null; several: boolean; appliesTo: string;
+  /** More under the list, inside its group. */
+  extra?: ReactNode;
 }
 
-function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice, onChange, dataKey, lists, several, appliesTo }: ListProps) {
+function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice, onChange, dataKey, lists, several, appliesTo, extra }: ListProps) {
   const [adding, setAdding] = useState(false);
   // Where keyboard focus goes after a change that removes the button that had it.
   const [focusNext, setFocusNext] = useState<string | null>(null);
@@ -166,6 +175,7 @@ function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice,
       ) : (
         <button type="button" className="btn small" data-add onClick={() => { setAdding(true); setFocusNext('menu'); }} aria-label={`Add an item to ${title}`}>Add an item</button>
       )}
+      {extra}
     </section>
   );
 }
