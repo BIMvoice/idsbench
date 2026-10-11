@@ -23,6 +23,7 @@ export function App() {
   const [over, setOver] = useState(false);
   const [adding, setAdding] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [downloadNote, setDownloadNote] = useState<string | null>(null);
   const result = run && 'outcome' in run ? run.outcome.result : null;
   const failing = result ? failureCount(result) : 0;
   const wholeFailed = result ? wholeFailureCount(result) : 0;
@@ -76,28 +77,61 @@ export function App() {
   }, []);
 
   // ---- downloads ----
-  const guarded = (what: string, fn: () => void) => {
-    try { setProblem(null); fn(); } catch (e) {
-      console.error(e);
-      setProblem(`${what} is too large for this browser to save. The result on this page is not affected.`);
+  // A browser drops a download that starts while the one before it is still being handed over (Chromium does so for
+  // downloads less than about a tenth of a second apart, and may ask or refuse after several in a row). A press that
+  // comes while the last file is still being saved is answered with a sentence instead of a file that would not arrive,
+  // and many files in a short time are followed by a sentence about what the browser may do.
+  const busy = useRef(false);
+  const recent = useRef<number[]>([]);
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const say = (text: string | null) => {
+    setDownloadNote(text);
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    if (text) noteTimer.current = setTimeout(() => setDownloadNote(null), 8000);
+  };
+  const SETTLE_DOWNLOAD_MS = 400, MANY = 8;
+  /** Runs one download. Returns at once, with a sentence, if the last one is still being saved. */
+  const download = async (what: string, job: () => Promise<string | null>) => {
+    if (busy.current) { say(`${what} was not started again: the last file is still being saved. Press it again in a moment.`); return; }
+    busy.current = true;
+    try {
+      const name = await job();
+      if (name === null) return;
+      const now = Date.now();
+      recent.current = [...recent.current.filter((t) => now - t < 60_000), now];
+      if (recent.current.length >= MANY) {
+        say(`Download started: ${name}. That is ${recent.current.length} files in the last minute. A browser may ask before it saves more files from one page, or refuse without a word: if no file appears, allow downloads for this site (look in the address bar), then press again.`);
+      }
+    } finally {
+      setTimeout(() => { busy.current = false; }, SETTLE_DOWNLOAD_MS);
     }
   };
-  const downloadIds = async () => {
-    const saved = await page.save();
-    if (saved) saveFile(saved.parts, saved.name, 'application/xml');
+  const guarded = (what: string, fn: () => string) => {
+    try { setProblem(null); return fn(); } catch (e) {
+      console.error(e);
+      setProblem(`${what} is too large for this browser to save. The result on this page is not affected.`);
+      return null;
+    }
   };
-  const downloadReport = async () => {
+  const downloadIds = () => download('The IDS file', async () => {
+    const saved = await page.save();
+    if (!saved) return null;
+    saveFile(saved.parts, saved.name, 'application/xml');
+    return saved.name;
+  });
+  const downloadReport = () => download('The report', async () => {
     const idsName = page.name, blob = page.idsBlob();
-    if (!report || !idsName || !blob) return;
+    if (!report || !idsName || !blob) return null;
     // The report names the exact bytes it is about. They are read now; the result on the page was made from the same text and model.
     const edited = !page.asOpened && page.dirty;
     const ids = { name: idsName, bytes: blob.size, sha256: await sha256Of(blob) };
     const ran = result && model ? { name: model.name, bytes: model.size, sha256: await sha256Of(model) } : null;
-    guarded('The report', () => saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : []), pageReportName(idsName, result), 'application/json'));
-  };
-  const downloadCsv = () => {
-    if (result) guarded('The list', () => saveFile(failuresCsvParts(result), failuresCsvName(result.ifcFile), 'text/csv;charset=utf-8'));
-  };
+    return guarded('The report', () => { const name = pageReportName(idsName, result); saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : []), name, 'application/json'); return name; });
+  });
+  const downloadCsv = () => download('The list', async () => {
+    if (!result) return null;
+    return guarded('The list', () => { const name = failuresCsvName(result.ifcFile); saveFile(failuresCsvParts(result), name, 'text/csv;charset=utf-8'); return name; });
+  });
 
   // ---- the document ----
   const setSpec = (s: Specification) => page.edit((d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? s : x)) }));
@@ -164,6 +198,7 @@ export function App() {
           </p>
         )}
         {problem && <p className="error" role="alert">{problem}</p>}
+        {downloadNote && <p className="notice-box" role="status" id="download-note">{downloadNote}</p>}
         {result && doc && !rows && <p className="error" role="alert" id="not-aligned">{NOT_ALIGNED}</p>}
         {next && <p className="next" id="next-step">{next}</p>}
 
@@ -172,7 +207,7 @@ export function App() {
         {hasPage && <>
           {(report || result) && (
             <div className="actions">
-              {result && failing + wholeFailed > 0 && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={downloadCsv}>Download failing elements</button>}
+              {result && failing + wholeFailed > 0 && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={() => void downloadCsv()}>Download failing elements</button>}
               {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
           )}
