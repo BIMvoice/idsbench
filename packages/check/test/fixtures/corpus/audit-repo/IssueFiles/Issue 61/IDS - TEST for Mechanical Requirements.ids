@@ -1,0 +1,2943 @@
+<ids:ids xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd" xmlns:ids="http://standards.buildingsmart.org/IDS">
+  <!--edited with usBIM.IDSeditor 2.3.20.0 (http://www.accasoftware.com)-->
+  <ids:info>
+    <ids:title>TEST for Mechnaical Requiremnts</ids:title>
+    <ids:version>1.0</ids:version>
+    <ids:description>Object-specific requirements for mechanical and plumbing elements</ids:description>
+    <ids:author>fm@statsbygg.no</ids:author>
+    <ids:date>2026-01-08</ids:date>
+    <ids:purpose>RIV</ids:purpose>
+    <ids:milestone>B5.1.1</ids:milestone>
+  </ids:info>
+  <ids:specifications>
+    <ids:specification ifcVersion="IFC4" name="IfcSpatialZone">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSPATIALZONE</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required" instructions="At least two spatial zone objects shall be present for each storey:&#xA;GFA = Gross Floor Area [no: BRA = &quot;bruttoareal&quot; according to NS 3940]&#xA;UA = Usable Area (total area within a storey, excluding external wall footprint area) [no: &quot;bruksareal&quot; according to NS 3940]&#xA;There may be additional types of spatial zones as defined in projects.">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBuildingElementProxy">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBuildingElementProxy.PredefinedType.PROVISIONFORVOID">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>PROVISIONFORVOID</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Shape</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Width</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Height</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Diameter</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Depth</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>System</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcUnitaryEquipment.PredefinedType.AIRCONDITIONINGUNIT">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCUNITARYEQUIPMENT</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>AIRCONDITIONINGUNIT</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ElectricalDeviceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>NumberOfPoles</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ElectricalDeviceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasProtectiveEarth</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ElectricalDeviceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IP_Code</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ElectricalDeviceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>RatedCurrent</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ElectricalDeviceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>RatedVoltage</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeAirConditioningUnit</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>LatentCoolingCapacity</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeAirConditioningUnit</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HeatingCapacity</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeAirConditioningUnit</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>CondenserEnteringTemperature</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeAirConditioningUnit</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>CondenserLeavingTemperature</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFilter.PredefinedType.AIRPARTICLEFILTER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFILTER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>AIRPARTICLEFILTER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FilterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFireSuppressionTerminal.PredefinedType.BREECHINGINLET">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFIRESUPPRESSIONTERMINAL</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>BREECHINGINLET</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFilter.PredefinedType.COMPRESSEDAIRFILTER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFILTER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>COMPRESSEDAIRFILTER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FilterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCovering">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOVERING</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCovering.PredefinedType.INSULATION check">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOVERING</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>INSULATION</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcUnitaryEquipment.PredefinedType.DEHUMIDIFIER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCUNITARYEQUIPMENT</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>DEHUMIDIFIER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check123">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcWasteTerminal">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCWASTETERMINAL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check123">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WasteTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcTank.PredefinedType.EXPANSION check">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCTANK</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>EXPANSION</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TankTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFilter">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFILTER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FilterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFireSuppressionTerminal.PredefinedType.FIREHYDRANT">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFIRESUPPRESSIONTERMINAL</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>FIREHYDRANT</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeFireHydrant</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireHydrantType</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="DRYBARREL" />
+              <xs:enumeration value="WETBARREL" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFireSuppressionTerminal">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFIRESUPPRESSIONTERMINAL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFlowMeter">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFLOWMETER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FlowMeterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcHeatExchanger">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCHEATEXCHANGER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_HeatExchangerTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFireSuppressionTerminal.PredefinedType.HOSEREEL">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFIRESUPPRESSIONTERMINAL</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>HOSEREEL</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeHoseReel</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HoseDiameter</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeHoseReel</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HoseLength</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcHumidifier">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCHUMIDIFIER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_HumidifierTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcInterceptor">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCINTERCEPTOR</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_InterceptorTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFilter.PredefinedType.ODORFILTER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFILTER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>ODORFILTER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FilterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFilter.PredefinedType.OILFILTER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFILTER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>OILFILTER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FilterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcPipeFitting">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCPIPEFITTING</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_PipeFittingTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcPipeSegment">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCPIPESEGMENT</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_PipeSegmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcTank.PredefinedType.PRESSUREVESSEL">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCTANK</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>PRESSUREVESSEL</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TankTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcPump">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCPUMP</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_PumpTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcSanitaryTerminal">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSANITARYTERMINAL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SanitaryTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcUnitaryEquipment.PredefinedType.SPLITSYSTEM">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCUNITARYEQUIPMENT</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>SPLITSYSTEM</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFireSuppressionTerminal.PredefinedType.SPRINKLER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFIRESUPPRESSIONTERMINAL</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>SPRINKLER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeSprinkler</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>SprinklerType</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="CEILING" />
+              <xs:enumeration value="CONCEALED" />
+              <xs:enumeration value="CUTOFF" />
+              <xs:enumeration value="PENDANT" />
+              <xs:enumeration value="RECESSEDPENDANT" />
+              <xs:enumeration value="SIDEWALL" />
+              <xs:enumeration value="UPRIGHT" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeSprinkler</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Response</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeSprinkler</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ActivationTemperature</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeSprinkler</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>CoverageArea</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeSprinkler</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>DischargeFlowRate</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeSprinkler</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ConnectionSize</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFireSuppressionTerminal.PredefinedType.SPRINKLERDEFLECTOR">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFIRESUPPRESSIONTERMINAL</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>SPRINKLERDEFLECTOR</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FireSuppressionTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcStackTerminal">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSTACKTERMINAL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StackTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcUnitaryEquipment">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCUNITARYEQUIPMENT</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcValve">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCVALVE</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ValveTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ValveTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Size</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcTank">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCTANK</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TankTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TankTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>StorageType</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="ICE" />
+              <xs:enumeration value="WATER" />
+              <xs:enumeration value="RAINWATER" />
+              <xs:enumeration value="WASTEWATER" />
+              <xs:enumeration value="POTABLEWATER" />
+              <xs:enumeration value="FUEL" />
+              <xs:enumeration value="OIL" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFilter.PredefinedType.STRAINER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFILTER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>STRAINER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FilterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBoiler">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBOILER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BoilerTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBoiler.PredefinedType.WATER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBOILER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>WATER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BoilerTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCoil">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOIL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoilTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcSpaceHeater">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSPACEHEATER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceHeaterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcSpaceHeater.PredefinedType.RADIATOR">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSPACEHEATER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>RADIATOR</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceHeaterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcUnitaryEquipment.PredefinedType.AIRHANDLER">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCUNITARYEQUIPMENT</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>AIRHANDLER</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_UnitaryEquipmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcAirTerminal">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCAIRTERMINAL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_AirTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasIntegralControl</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_AirTerminalTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcAirToAirHeatRecovery">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCAIRTOAIRHEATRECOVERY</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_AirToAirHeatRecoveryTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcDamper">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCDAMPER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DamperTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcDuctFitting">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCDUCTFITTING</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DuctFittingTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcDuctSegment">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCDUCTSEGMENT</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DuctSegmentTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcDuctSilencer">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCDUCTSILENCER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DuctSilencerTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFan">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFAN</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FanTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcChiller">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCHILLER</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ChillerTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCooledBeam">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOOLEDBEAM</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CooledBeamTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcSpaceHeater.PredefinedType.CONVECTOR">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSPACEHEATER</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>CONVECTOR</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required" instructions="System relation check">
+          <ids:entity>
+            <ids:name>
+              <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*SYSTEM" />
+              </xs:restriction>
+            </ids:name>
+          </ids:entity>
+        </ids:partOf>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasAcousticReq</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceHeaterTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+  </ids:specifications>
+</ids:ids>
