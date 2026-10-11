@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { FACET_INFO, FacetFields } from './FacetRow';
 import { TextField } from './fields';
-import { useSchema, versionFor } from './useSchema';
-import type { SchemaData } from '@idsbench/check/ifc';
+import { useLists } from './useSchema';
+import type { Lists } from '../../core/picks';
 import { type Issue } from '../../core/ids/check';
 import {
   IFC_VERSIONS, newFacet, occursFor, sortApplicability, specChoice,
@@ -29,7 +29,8 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey }: Props) {
   const err = (k: string) => issues.find((i) => i.key === `${s.uid}.${k}` && i.level === 'error')?.message ?? null;
   const adv = (k: string) => issues.find((i) => i.key === `${s.uid}.${k}` && i.level === 'advice')?.message ?? null;
   const choice = specChoice(s);
-  const schema = useSchema(versionFor(s.ifcVersion));
+  const lists = useLists(s.ifcVersion);
+  const several = s.ifcVersion.length > 1;
   const entity = s.applicability.find((f) => f.kind === 'entity');
   const appliesTo = entity?.kind === 'entity' && entity.name.kind === 'simple' ? entity.name.value : '';
   const hidden = ['ifcVersion', 'occurs'].map((k) => `${s.uid}.${k}`);
@@ -54,9 +55,9 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey }: Props) {
     <div className="spec-body" ref={root}>
       <TextField label="Name" dataKey={`${s.uid}.name`} required value={s.name} error={err('name')} onChange={(v) => onChange({ ...s, name: v })} />
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={issues} groupError={err('applicability')} groupAdvice={adv('applicability')}
-        dataKey={`${s.uid}.applicability`} schema={schema} appliesTo="" onChange={(f) => onChange({ ...s, applicability: sortApplicability(f) })} />
+        dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={(f) => onChange({ ...s, applicability: sortApplicability(f) })} />
       <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={issues} groupError={err('requirements')} groupAdvice={adv('requirements')}
-        dataKey={`${s.uid}.requirements`} schema={schema} appliesTo={appliesTo} onChange={(f) => onChange({ ...s, requirements: f })} />
+        dataKey={`${s.uid}.requirements`} lists={lists} several={several} appliesTo={appliesTo} onChange={(f) => onChange({ ...s, requirements: f })} />
 
       <details className="more" open={more} onToggle={(e) => setMoreOpen((e.currentTarget as HTMLDetailsElement).open)}>
         <summary>More options</summary>
@@ -93,10 +94,10 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey }: Props) {
 interface ListProps {
   title: string; help: string; kind: 'applicability' | 'requirements';
   facets: Facet[]; issues: Issue[]; groupError: string | null; groupAdvice?: string | null;
-  onChange: (f: Facet[]) => void; dataKey: string; schema: SchemaData | null; appliesTo: string;
+  onChange: (f: Facet[]) => void; dataKey: string; lists: Lists | null; several: boolean; appliesTo: string;
 }
 
-function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice, onChange, dataKey, schema, appliesTo }: ListProps) {
+function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice, onChange, dataKey, lists, several, appliesTo }: ListProps) {
   const [adding, setAdding] = useState(false);
   // Where keyboard focus goes after a change that removes the button that had it.
   const [focusNext, setFocusNext] = useState<string | null>(null);
@@ -141,7 +142,7 @@ function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice,
                 <button type="button" className="btn small quiet" onClick={() => { onChange(facets.filter((x) => x !== f)); setFocusNext('add'); }} aria-label={`Remove ${FACET_INFO[f.kind].name} item ${i + 1} from ${title}`}>Remove</button>
               </span>
             </div>
-            <FacetFields facet={f} requirement={requirement} issues={issues} schema={schema} appliesTo={appliesTo} onChange={(n) => onChange(facets.map((x) => (x === f ? n : x)))} />
+            <FacetFields facet={f} requirement={requirement} issues={issues} lists={lists} several={several} appliesTo={appliesTo} onChange={(n) => onChange(facets.map((x) => (x === f ? n : x)))} />
           </li>
         ))}
       </ol>

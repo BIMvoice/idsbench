@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
-import type { SchemaData } from '@idsbench/check/ifc';
 import { Combo } from './Combo';
 import { SelectField, TextField } from './fields';
 import { ValueField } from './ValueField';
 import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple } from '../../core/ids/model';
 import { baseForDataType } from '../../core/ids/value';
 import type { Issue } from '../../core/ids/check';
-import { classOptions, dataTypeFor, dataTypeOptions, plainName, predefinedTypeOptions, propertyOptions, psetOptions, type Option } from '../../core/picks';
+import type { Lists, Option } from '../../core/picks';
 
 export const FACET_INFO: Record<FacetKind, { name: string; about: string }> = {
   entity: { name: 'Type of element', about: 'The kind of element, such as a wall or a door.' },
@@ -27,6 +26,7 @@ const RELATIONS: Record<string, string> = {
 };
 const CARDINALITY: Record<Cardinality, string> = { required: 'Required', optional: 'Optional', prohibited: 'Prohibited' };
 const NOT_STANDARD = 'A custom name: it is not one the IFC standard defines.';
+const NOT_IN_ALL = 'Not a name every IFC version ticked for this specification defines.';
 const NONE: Option[] = [];
 const text = (v: Value | null | undefined) => (v && v.kind === 'simple' ? v.value : '');
 
@@ -35,36 +35,40 @@ interface Props {
   requirement: boolean;
   issues: Issue[];
   onChange: (f: Facet) => void;
-  /** The IFC tables for the pick-lists; null until they have loaded. */
-  schema: SchemaData | null;
+  /** The pick-lists for the IFC versions the specification ticks; null until their tables have loaded. */
+  lists: Lists | null;
+  /** True when the specification ticks more than one IFC version: the lists then hold what all of them define. */
+  several: boolean;
   /** The IFC class this specification applies to, when it names exactly one: it narrows the lists. */
   appliesTo: string;
 }
 
-export function FacetFields({ facet: f, requirement, issues, onChange, schema, appliesTo }: Props) {
+export function FacetFields({ facet: f, requirement, issues, onChange, lists, several, appliesTo }: Props) {
+  const notListed = several ? NOT_IN_ALL : NOT_STANDARD;
   const err = (k: string) => issues.find((i) => i.key === `${f.uid}.${k}` && i.level === 'error')?.message ?? null;
   const adv = (k: string) => issues.find((i) => i.key === `${f.uid}.${k}` && i.level === 'advice')?.message ?? null;
   const set = (patch: Partial<Record<string, unknown>>) => onChange({ ...f, ...patch } as Facet);
   const vf = (label: string, key: string, value: Value | null, optional: boolean, apply: (v: Value | null) => void, extra: { base?: string; options?: Option[]; customNote?: string } = {}) => (
     <ValueField key={key} dataKey={`${f.uid}.${key}`} label={label} value={value} optional={optional} onChange={(v) => apply(v)} error={err(key)} advice={adv(key)} {...extra} />
   );
-  const classes = useMemo(() => (schema ? classOptions(schema) : NONE), [schema]);
-  const dataTypes = useMemo(() => (schema ? dataTypeOptions(schema) : NONE), [schema]);
-  const attributes = useMemo(() => (schema ? schema.allAttributeNames.map((n) => ({ value: n, label: plainName(n) === n ? n : `${plainName(n)} (${n})` })) : NONE), [schema]);
+  const classes = lists?.classes ?? NONE;
+  const dataTypes = lists?.dataTypes ?? NONE;
+  // In "Must have" the attribute has to be one the class named in "Applies to" has, or the two can never describe the same element.
+  const attributes = useMemo(() => (lists && f.kind === 'attribute' ? lists.attributes(requirement ? appliesTo || undefined : undefined) : NONE), [lists, f.kind, requirement, appliesTo]);
   const ownClass = f.kind === 'entity' ? text(f.name) : f.kind === 'partOf' ? text(f.entity.name) : '';
-  const predefined = useMemo(() => (schema && ownClass ? predefinedTypeOptions(schema, ownClass) : NONE), [schema, ownClass]);
-  const psets = useMemo(() => (schema && f.kind === 'property' ? psetOptions(schema, appliesTo || undefined) : NONE), [schema, f.kind, appliesTo]);
+  const predefined = useMemo(() => (lists && ownClass ? lists.predefinedTypes(ownClass) : NONE), [lists, ownClass]);
+  const psets = useMemo(() => (lists && f.kind === 'property' ? lists.propertySets(appliesTo || undefined) : NONE), [lists, f.kind, appliesTo]);
   const psetName = f.kind === 'property' ? text(f.propertySet) : '';
-  const props = useMemo(() => (schema && psetName ? propertyOptions(schema, psetName) : NONE), [schema, psetName]);
+  const props = useMemo(() => (lists && psetName ? lists.properties(psetName) : NONE), [lists, psetName]);
   const allowed = requirement ? allowedCardinalities(f.kind) : null;
   return (
     <div className="facet-fields">
       {f.kind === 'entity' && <>
-        {vf('IFC class', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: classes, customNote: NOT_STANDARD })}
+        {vf('IFC class', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: classes, customNote: notListed })}
         {vf('Predefined type', 'predefinedType', f.predefinedType, true, (v) => set({ predefinedType: v }), { options: predefined })}
       </>}
       {f.kind === 'attribute' && <>
-        {vf('Attribute', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: attributes, customNote: NOT_STANDARD })}
+        {vf('Attribute', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: attributes, customNote: requirement && appliesTo ? 'Not an attribute of the class this specification applies to.' : notListed })}
         {vf('Value', 'value', f.value, true, (v) => set({ value: v }))}
       </>}
       {f.kind === 'classification' && <>
@@ -72,10 +76,10 @@ export function FacetFields({ facet: f, requirement, issues, onChange, schema, a
         {vf('Code', 'value', f.value, true, (v) => set({ value: v }))}
       </>}
       {f.kind === 'property' && <>
-        {vf('Property set', 'propertySet', f.propertySet, false, (v) => set({ propertySet: v ?? simple() }), { options: psets, customNote: 'A custom property set: it is not one the IFC standard defines.' })}
+        {vf('Property set', 'propertySet', f.propertySet, false, (v) => set({ propertySet: v ?? simple() }), { options: psets, customNote: appliesTo || several ? 'A custom property set: not one the IFC standard defines for this class and the IFC versions ticked.' : 'A custom property set: it is not one the IFC standard defines.' })}
         {vf('Property', 'baseName', f.baseName, false, (v) => {
           // A property of a standard set brings its data type with it.
-          const type = schema && v?.kind === 'simple' && psetName ? dataTypeFor(schema, psetName, v.value) : null;
+          const type = lists && v?.kind === 'simple' && psetName ? lists.dataTypeFor(psetName, v.value) : null;
           set(type ? { baseName: v ?? simple(), dataType: type } : { baseName: v ?? simple() });
         }, { options: props, customNote: props.length ? 'A custom property: this property set does not define it.' : undefined })}
         <Combo label="Data type" dataKey={`${f.uid}.dataType`} value={f.dataType ?? ''} options={dataTypes} hint="Needed when you give a value."
@@ -87,7 +91,7 @@ export function FacetFields({ facet: f, requirement, issues, onChange, schema, a
         <SelectField label="Relationship" dataKey={`${f.uid}.relation`} error={err('relation')} advice={adv('relation')} value={f.relation ?? ''} options={[...Object.entries(RELATIONS).filter(([k]) => k === '' || (PARTOF_RELATIONS as readonly string[]).includes(k)).map(([value, label]) => ({ value, label })),
           ...(f.relation && !(f.relation in RELATIONS) ? [{ value: f.relation, label: f.relation }] : [])]}
           onChange={(v) => set({ relation: v === '' ? null : v })} />
-        {vf('Of this IFC class', 'entity', f.entity.name, false, (v) => onChange({ ...f, entity: { ...f.entity, name: v ?? simple() } }), { options: classes, customNote: NOT_STANDARD })}
+        {vf('Of this IFC class', 'entity', f.entity.name, false, (v) => onChange({ ...f, entity: { ...f.entity, name: v ?? simple() } }), { options: classes, customNote: notListed })}
         {vf('Predefined type', 'predefinedType', f.entity.predefinedType, true, (v) => onChange({ ...f, entity: { ...f.entity, predefinedType: v } }), { options: predefined })}
       </>}
       {allowed && f.kind !== 'entity' && (

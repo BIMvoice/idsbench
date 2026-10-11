@@ -116,3 +116,61 @@ describe('the example that ships with the app', () => {
     expect(r.verdict).toBe('fail');
   });
 });
+
+describe('pick-lists hold for every IFC version the specification ticks, and for its class', async () => {
+  const { listsFor, attributeOptions } = await import('../src/core/picks');
+  const { newFacet, newSpecification, simple } = await import('../src/core/ids/model');
+  const [s2, s4, s43] = await Promise.all([loadSchema('IFC2X3'), loadSchema('IFC4'), loadSchema('IFC4X3_ADD2')]);
+  const values = (o: { value: string }[]) => o.map((x) => x.value);
+  const entity = (cls: string) => ({ ...newFacet('entity', 'applicability'), name: simple(cls) });
+  const rejected = async (versions: string[], specs: { cls: string; req?: object }[]) => {
+    const d = doc(...specs.map((x) => ({ ...newSpecification(), name: 's', ifcVersion: versions, applicability: [entity(x.cls)], requirements: x.req ? [x.req] : [] })) as never[]);
+    const r = await checkIds(writeIds(d));
+    return r.findings.filter((f) => f.severity === 'error').map((f) => `${f.code}: ${f.message}`);
+  };
+
+  it('with two versions ticked, a class only one of them has is not offered; the engine rejects it, and accepts every class that is offered', async () => {
+    const both = listsFor([s2, s4]);
+    expect(values(classOptions(s2))).toContain('IFCELECTRICALELEMENT');
+    expect(values(both.classes)).not.toContain('IFCELECTRICALELEMENT');
+    expect(values(both.classes)).toContain('IFCWALL');
+    expect((await rejected(['IFC2X3', 'IFC4'], [{ cls: 'IFCELECTRICALELEMENT' }]))[0]).toMatch(/entity-unknown-class.*IFC4/);
+    expect(await rejected(['IFC2X3', 'IFC4'], both.classes.map((c) => ({ cls: c.value })))).toEqual([]);
+    const three = listsFor([s2, s4, s43]);
+    expect(await rejected(['IFC2X3', 'IFC4', 'IFC4X3_ADD2'], three.classes.map((c) => ({ cls: c.value })))).toEqual([]);
+    expect(three.classes.length).toBeLessThan(both.classes.length);
+  });
+  it('one version alone offers what it offered before', () => {
+    const one = listsFor([s4]);
+    expect(one.classes).toEqual(classOptions(s4));
+    expect(one.propertySets('IFCWALL')).toEqual(psetOptions(s4, 'IFCWALL'));
+    expect(one.dataTypeFor('Pset_WallCommon', 'FireRating')).toBe('IFCLABEL');
+  });
+  it('property sets and properties are those every ticked version gives the class', async () => {
+    const both = listsFor([s2, s4]);
+    const onlyIn4 = values(psetOptions(s4, 'IFCWALL')).filter((p) => !values(psetOptions(s2, 'IFCWALL')).includes(p));
+    expect(onlyIn4.length).toBeGreaterThan(0);
+    expect(values(both.propertySets('IFCWALL')).filter((p) => onlyIn4.includes(p))).toEqual([]);
+    const prop = (set: string, name: string, dataType: string | null) => ({ ...newFacet('property', 'requirements'), propertySet: simple(set), baseName: simple(name), dataType });
+    expect((await rejected(['IFC2X3', 'IFC4'], [{ cls: 'IFCWALL', req: prop(onlyIn4[0], propertyOptions(s4, onlyIn4[0])[0].value, null) }])).length).toBeGreaterThan(0);
+    const offered = both.propertySets('IFCWALL').flatMap((set) => both.properties(set.value).map((p) => ({ cls: 'IFCWALL', req: prop(set.value, p.value, both.dataTypeFor(set.value, p.value)) })));
+    expect(offered.length).toBeGreaterThan(10);
+    expect(await rejected(['IFC2X3', 'IFC4'], offered)).toEqual([]);
+  });
+  it('attribute names in "Must have" are those the class has: every one offered is accepted, and one of another class is rejected', async () => {
+    const forWall = attributeOptions(s4, 'IFCWALL');
+    expect(values(forWall)).toEqual(expect.arrayContaining(['Name', 'Description', 'GlobalId', 'PredefinedType', 'Tag']));
+    expect(values(forWall)).not.toContain('AcidityConcentration');
+    expect(attributeOptions(s4).length).toBeGreaterThan(forWall.length);
+    const attr = (name: string) => ({ ...newFacet('attribute', 'requirements'), name: simple(name) });
+    expect(await rejected(['IFC4'], forWall.map((a) => ({ cls: 'IFCWALL', req: attr(a.value) })))).toEqual([]);
+    expect((await rejected(['IFC4'], [{ cls: 'IFCWALL', req: attr('OverallHeight') }]))[0]).toMatch(/applicability-requirements-incompatible/);
+  });
+  it('a choice that stops being valid is reported by the engine: the class changed under a property set, a version unticked or ticked', async () => {
+    const prop = { ...newFacet('property', 'requirements'), propertySet: simple('Pset_WallCommon'), baseName: simple('FireRating'), dataType: 'IFCLABEL' };
+    expect(await rejected(['IFC4'], [{ cls: 'IFCWALL', req: prop }])).toEqual([]);
+    expect((await rejected(['IFC4'], [{ cls: 'IFCDOOR', req: prop }]))[0]).toMatch(/applicability-requirements-incompatible/);
+    expect(await rejected(['IFC4X3_ADD2'], [{ cls: 'IFCBRIDGE' }])).toEqual([]);
+    expect((await rejected(['IFC4', 'IFC4X3_ADD2'], [{ cls: 'IFCBRIDGE' }]))[0]).toMatch(/entity-unknown-class.*IFC4/);
+  });
+});

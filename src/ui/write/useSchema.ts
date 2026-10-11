@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { SchemaData, IfcVersion } from '@idsbench/check/ifc';
 import { IFC_VERSIONS } from '../../core/ids/model';
+import { listsFor, type Lists } from '../../core/picks';
 
-/** The IFC version whose names a specification's pick-lists offer: the first it lists, or IFC4. */
-export function versionFor(listed: string[]): IfcVersion {
-  return (listed.find((v) => (IFC_VERSIONS as readonly string[]).includes(v)) ?? 'IFC4') as IfcVersion;
+/** The IFC versions a specification's pick-lists have to hold for: those it lists that IDS knows, or IFC4 when it lists none. */
+export function versionsFor(listed: string[]): IfcVersion[] {
+  const known = IFC_VERSIONS.filter((v) => listed.includes(v)) as IfcVersion[];
+  return known.length ? known : ['IFC4'];
 }
 
 /** The IFC tables for one version, from the Check engine's own data. Loaded when first asked for; null until then. */
@@ -17,4 +19,21 @@ export function useSchema(version: IfcVersion | null): SchemaData | null {
     return () => { live = false; };
   }, [version]);
   return got && got.version === version ? got : null;
+}
+
+/**
+ * The pick-lists of a specification: the names every IFC version it ticks defines. Null until the tables of all of
+ * them have loaded, so a list is never shown for fewer versions than are ticked.
+ */
+export function useLists(listed: string[]): Lists | null {
+  const key = versionsFor(listed).join(' ');
+  const [got, setGot] = useState<{ key: string; schemas: SchemaData[] } | null>(null);
+  useEffect(() => {
+    let live = true;
+    import('@idsbench/check/ifc').then((m) => Promise.all((key.split(' ') as IfcVersion[]).map((v) => m.loadSchema(v))))
+      .then((schemas) => { if (live) setGot({ key, schemas }); }, (e) => console.error(e));
+    return () => { live = false; };
+  }, [key]);
+  const schemas = got && got.key === key ? got.schemas : null;
+  return useMemo(() => (schemas ? listsFor(schemas) : null), [schemas]);
 }

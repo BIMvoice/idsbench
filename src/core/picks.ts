@@ -82,3 +82,66 @@ export function exactOption(options: Option[], text: string): Option | null {
   if (q === '') return null;
   return options.find((o) => o.value.toLowerCase() === q || o.label.toLowerCase() === q || o.label.toLowerCase().startsWith(`${q} (`)) ?? null;
 }
+
+/** The pick-lists of one specification. */
+export interface Lists {
+  classes: Option[];
+  predefinedTypes: (classUpper: string) => Option[];
+  /** Attribute names; narrowed to those the class has when a class is given and known. */
+  attributes: (classUpper?: string) => Option[];
+  propertySets: (classUpper?: string) => Option[];
+  properties: (psetName: string) => Option[];
+  dataTypeFor: (psetName: string, propName: string) => string | null;
+  dataTypes: Option[];
+}
+
+const attributeOption = (n: string): Option => ({ value: n, label: plainName(n) === n ? n : `${plainName(n)} (${n})` });
+
+/** The attribute names a class has; every attribute name of the version when no class is given or the class is not known. */
+export function attributeOptions(s: SchemaData, classUpper?: string): Option[] {
+  const cls = classUpper && s.classes.has(classUpper.toUpperCase()) ? classUpper.toUpperCase() : null;
+  const names = cls ? s.allAttributeNames.filter((n) => s.attributes.get(n)?.classes.includes(cls)) : s.allAttributeNames;
+  return names.map(attributeOption);
+}
+
+function listsOfOne(s: SchemaData): Lists {
+  return {
+    classes: classOptions(s),
+    predefinedTypes: (c) => predefinedTypeOptions(s, c),
+    attributes: (c) => attributeOptions(s, c),
+    propertySets: (c) => psetOptions(s, c),
+    properties: (p) => propertyOptions(s, p),
+    dataTypeFor: (p, n) => dataTypeFor(s, p, n),
+    dataTypes: dataTypeOptions(s),
+  };
+}
+
+/** How the lists were made before they followed every ticked version and the class: from the first version alone, with every attribute name. Kept for scripts/picklists.ts, which measures the difference. */
+export function listsOfFirstVersion(s: SchemaData): Lists {
+  return { ...listsOfOne(s), attributes: () => s.allAttributeNames.map(attributeOption) };
+}
+
+/**
+ * The pick-lists for a specification that ticks these IFC versions (their tables, in the order ticked): what every one
+ * of them defines. The engine checks a specification against each version it lists, so a name only some of them have
+ * would be offered here and then rejected there.
+ */
+export function listsFor(schemas: SchemaData[]): Lists {
+  const each = schemas.map(listsOfOne);
+  if (each.length === 1) return each[0];
+  const [first, ...rest] = each;
+  const inAll = (own: Option[], others: Option[][]) => {
+    const sets = others.map((o) => new Set(o.map((x) => x.value)));
+    return own.filter((o) => sets.every((set) => set.has(o.value)));
+  };
+  return {
+    classes: inAll(first.classes, rest.map((l) => l.classes)),
+    predefinedTypes: (c) => inAll(first.predefinedTypes(c), rest.map((l) => l.predefinedTypes(c))),
+    attributes: (c) => inAll(first.attributes(c), rest.map((l) => l.attributes(c))),
+    propertySets: (c) => inAll(first.propertySets(c), rest.map((l) => l.propertySets(c))),
+    properties: (p) => inAll(first.properties(p), rest.map((l) => l.properties(p))),
+    // A data type is filled in only when every version gives the property the same one.
+    dataTypeFor: (p, n) => { const t = first.dataTypeFor(p, n); return t !== null && rest.every((l) => l.dataTypeFor(p, n) === t) ? t : null; },
+    dataTypes: inAll(first.dataTypes, rest.map((l) => l.dataTypes)),
+  };
+}
