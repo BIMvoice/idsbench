@@ -1,4 +1,4 @@
-"""BIMvoice IDS Auditor - local backend.
+"""idsbench - local backend.
 
 A small local web app that audits IDS files using the buildingSMART
 IDS audit tool (ids-tool, MIT licensed). Files never leave your machine.
@@ -112,5 +112,5 @@ def audit():
 
 
 if __name__ == "__main__":
-    print(f"BIMvoice IDS Auditor running at http://127.0.0.1:{PORT}")
+    print(f"idsbench running at http://127.0.0.1:{PORT}")
     app.run(host="127.0.0.1", port=PORT, debug=False)
