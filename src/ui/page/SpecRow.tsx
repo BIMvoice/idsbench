@@ -78,10 +78,12 @@ interface Props {
   onAddSubtypes?: () => void;
   /** What the IFC tables tell the sentence (plain class names, classes that are one class and its subtypes). */
   words?: WordsOptions;
+  /** One line on what the last edit did to this specification's result ("Now fails: 1 element"). */
+  changed?: string | null;
 }
 
 /** One specification: its sentence first, then its result, what the engine found in it, and its form when it is being edited. */
-export function SpecRow({ spec: s, index, count, result, waiting, findings, xml, issues, editing, primary, focusKey, onEdit, onChange, onMove, onDelete, subtypes, onAddSubtypes, words: wordsOptions }: Props) {
+export function SpecRow({ spec: s, index, count, result, waiting, findings, xml, issues, editing, primary, focusKey, onEdit, onChange, onMove, onDelete, subtypes, onAddSubtypes, words: wordsOptions, changed }: Props) {
   const label = s.name.trim() || 'Untitled specification';
   const words = describeSpecification(s, wordsOptions);
   // While a row is being edited its result is not shown as its state.
@@ -99,6 +101,7 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
           <button type="button" className={primary ? 'btn small primary' : 'btn small'} aria-expanded={editing} aria-controls={`body-${s.uid}`} aria-label={`${editing ? 'Done editing' : 'Edit'} ${label}`} onClick={() => onEdit(!editing)}>{editing ? 'Done' : 'Edit'}</button>
         </span>
       </div>
+      {changed && !editing && <p className="note change-line" role="status">{changed}</p>}
       {result?.coverage && !editing && (
         <p className="note coverage-note">
           {result.coverage.text}{' '}

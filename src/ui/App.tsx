@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { afterRun, failureCount, failuresCsvName, failuresCsvParts, wholeFailureCount } from '../core/csv';
+import { afterRun, failureCount, failuresCsvName, failuresCsvParts, failureTotalOf, wholeFailureCount } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
 import { pageReportName, pageReportParts, sha256Of } from '../core/report';
 import { alignResults, NOT_ALIGNED } from '../core/align';
+import { changeLine, snapshotOf, type Snapshot } from '../core/changed';
 import { ROW_CAP } from '../core/checkview';
 import { About } from './page/About';
 import { saveFile } from './page/draft';
@@ -31,6 +32,37 @@ export function App() {
   const wholeFailed = result ? wholeFailureCount(result) : 0;
   // A result row is shown beside a specification only when the result is of exactly these specifications, in this order.
   const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
+
+  // ---- what an edit did to the result: said next to the specification when the form is closed ----
+  // The result of the specification as it was when its form was opened, and the one to compare when the form is closed.
+  const opened = useRef<{ uid: string; before: Snapshot | null } | null>(null);
+  const [watching, setWatching] = useState<{ uid: string; before: Snapshot } | null>(null);
+  const [changed, setChanged] = useState<{ uid: string; text: string } | null>(null);
+  const editingNow = page.editing;
+  useEffect(() => {
+    if (editingNow && editingNow !== 'about') {
+      const i = doc ? doc.specifications.findIndex((x) => x.uid === editingNow) : -1;
+      if (opened.current?.uid !== editingNow) opened.current = { uid: editingNow, before: rows && result && i >= 0 ? snapshotOf(rows[i], result.verdict) : null };
+      setChanged((c) => (c?.uid === editingNow ? null : c));
+      setWatching(null);
+    } else if (opened.current) {
+      const was = opened.current;
+      opened.current = null;
+      if (was.before) setWatching({ uid: was.uid, before: was.before });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingNow]);
+  useEffect(() => {
+    if (!watching || !doc || !rows || !result) return;
+    const i = doc.specifications.findIndex((x) => x.uid === watching.uid);
+    setWatching(null);
+    if (i < 0) return;
+    const text = changeLine(watching.before, snapshotOf(rows[i], result.verdict), failureTotalOf(rows[i]));
+    if (!text) return;
+    setChanged({ uid: watching.uid, text });
+    // Into view where it is, at once: no scrolling animation to follow (and none to switch off for those who ask for less motion).
+    requestAnimationFrame(() => document.getElementById(`spec-${watching.uid}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior }));
+  }, [watching, rows, result, doc]);
 
   // ---- the classes a specification names leave their subtypes out: IDS matches the exact class ----
   const schemaMap = useSchemaMap(doc ? doc.specifications.flatMap((s) => versionsFor(s.ifcVersion)) : []);
@@ -222,7 +254,9 @@ export function App() {
     <div className="page" data-doc={mark(page.text)} data-model={modelMark(model)}>
       <header className="top">
         <h1 className="brand">idsbench</h1>
-        <p className="top-note">Checks IDS 1.0 files, and IFC models against them.</p>
+        <p className="top-note" id="what-is-ids">{hasPage
+          ? 'Checks IDS 1.0 files, and IFC models against them.'
+          : 'An IDS file lists what a building model must contain, for example that every door has a fire rating; here you check that such a file is valid, check a model against it, and write one.'}</p>
       </header>
 
       <main>
@@ -300,6 +334,7 @@ export function App() {
                   })}
                   subtypes={subtypesOf(s)}
                   words={wordsOf(s)}
+                  changed={changed?.uid === s.uid ? changed.text : null}
                   onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
                   onDelete={() => { page.change(`Deleted "${s.name || 'Untitled specification'}"`, (x) => ({ ...x, specifications: x.specifications.filter((y) => y.uid !== s.uid) })); page.setEditing(null); }}
                 />

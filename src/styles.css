@@ -478,3 +478,15 @@ summary.finding-head::after { grid-column: 3; grid-row: 1; align-self: center; }
   .about-list > div { grid-template-columns: 1fr; gap: 0; }
   .combo-list { position: static; }
 }
+
+/* The plain meaning beside a name in a pick-list, the engine's own sentence behind "Details", the line that says what an edit changed. No motion anywhere. */
+.combo-meaning { display: block; color: var(--ink-soft); font-size: var(--t-small); }
+.technical { margin: var(--s1) 0 0; color: var(--ink-soft); font-size: var(--t-small); overflow-wrap: anywhere; }
+.fix-details { margin-top: var(--s1); font-size: var(--t-small); }
+.fix-details > summary { cursor: pointer; color: var(--ink-soft); }
+.finding-details { font-size: var(--t-label); color: var(--ink-soft); text-decoration: underline; }
+.change-line { font-weight: 700; }
+.next-choice { margin: 0; }
+.subtype-choice { display: block; margin: var(--s2) 0; }
+.choice-group.occurs { margin: var(--s3) 0; }
+.limit-versions { margin: 0 0 var(--s2); }

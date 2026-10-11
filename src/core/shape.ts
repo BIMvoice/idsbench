@@ -377,7 +377,7 @@ export function headline(c: Counts): string {
 export function assembleReport(
   specs: SpecRow[],
   spilled: (Spilled | null)[] | null,
-  meta: { idsFile: string; ifcFile: string; schema: string; entityCount: number; seconds: number },
+  meta: { idsFile: string; ifcFile: string; schema: string; entityCount: number; elementCount?: number; seconds: number },
 ): RunResult {
   const count = (...states: SpecState[]) => specs.filter((s) => states.includes(s.state)).length;
   const counts: Counts = {

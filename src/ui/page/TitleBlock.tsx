@@ -73,7 +73,8 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
           <div><dt>IDS file</dt><dd>{idsName}</dd></div>
           <div><dt>Model</dt><dd>{result.ifcFile}</dd></div>
           <div><dt>IFC version</dt><dd>{result.schema}</dd></div>
-          <div><dt>Entities</dt><dd>{result.entityCount.toLocaleString('en')}</dd></div>
+          <div><dt>Records in the file</dt><dd>{result.entityCount.toLocaleString('en')}</dd></div>
+          {result.elementCount !== undefined && <div><dt>Building elements</dt><dd>{result.elementCount.toLocaleString('en')}</dd></div>}
           <div><dt>Checked in</dt><dd>{result.seconds.toFixed(1)} s</dd></div>
         </dl>
       ) : (

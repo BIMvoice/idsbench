@@ -176,11 +176,11 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       if (hasNoApplicability(s)) accs[i].feed({ specification: s, status: 'not_applicable', applicableCount: 0, passedCount: 0, failedCount: 0, entityResults: [] });
     }
     const done = accs.map((a) => a.finish());
-    await addCoverage(done.map((d) => d.row), doc, store, loaded.schema);
+    const tables = await addCoverage(done.map((d) => d.row), doc, store, loaded.schema);
     return assembleReport(
       done.map((d) => d.row),
       input.spill ? done.map((d) => d.spilled) : null,
-      { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, seconds: (performance.now() - t0) / 1000 },
+      { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, ...elementsIn(store, tables), seconds: (performance.now() - t0) / 1000 },
     );
   } catch (e) {
     if (e instanceof RunStopped) throw e;
@@ -214,17 +214,28 @@ export function placeFinder(accessor: Accessor): (expressId: number) => string {
  * and the specification does not cover. Reads the model's class counts only; it changes no count, state or verdict. The
  * sentence is also added to the reason a specification failed as a whole, so that the CSV row says it too.
  */
-async function addCoverage(rows: RunResult['specs'], doc: IDSDocument, store: LoadedModel['store'], modelSchema: string): Promise<void> {
+type Tables = Awaited<ReturnType<typeof import('@idsbench/check/ifc').loadSchema>>;
+
+/** How many of the model's entities are elements of the building (things with a place in it: walls, doors, spaces), against all the records of the file; empty when the tables of the model's version cannot be had. */
+function elementsIn(store: LoadedModel['store'], tables: Tables | null): { elementCount?: number } {
+  const byType = store.entityIndex?.byType;
+  if (!tables || !byType) return {};
+  let n = 0;
+  for (const [type, ids] of byType) if (tables.isA(type.toUpperCase(), 'IFCPRODUCT')) n += ids.length;
+  return { elementCount: n };
+}
+
+async function addCoverage(rows: RunResult['specs'], doc: IDSDocument, store: LoadedModel['store'], modelSchema: string): Promise<Tables | null> {
   const version = tableVersion(modelSchema);
   const byType = store.entityIndex?.byType;
-  if (!version || !byType) return;
-  let tables: Awaited<ReturnType<typeof import('@idsbench/check/ifc').loadSchema>> | null = null;
+  if (!version || !byType) return null;
+  let tables: Tables | null = null;
+  try { tables = await (await import('@idsbench/check/ifc')).loadSchema(version); } catch (e) { console.error('IFC tables not loaded', e); return null; }
   for (const [i, row] of rows.entries()) {
     if (row.state === 'unchecked') continue;
     const names = namedByLibrarySpec(doc.specifications[i] as never);
     if (!names) continue;
     try {
-      tables ??= await (await import('@idsbench/check/ifc')).loadSchema(version);
       const coverage = coverageOf(names.named, row.applicable, (u) => byType.get(u)?.length ?? 0, tables, names.other);
       if (!coverage) continue;
       row.coverage = coverage;
@@ -234,6 +245,7 @@ async function addCoverage(rows: RunResult['specs'], doc: IDSDocument, store: Lo
       console.error('class coverage skipped', e);
     }
   }
+  return tables;
 }
 
 /** Thrown from onTick to stop a run. Never a failure to show. */

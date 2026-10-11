@@ -88,3 +88,11 @@ describe('coverageOf, on its own', () => {
     expect(coverageOf(['IFCNOTACLASS'], 0, () => 9, s)).toBeNull();
   });
 });
+
+describe('the record counts what it counts', () => {
+  it('"records" are every entity of the file; "building elements" are the products among them (site, building, storey and the three walls)', async () => {
+    const r = await runText(idsText(specXml('S', 'IFCWALL', 'minOccurs="0" maxOccurs="unbounded"', nameIs('x'), 'IFC2X3')), standardCase);
+    expect(r.entityCount).toBe(16);
+    expect(r.elementCount).toBe(6);
+  });
+});

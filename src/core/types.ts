@@ -93,7 +93,10 @@ export interface RunResult {
   idsFile: string;
   ifcFile: string;
   schema: string;
+  /** Every record of the file: elements, but also geometry, properties and relationships. */
   entityCount: number;
+  /** Of those, the elements of the building (walls, doors, spaces: what has a place in the model). Absent when the IFC tables of the model's version could not be had. */
+  elementCount?: number;
   specs: SpecRow[];
   counts: {
     specifications: number;
