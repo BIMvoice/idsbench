@@ -75,7 +75,7 @@ Files are read and checked in your browser, in Web Workers. Unsaved changes to t
 | --- | --- | --- |
 | `@ifc-lite/parser` | reading the IFC model | MPL-2.0 |
 | `@ifc-lite/ids` | reading the IDS and checking the model against it (it cannot write IDS; the page has its own writer) | MPL-2.0 |
-| `@idsbench/check` (`packages/check`) | checking the IDS file itself, and the IFC tables behind the pick-lists; uses `xmllint-wasm` and `@xmldom/xmldom` | MIT |
+| `@idsbench/check` (`packages/check`) | checking the IDS file itself, and the IFC tables behind the pick-lists; uses `xmllint-wasm` and `@xmldom/xmldom` || MPL-2.0 (part of this repository; see `NOTICE.md` for the MIT-licensed work it builds on) |
 | `react`, `react-dom` | the interface | MIT |
 | Atkinson Hyperlegible Next, Barlow Condensed | the two typefaces, bundled as local files in `src/fonts/` | SIL OFL 1.1 |
 
@@ -141,4 +141,6 @@ Measured on the one-page app, on the machine it was built on:
 
 ## Licence
 
-See `LICENSE`.
+idsbench is licensed under the Mozilla Public License 2.0 (MPL-2.0), see `LICENSE`. You may use it in any product, open or closed; if you change idsbench's own files and distribute them, those changes are shared under the same licence.
+
+Third-party work that idsbench builds on or bundles keeps its own licence. `NOTICE.md` lists it.

@@ -29,5 +29,6 @@
     "vite": "^8.3.4",
     "vitest": "^5.0.3"
   },
-  "description": "Checks whether an IDS file is itself valid: official XSD (libxml2 in WebAssembly) plus the rules of the buildingSMART IDS audit tool."
+  "description": "Checks whether an IDS file is itself valid: official XSD (libxml2 in WebAssembly) plus the rules of the buildingSMART IDS audit tool.",
+  "license": "MPL-2.0"
 }
