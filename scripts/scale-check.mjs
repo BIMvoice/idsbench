@@ -7,6 +7,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
@@ -57,21 +58,15 @@ make(300_000, keptA, 'pass', 'Waldo');
 make(300_000, keptB, 'pass', 'Wilma');
 check('the two models of the kept-copy test have the same name and the same size', fs.statSync(keptA).size === fs.statSync(keptB).size && path.basename(keptA) === path.basename(keptB));
 const ids = path.join(out, 'waldo.ids');
-// A file of 1.1 GB (a hole, no disk) and one of 800 MB whose first and last megabyte are walls and whose middle is a hole: about 11 million entities.
+// A file of 1.1 GB (a hole, no disk), and a real one of 9.4 million walls (about 620 MB): more than a tab holds. The
+// entities are counted over the whole file, so a file that only looks dense at its two ends would not do.
 const huge = path.join(out, 'huge.ifc');
 fs.closeSync(fs.openSync(huge, 'w')); fs.truncateSync(huge, Math.round(1.1 * 1024 ** 3));
 const dense = path.join(out, 'dense.ifc');
-{
-  const head = fs.readFileSync(path.join(out, 'tiny.ifc'), 'utf8').split('ENDSEC;\nEND-ISO')[0];
-  const rows = Array.from({ length: 16000 }, (_, i) => `#${i + 1}=IFCWALL('${String(i + 1).padStart(22, '0')}',$,'Waldo',$,$,$,$,$,$);\n`).join('');
-  const fd = fs.openSync(dense, 'w');
-  const total = 800 * 1024 ** 2;
-  const first = Buffer.from(head + rows.slice(0, 1024 ** 2 - head.length));
-  const last = Buffer.from(rows.slice(0, 1024 ** 2 - 40).replace(/^[^\n]*\n/, '') + 'ENDSEC;\nEND-ISO-10303-21;\n');
-  fs.writeSync(fd, first, 0, first.length, 0);
-  fs.writeSync(fd, last, 0, last.length, total - last.length);
-  fs.closeSync(fd);
-}
+make(9_400_000, dense, 'pass');
+// The time of the first kept model is in whole seconds, so that it can be put back after the file is written over.
+fs.utimesSync(keptA, 1_700_000_000, 1_700_000_000);
+const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 try {
@@ -88,7 +83,19 @@ try {
   await ctx.addInitScript(() => {
     window.__workers = [];
     const Real = window.Worker;
-    window.Worker = class extends Real { constructor(...a) { super(...a); window.__workers.push(this); } };
+    window.__beatsWhileReading = 0;
+    window.Worker = class extends Real {
+      constructor(...a) {
+        super(...a);
+        window.__workers.push(this);
+        // What the worker says while it reads a model: the page must hear from it then too.
+        this.addEventListener('message', (ev) => {
+          if (ev.data?.type === 'phase') window.__phase = ev.data.phase;
+          else if (ev.data?.type === 'done' || ev.data?.type === 'error') window.__phase = null;
+          else if (ev.data?.type === 'beat' && window.__phase === 'reading-ifc') window.__beatsWhileReading++;
+        });
+      }
+    };
     window.__longest = 0;
     let last = performance.now();
     setInterval(() => { const n = performance.now(); window.__longest = Math.max(window.__longest, n - last - 50); last = n; }, 50);
@@ -127,6 +134,8 @@ try {
   console.log(`LARGE: ${WALLS.toLocaleString('en')} walls, ${(fs.statSync(big).size / 1048576).toFixed(0)} MB, all failing: result after ${seconds.toFixed(1)} s; longest freeze of the page ${longest} ms; peak memory of the browser ${peak.toFixed(0)} MB`);
   check(`${WALLS.toLocaleString('en')} walls that all fail: the result is Fail and the page listed 200 rows`, (await page.locator('.verdict-word').innerText()) === 'Fail' && (await page.locator('.fail-group tbody tr').count()) === 200);
   check('the page stayed responsive (no freeze over 500 ms)', longest < 500, `${longest} ms`);
+  const beats = await page.evaluate(() => window.__beatsWhileReading);
+  check('the worker said that it was alive while it read the model, not only before and after', beats >= 2, `${beats} times`);
   await page.locator('details.fails > summary').first().click();
   check('the page says how many are not listed and that the files hold them all', (await page.locator('.fails .note').first().innerText()).includes(`The first 200 failing elements are listed here. ${(WALLS - 200).toLocaleString('en')} more are not shown on this page. The downloaded files list all ${WALLS.toLocaleString('en')}.`), await page.locator('.fails .note').first().innerText());
   check('the summary has the exact count', (await page.locator('.spec-counts').first().innerText()).includes(`${WALLS.toLocaleString('en')} failed`));
@@ -168,6 +177,13 @@ try {
   await ifcInput.setInputFiles(keptA);
   await page.locator('.verdict.pass').first().waitFor({ timeout: 120000 });
   check('choosing the first file again gives the first file\'s result', (await page.locator('.verdict-word').innerText()) === 'Pass');
+  // The file is written over on disk with other content of the same size, and its time is put back. The result on the
+  // page is of what was read; the report has to name those bytes, not what the file holds now.
+  const shaRead = sha256(keptA), shaNow = sha256(keptB);
+  { const fd = fs.openSync(keptA, 'r+'); const other = fs.readFileSync(keptB); fs.writeSync(fd, other, 0, other.length, 0); fs.closeSync(fd); }
+  fs.utimesSync(keptA, 1_700_000_000, 1_700_000_000);
+  const keptReport = JSON.parse(fs.readFileSync(await download('kept-report.json', 'Download report'), 'utf8'));
+  check('the report names the model by the SHA-256 of the bytes that were checked, not of what the file holds when the report is made', keptReport.run.verdict === 'pass' && keptReport.model.sha256 === shaRead && shaRead !== shaNow && keptReport.model.bytes === fs.statSync(keptA).size, `${keptReport.run.verdict} ${keptReport.model.sha256} (read ${shaRead.slice(0, 8)}, now on disk ${shaNow.slice(0, 8)})`);
 
   // The gain of the kept copy where the model is large and little of it applies: 700,000 entities, three of them walls.
   const filler = path.join(out, 'filler.ifc');
@@ -211,6 +227,18 @@ try {
   const ended = await page.locator('.model-refusal .error').innerText();
   check('a worker that is ended with no word: the page says so in one sentence, at once', /ended by the browser before it finished, most likely because the model needs more memory/.test(ended) && (await page.getByRole('button', { name: 'Run again' }).count()) === 1, ended);
 
+  // ---- a model that cannot be read any more ------------------------------------------------
+  const moved = path.join(out, 'moved.ifc');
+  fs.copyFileSync(path.join(out, 'tiny.ifc'), moved);
+  await page.evaluate(() => sessionStorage.clear()).catch(() => {});
+  await page.goto(origin + '/');
+  await ifcInput.setInputFiles(moved);
+  fs.appendFileSync(moved, '\n');
+  await idsInput.setInputFiles(ids);
+  await page.locator('.model-refusal .error').waitFor({ timeout: 20000 });
+  const unreadable = await page.locator('.model-refusal .error').innerText();
+  check('a model that was saved again after it was chosen: the page says that it could not be read and to choose it again, not that something went wrong', /The model could not be read from your computer\. It was moved, renamed, deleted or saved again after it was chosen here, so no result was made\. Choose it again\./.test(unreadable) && (await page.locator('.title-block[data-kind="run"]').count()) === 0, unreadable);
+
   // ---- models too large to open --------------------------------------------------------
   await fresh();
   const before = await rssMB();
@@ -219,9 +247,9 @@ try {
   const tooBig = await page.locator('.model-refusal .error').innerText();
   check('a model of 1.1 GB is refused by its size before it is read, with what to do', /This model is 1\.10 GB\. A browser tab cannot hold a model of that size, so it was not opened and no result was made\. Split the model/.test(tooBig) && (await rssMB()) - before < 500, tooBig);
   await ifcInput.setInputFiles(dense);
-  await page.waitForFunction(() => /million entities/.test(document.querySelector('.model-refusal .error')?.textContent ?? ''), null, { timeout: 30000 });
+  await page.waitForFunction(() => /This model has [\d,]+ entities/.test(document.querySelector('.model-refusal .error')?.textContent ?? ''), null, { timeout: 120000 });
   const tooMany = await page.locator('.model-refusal .error').innerText();
-  check('a model of over 9.3 million entities is refused before it is parsed, with its count and what fits', /This model has about \d+(\.\d)? million entities\. This computer can hold about [0-9.]+ million in a browser tab, so the model was not read and no result was made\./.test(tooMany), tooMany);
+  check('a model of 9.4 million walls is refused before it is parsed, with its exact count, what the browser reports for the computer and what a tab was measured to hold', /^This model has 9,400,000 entities\. This browser reports 8 GB of memory or more for this computer, and a browser tab was measured to hold about 9\.3 million entities that have a name or an identifier of their own\. So the model was not read and no result was made\. Split the model/.test(tooMany), tooMany);
   check('neither refusal offers "Run again" (the same file would be refused again)', (await page.getByRole('button', { name: 'Run again' }).count()) === 0);
   await ifcInput.setInputFiles(path.join(out, 'tiny.ifc'));
   await verdict.waitFor({ timeout: 20000 });

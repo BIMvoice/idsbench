@@ -75,7 +75,32 @@ try {
   await spec(0).getByLabel('IFC2X3', { exact: true }).check();
   check('with only IFC2X3 ticked the line names the one subtype that version has', (await spec(0).locator('.subtype-note').innerText()).startsWith('This applies to IfcWall only, not to IfcWallStandardCase.'), await spec(0).locator('.subtype-note').innerText());
   check('and its action names it', (await spec(0).getByRole('button', { name: 'Also apply it to IfcWallStandardCase' }).count()) === 1);
+  // Both versions ticked: only what both have is offered; what one of them has is named and left out.
+  await spec(0).getByLabel('IFC4', { exact: true }).check();
+  await spec(0).locator('.subtype-note', { hasText: 'IFC4 only' }).waitFor({ timeout: 20000 });
+  const bothText = await spec(0).locator('.subtype-note').innerText();
+  check('with IFC2X3 and IFC4 ticked the action adds only the subtype both versions have, and the line says which one is left out and why', bothText.startsWith('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase. IfcWallElementedCase (IFC4 only) is not in every IFC version this specification ticks, so it is not offered.') && (await spec(0).getByRole('button', { name: 'Also apply it to IfcWallStandardCase' }).count()) === 1 && (await spec(0).getByRole('button', { name: /the 2 subtypes/ }).count()) === 0, bothText);
+  await spec(0).getByLabel('IFC2X3', { exact: true }).uncheck();
   await page.getByRole('button', { name: /^Done editing/ }).first().click();
+
+  // ---- an abstract class ------------------------------------------------------------------------
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'New' }).click();
+  await page.getByLabel('Title').fill('Abstract class');
+  await addSpec('Elements must be named a certain way');
+  await page.locator('input[type=file]').nth(1).setInputFiles(model);
+  // An abstract class: nothing in a model is one, so the specification applies to nothing until its subtypes stand in its place.
+  const classBox = spec(0).locator('.facet-list[aria-label="Applies to"] input[role=combobox]').first();
+  await classBox.fill('IFCBUILDINGELEMENT');
+  await classBox.press('Escape');
+  await spec(0).locator('.subtype-note', { hasText: 'abstract class' }).waitFor({ timeout: 20000 });
+  await page.getByRole('button', { name: /^Done editing/ }).first().click();
+  await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 20000 });
+  const abstractText = await spec(0).locator('.subtype-note').innerText();
+  check('a specification for an abstract class says that it applies to nothing as written, and the run agrees', abstractText.startsWith('IfcBuildingElement is an abstract class: a model never holds an element that is IfcBuildingElement itself, only its subtypes, so this specification applies to nothing as it is written.') && (await counts()) === 'No element in this model matches it.', `${abstractText} | ${await counts()}`);
+  await spec(0).getByRole('button', { name: /^Apply it to the \d+ subtypes instead$/ }).click();
+  await page.waitForFunction(() => /Applied to 2 elements/.test(document.querySelector('.page-specs > li.spec .spec-counts')?.textContent ?? ''), null, { timeout: 20000 });
+  check('its action puts the concrete subtypes in its place: the line is gone, the file is valid, and the run applies to the wall and the standard-case wall', (await spec(0).locator('.subtype-note').count()) === 0 && (await counts()).startsWith('Applied to 2 elements') && (await dlBtn.isEnabled()), await counts());
 
   // ---- a property set named Pset_ that the standard does not define ---------------------------
   await page.getByRole('button', { name: 'Close' }).click();
@@ -113,6 +138,17 @@ try {
   const many = await page.locator('#download-note').innerText().catch(() => '');
   check('12 presses, a third of a second apart: a file for each', files === 12, `${files}`);
   check('and after 8 in a minute a sentence says what the browser may do and what to do', /files in the last minute.*allow downloads for this site/.test(many), many);
+
+  // A press waits its turn; when the page changes before its turn comes, no file of what was there is given.
+  await new Promise((r) => setTimeout(r, 9000));
+  files = 0;
+  await report.evaluate((b) => { for (let i = 0; i < 8; i++) b.click(); });
+  await spec(0).getByRole('button', { name: /^Edit / }).click();
+  await spec(0).getByLabel('Name', { exact: true }).fill('Changed while files were waiting');
+  await page.waitForFunction(() => /was not saved: the page changed/.test(document.querySelector('#download-note')?.textContent ?? ''), null, { timeout: 10000 }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 2500));
+  const outdated = await page.locator('#download-note').innerText().catch(() => '');
+  check('8 presses and then a change to the document: the presses whose turn came after the change gave no file of the document as it was, and a sentence says to press again', files >= 1 && files < 8 && /The report was not saved: the page changed while the file was waiting its turn\. Press it again for the file of what is on the page now\./.test(outdated), `${files} files; ${outdated}`);
 
   check('no request to anything but the local server', blocked.length === 0, blocked.join(', '));
   check('no error on the page', pageErrors.length === 0, pageErrors.join(' | '));
