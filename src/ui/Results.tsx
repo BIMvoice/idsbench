@@ -71,7 +71,6 @@ export function Results({ result }: { result: RunResult }) {
       <p className="meta">
         IDS file: {result.idsFile}. Model: {result.ifcFile}, {result.schema}, {result.entityCount.toLocaleString('en')} entities. Checked in {result.seconds.toFixed(1)} s.
       </p>
-      <p className="meta notice">{result.notice}</p>
       <ul className="specs">
         {result.specs.map((s, i) => <Spec key={i} spec={s} />)}
       </ul>

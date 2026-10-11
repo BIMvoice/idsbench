@@ -70,9 +70,9 @@ describe('downloaded report', () => {
     expect(j.specs[0].failed).toBe(n);
     expect(j.specs[0].failures[n - 1].globalId).toBe(`g${n - 1}`);
   });
-  it('names both files and carries the notice', () => {
+  it('names both files and the verdict', () => {
     const j = JSON.parse(reportParts(result).join(''));
     expect(j).toMatchObject({ idsFile: 'a.ids', ifcFile: 'b.ifc', verdict: 'fail', allPassed: false });
-    expect(j.notice).toMatch(/does not check that the IDS file itself is valid/);
+    expect(j).not.toHaveProperty('notice');
   });
 });

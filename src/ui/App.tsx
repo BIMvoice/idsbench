@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { CheckTab } from './CheckTab';
 import { RunTab } from './RunTab';
 
 const TABS = [
@@ -10,6 +11,8 @@ type TabId = (typeof TABS)[number]['id'];
 
 export function App() {
   const [tab, setTab] = useState<TabId>('run');
+  // The IDS file shown in Check. Run hands its own file over when it refuses it.
+  const [checkFile, setCheckFile] = useState<File | null>(null);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const onKey = (e: KeyboardEvent, i: number) => {
@@ -54,11 +57,10 @@ export function App() {
           <p>Not built yet. This tab will let you create and edit an IDS file with plain forms.</p>
         </section>
         <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" hidden={tab !== 'check'}>
-          <h2>Check</h2>
-          <p>Not built yet. This tab will tell you whether an IDS file is itself valid.</p>
+          <CheckTab file={checkFile} onFile={setCheckFile} />
         </section>
         <section role="tabpanel" id="panel-run" aria-labelledby="tab-run" hidden={tab !== 'run'}>
-          <RunTab />
+          <RunTab onShowInCheck={(f) => { setCheckFile(f); setTab('check'); refs.current.check?.focus(); }} />
         </section>
       </main>
 

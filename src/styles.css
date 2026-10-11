@@ -102,3 +102,25 @@ th { color: var(--muted); font-weight: 600; }
   .spec-head { grid-template-columns: 1fr; }
   .spec-counts { grid-column: 1; }
 }
+
+/* Check tab */
+.drops.single { grid-template-columns: minmax(0, 28rem); }
+.refusal-action { margin: 12px 0 0; }
+.findings { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.finding + .finding { border-top: 1px solid var(--line); }
+.finding-head { display: grid; grid-template-columns: 6rem 1fr; gap: 2px 16px; align-items: baseline; padding: 12px 16px; }
+summary.finding-head { cursor: pointer; }
+summary.finding-head:hover { background: var(--accent-soft); }
+.finding-message { color: var(--head); overflow-wrap: anywhere; }
+.finding-meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 14px; color: var(--muted); }
+.finding-code { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sev { font-weight: 700; font-size: 14px; padding: 2px 10px; border-radius: 999px; justify-self: start; white-space: nowrap; }
+.sev.error { background: var(--fail-bg); color: var(--fail); }
+.sev.warning { background: var(--none-bg); color: var(--none); }
+.excerpt { margin: 0; padding: 12px 16px; overflow-x: auto; background: var(--surface); border-top: 1px solid var(--line); font: 13px/1.5 var(--mono); white-space: pre; tab-size: 4; }
+.privacy { margin-top: 24px; }
+
+@media (max-width: 640px) {
+  .finding-head { grid-template-columns: 1fr; }
+  .finding-meta { grid-column: 1; }
+}

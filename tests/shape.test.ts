@@ -216,7 +216,4 @@ describe('headline and verdict', () => {
   it('an empty IDS is never "all passed"', () => {
     expect(shapeReport({ specificationResults: [] }, describeFn, meta).allPassed).toBe(false);
   });
-  it('every result says that the IDS file itself was not verified', () => {
-    expect(shapeReport({ specificationResults: [spec()] }, describeFn, meta).notice).toMatch(/does not check that the IDS file itself is valid/);
-  });
 });

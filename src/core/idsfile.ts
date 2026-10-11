@@ -5,20 +5,9 @@ const SWAPPED = 'Put the IDS file in the IDS box and the model in the IFC box.';
 
 const ROOT = /<(?:([A-Za-z_][\w.-]*):)?ids(?=[\s>/])([^>]*)>/;
 
-/** The IDS version named by the schema location, for example "0.9.6" or "1.0". Null when it names none. */
-export function declaredIdsVersion(schemaLocation: string | undefined): string | null {
-  if (!schemaLocation) return null;
-  const dir = /\/IDS\/(\d+(?:\.\d+)+)\/ids\.xsd/i.exec(schemaLocation);
-  if (dir) return dir[1];
-  const file = /ids_(\d)(\d)(\d)?\.xsd/i.exec(schemaLocation);
-  if (file) return [file[1], file[2], file[3]].filter(Boolean).join('.');
-  return null;
-}
-
 /**
- * Checks on the text of the file, before any XML parsing. The draft-version
- * check has to come first: the library rejects some drafts for a missing part
- * and reads others as if they were IDS 1.0.
+ * Checks on the text of the file, before the Check engine: an empty file, and
+ * an IFC model in the IDS box (Run's own wording says how to put them right).
  */
 export function precheckIdsText(text: string): void {
   const t = text.replace(/^﻿/, '').trimStart();
@@ -27,10 +16,6 @@ export function precheckIdsText(text: string): void {
   }
   if (t.startsWith('ISO-10303-21')) {
     throw new AppError('ids-is-ifc', `This is an IFC model, not an IDS file. ${SWAPPED}`);
-  }
-  const version = declaredIdsVersion(ROOT.exec(t)?.[2]);
-  if (version !== null && version !== '1.0') {
-    throw new AppError('ids-old-version', `This IDS file is written for IDS ${version}, an earlier draft of the standard. idsbench checks IDS 1.0 files only, and reading a draft as 1.0 could give a wrong result. Save the file as IDS 1.0 in the tool that made it.`);
   }
 }
 

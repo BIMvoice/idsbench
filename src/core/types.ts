@@ -55,16 +55,11 @@ export interface RunResult {
   verdict: Verdict;
   /** True only when every specification was checked and none failed. */
   allPassed: boolean;
-  /** What this result does not cover. */
-  notice: string;
   seconds: number;
 }
 
 /** How many failing elements one specification lists on the page. */
 export const FAILURE_CAP = 200;
-
-export const IDS_NOT_VERIFIED =
-  'Run checks the model against the IDS file as it is written. It does not check that the IDS file itself is valid.';
 
 export type ErrorKind =
   | 'ids-empty'
@@ -72,7 +67,8 @@ export type ErrorKind =
   | 'ids-rejected'
   | 'ids-is-ifc'
   | 'ids-namespace'
-  | 'ids-old-version'
+  | 'ids-invalid'
+  | 'ids-unusable'
   | 'ids-no-specifications'
   | 'ifc-empty'
   | 'ifc-is-zip'
@@ -89,4 +85,6 @@ export type ErrorKind =
 export interface AppErrorInfo {
   kind: ErrorKind;
   message: string;
+  /** Set for 'ids-invalid': how many problems the Check engine found. */
+  problems?: number;
 }

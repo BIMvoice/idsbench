@@ -1,6 +1,5 @@
 import {
   FAILURE_CAP,
-  IDS_NOT_VERIFIED,
   type FailingElement,
   type RunResult,
   type SpecKind,
@@ -248,7 +247,6 @@ export function shapeReport<R extends { status: string }>(
     headline: headline(counts),
     verdict,
     allPassed: verdict === 'pass',
-    notice: IDS_NOT_VERIFIED,
     seconds: meta.seconds,
   };
 }
