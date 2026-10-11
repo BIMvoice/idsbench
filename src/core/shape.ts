@@ -11,7 +11,7 @@ import {
 import { schemaFamily } from './ifcfile';
 import { GroupAccumulator } from './groups';
 import { elementCsvRow } from './csv';
-import { reasonOf, REMOVE_ELEMENT, whatToFix, type RequirementOutcome } from './reasons';
+import { reasonOf, REMOVE_ELEMENT, whatToFix, type ReasonContext, type RequirementOutcome } from './reasons';
 
 /**
  * The parts of the @ifc-lite/ids report that we read. Declared structurally so
@@ -56,7 +56,7 @@ export function plural(n: number, one: string, many = `${one}s`): string {
  * and gives no full stop, which several reasons in a row need.
  */
 export function sentence(s: string): string {
-  const t = s.trim().replace(/""([^"]*)""/g, '"$1"');
+  const t = s.trim().replace(/""([^"]*)""/g, '"$1"').replace(/\bpattern pattern "/g, 'pattern "');
   return /[.!?]$/.test(t) ? t : `${t}.`;
 }
 
@@ -131,6 +131,8 @@ export interface ShapeOptions {
   spill?: { ifcFile: string; idsFile: string };
   /** The specification in words, for the CSV (see core/sentences.ts). Absent: the column is left empty. */
   sentence?: string;
+  /** What the IFC tables of the model's version say, for reasons that depend on them (an attribute the class does not have). */
+  reasons?: ReasonContext;
   /** The storey or space an element is in, by its express id, when the model says. Set by the run for the part of the model being checked. */
   place?: (expressId: number) => string;
 }
@@ -228,11 +230,11 @@ export class SpecAccumulator<R extends { status: string }> {
     for (const e of r.entityResults) {
       if (e.passed) continue;
       const failedReqs = e.requirementResults.filter((q) => q.status === 'fail');
-      const reasons = failedReqs.map((q) => sentence(reasonOf(q) ?? (q.failureReason?.trim() || this.describe(q as unknown as R))));
+      const reasons = failedReqs.map((q) => sentence(reasonOf(q, e.entityType, this.options.reasons) ?? (q.failureReason?.trim() || this.describe(q as unknown as R))));
       // The value the element has, where the reason quotes it: what differs from element to element in an otherwise equal reason.
       const found = failedReqs.map((q, i) => (q.actualValue && reasons[i].includes(`"${q.actualValue}"`) ? q.actualValue : null));
       const el = element(e, reasons, found);
-      const toFix = failedReqs.map((q) => whatToFix(q, e.entityType));
+      const toFix = failedReqs.map((q) => whatToFix(q, e.entityType, this.options.reasons));
       if (toFix.some(Boolean)) el.toFix = toFix;
       this.fails.add(el);
     }
