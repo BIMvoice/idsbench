@@ -93,6 +93,34 @@ describe('the official invalid files', () => {
       }
     }
     console.log(`PLACEMENT over ${invalidFiles.length} invalid files: ${JSON.stringify(n)}`);
-    expect(n).toEqual({ findings: 139, spec: 134, info: 0, file: 5, field: 105, specOnly: 11, infoField: 0, fileOnly: 0, opened: 57, notOpened: 9 });
+    expect(n).toEqual({ findings: 139, spec: 134, info: 0, file: 5, field: 116, specOnly: 0, infoField: 0, fileOnly: 0, opened: 57, notOpened: 9 });
+  });
+});
+
+describe('where "Fix" leads for a "part of" item and for classes that exclude each other', () => {
+  const partOf = (inner: string, attrs = '') => `<?xml version="1.0"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <info><title>t</title></info>
+  <specifications>
+    <specification name="S" ifcVersion="IFC4">
+      <applicability minOccurs="1" maxOccurs="unbounded"><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability>
+      <requirements><partOf${attrs}><entity><name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name>${inner}</entity></partOf></requirements>
+    </specification>
+  </specifications>
+</ids>`;
+  const targets = async (xml: string) => {
+    const doc = readIdsText(xml, nodeEnv), o = outline(xml);
+    const part = doc.specifications[0].requirements[0].uid, own = doc.specifications[0].uid;
+    return (await checkIds(xml)).findings.map((f) => { const t = targetOf(f, doc, o); return `${f.code} -> ${t.kind === 'field' ? t.key.replace(part, 'partOf').replace(own, 'spec') : t.kind}`; });
+  };
+  it('a predefined type the class does not have leads to the predefined type, not to the class', async () => {
+    expect(await targets(partOf('<predefinedType><simpleValue>BUNNARY</simpleValue></predefinedType>'))).toEqual(['entity-unknown-predefined-type -> partOf.predefinedType']);
+  });
+  it('a relation that is not allowed leads to the relation', async () => {
+    expect(new Set(await targets(partOf('', ' relation="IFCRELFILLSELEMENT"')))).toEqual(new Set(['xsd-invalid-value -> partOf.relation', 'partof-relation-invalid -> partOf.relation']));
+  });
+  it('"Applies to" and "Must have" that can never describe the same element lead to "Must have", not to the name', async () => {
+    const xml = partOf('').replace(/<requirements>.*<\/requirements>/, '<requirements><entity><name><simpleValue>IFCDOOR</simpleValue></name></entity></requirements>');
+    expect(await targets(xml)).toEqual(['applicability-requirements-incompatible -> spec.requirements']);
   });
 });

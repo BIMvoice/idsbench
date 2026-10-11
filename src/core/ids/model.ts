@@ -64,6 +64,11 @@ export interface Specification {
   requirements: Facet[];
   /** The description attribute of <requirements>. */
   requirementsDescription: string | null;
+  /**
+   * Set by the fix "Write this specification again": the specification is written from this model even though it says
+   * what the opened file says, because the file's own text of it holds something the standard does not allow.
+   */
+  rewrite?: true;
 }
 
 export interface Info {
@@ -73,7 +78,11 @@ export interface Info {
 }
 export const INFO_OPTIONAL = ['copyright', 'version', 'description', 'author', 'date', 'purpose', 'milestone'] as const;
 
-export interface IdsDocument { info: Info; specifications: Specification[] }
+export interface IdsDocument {
+  info: Info; specifications: Specification[];
+  /** Set by a fix: the info section ('info') or the whole file ('all') is written from this model, not kept as the opened file has it. */
+  rewrite?: 'info' | 'all';
+}
 
 // The prefix is random per page load so that a draft restored from the session never collides with new ids.
 const PREFIX = Math.random().toString(36).slice(2, 6);

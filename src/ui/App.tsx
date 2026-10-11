@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { failureCount, failuresCsvName, failuresCsvParts } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
-import { pageReportName, pageReportParts } from '../core/report';
+import { pageReportName, pageReportParts, sha256Of } from '../core/report';
 import { ROW_CAP } from '../core/checkview';
 import { About } from './page/About';
 import { saveFile } from './page/draft';
@@ -60,14 +60,17 @@ export function App() {
     }
   };
   const downloadIds = async () => {
-    const text = await page.textToSave();
-    if (text === null || !page.name) return;
-    saveFile([text], page.name, 'application/xml');
-    page.markSaved(text, page.name);
+    const saved = await page.save();
+    if (saved) saveFile(saved.parts, saved.name, 'application/xml');
   };
-  const downloadReport = () => {
-    if (!report || !page.name) return;
-    guarded('The report', () => saveFile(pageReportParts(page.name!, !page.asOpened && page.dirty, report, result), pageReportName(page.name!, result), 'application/json'));
+  const downloadReport = async () => {
+    const idsName = page.name, blob = page.idsBlob();
+    if (!report || !idsName || !blob) return;
+    // The report names the exact bytes it is about. They are read now; the result on the page was made from the same text and model.
+    const edited = !page.asOpened && page.dirty;
+    const ids = { name: idsName, bytes: blob.size, sha256: await sha256Of(blob) };
+    const ran = result && model ? { name: model.name, bytes: model.size, sha256: await sha256Of(model) } : null;
+    guarded('The report', () => saveFile(pageReportParts(idsName, edited, report, result, ids, ran), pageReportName(idsName, result), 'application/json'));
   };
   const downloadCsv = () => {
     if (result) guarded('The list', () => saveFile(failuresCsvParts(result), failuresCsvName(result.ifcFile), 'text/csv;charset=utf-8'));
@@ -132,6 +135,11 @@ export function App() {
           </div>
         )}
         {page.saveProblem && <p className="error" role="alert">{page.saveProblem}</p>}
+        {page.notice && (
+          <p className="notice-box" role="status" id="page-notice">
+            {page.notice} <button type="button" className="btn small" onClick={page.clearNotice}>Dismiss</button>
+          </p>
+        )}
         {problem && <p className="error" role="alert">{problem}</p>}
         {next && <p className="next" id="next-step">{next}</p>}
 
@@ -141,7 +149,7 @@ export function App() {
           {(report || result) && (
             <div className="actions">
               {result && failing > 0 && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={downloadCsv}>Download failing elements</button>}
-              {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={downloadReport}>Download report</button>}
+              {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
           )}
           {page.undo && (

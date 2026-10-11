@@ -107,7 +107,23 @@ function readValue(parent: Element, tag: string, required: boolean): Value | nul
     return annotation ? { name: c.localName as RestrictionName, value: c.getAttribute('value') ?? '', annotation } : { name: c.localName as RestrictionName, value: c.getAttribute('value') ?? '' };
   });
   const annotation = annotationOf(r);
-  return annotation ? { kind: 'restriction', base: attrOf(r, 'base'), facets, annotation } : { kind: 'restriction', base: attrOf(r, 'base'), facets };
+  return annotation ? { kind: 'restriction', base: baseOf(r), facets, annotation } : { kind: 'restriction', base: baseOf(r), facets };
+}
+
+const XS_NS = 'http://www.w3.org/2001/XMLSchema';
+/**
+ * The base of a restriction names a type with a prefix (xs:string). A file may bind the XML Schema namespace to any
+ * prefix (xsd:string); the model holds the name with "xs:", and the writer puts the prefix of the file it writes into.
+ * Written back as read, the name would point at a prefix the written file does not declare.
+ */
+function baseOf(r: Element): string | null {
+  const base = attrOf(r, 'base');
+  if (base === null) return null;
+  const colon = base.indexOf(':');
+  if (colon <= 0) return base;
+  let ns: string | null = null;
+  try { ns = r.lookupNamespaceURI(base.slice(0, colon)); } catch { /* left as written */ }
+  return ns === XS_NS ? `xs:${base.slice(colon + 1)}` : base;
 }
 
 function readEntityRef(el: Element): EntityRef {

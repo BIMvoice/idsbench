@@ -3,9 +3,22 @@ import type { RunResult } from './types';
 
 export const CSV_COLUMNS = ['Specification', 'Why it failed', 'IFC class', 'Name', 'GlobalId', 'Model', 'IDS file'] as const;
 
-/** One cell: quoted when it holds a comma, a quote or a line break; quotes doubled. */
-export function csvCell(v: string): string {
-  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+const PLAIN_NUMBER = /^[+-]?(\d+([.,]\d+)?|[.,]\d+)$/;
+
+/**
+ * A spreadsheet reads a cell that starts with =, +, - or @ (or a tab or a carriage return) as a formula, and names in
+ * a model are written by whoever made the model. Such a cell gets an apostrophe in front, the usual way exports make
+ * it plain text; a plain number (-12.5) is left alone. The apostrophe is visible in some programs: it is not part of
+ * the name in the model.
+ */
+export function plainText(v: string): string {
+  return /^[=+\-@\t\r]/.test(v) && !PLAIN_NUMBER.test(v) ? `'${v}` : v;
+}
+
+/** One cell: never a formula (see plainText); quoted when it holds a comma, a semicolon, a quote or a line break; quotes doubled. */
+export function csvCell(value: string): string {
+  const v = plainText(value);
+  return /[",;\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
 /**

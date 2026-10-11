@@ -28,6 +28,9 @@ export function FileBar({ page, primary, onDownloadIds }: Props) {
         </span>
         {page.source?.example && page.asOpened && <span className="drop-hint">This is the example that ships with idsbench, not a file of yours.</span>}
         <span className="drop-hint" id="ids-reason" role="status">{page.doc ? page.downloadBlocked : ''}</span>
+        {page.saveNote && <span className="drop-hint" id="save-note">{page.saveNote}</span>}
+        {page.source?.encoding && <span className="drop-hint" id="encoding-note">This file is written in {page.source.encoding}. If you change it here, it is saved as UTF-8.</span>}
+        {page.dirty && !page.draftKept && <span className="drop-hint" id="draft-note">These unsaved changes are too large to keep in this tab: they are lost if the page is loaded again. Download .ids to keep them.</span>}
         <input ref={idsPicker} type="file" accept=".ids,.xml" tabIndex={-1} aria-label="Choose an IDS file to open" className="file-input"
           onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void page.addFiles(f, 'ids'); }} />
       </div>

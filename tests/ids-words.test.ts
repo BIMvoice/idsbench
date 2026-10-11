@@ -61,3 +61,10 @@ describe('a specification in words', () => {
     expect(describeSpecification(s).mode).toBe('listing');
   });
 });
+
+describe('the sentence says what the file tests, and nothing wider', () => {
+  it('a class is matched by its exact name, so IFCWALLSTANDARDCASE is not called "wall"', () => {
+    const s = spec({ applicability: [entity('IFCWALLSTANDARDCASE')], requirements: [property('P', 'N')] });
+    expect(describeSpecification(s).text).toBe('Every element of class IFCWALLSTANDARDCASE must have the property N in P. The model must contain at least one element of class IFCWALLSTANDARDCASE.');
+  });
+});

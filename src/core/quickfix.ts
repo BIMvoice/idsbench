@@ -31,8 +31,29 @@ function withText(f: Facet, field: string, text: string): Facet {
 /** Looks up the data type the standard gives a property of a standard property set; null when it is not known (yet). */
 export type DataTypeLookup = (propertySet: string, property: string) => string | null;
 
+/**
+ * What of the opened file is still written as the file has it (see keep.ts). A problem that is in the file's own text
+ * and not in what it says (an attribute the standard does not know, parts in the wrong order) cannot be reached from a
+ * form; writing that part again from what the page read is then the fix, and it is offered like any other.
+ */
+export interface KeptParts { specification: (s: Specification) => boolean; info: boolean; file: boolean }
+const NOTHING_KEPT: KeptParts = { specification: () => false, info: false, file: false };
+
+export const WRITE_SPEC_AGAIN = 'Write this specification again in the standard form';
+export const WRITE_INFO_AGAIN = 'Write "About this IDS" again in the standard form';
+export const WRITE_FILE_AGAIN = 'Write the whole file again in the standard form';
+
 /** The fixes a finding suggests, before the engine has confirmed them. Pure. */
-export function candidateFixes(f: Pick<Finding, 'code' | 'message'>, doc: IdsDocument, target: Target, dataTypeOf: DataTypeLookup = () => null): Fix[] {
+export function candidateFixes(f: Pick<Finding, 'code' | 'message'>, doc: IdsDocument, target: Target, dataTypeOf: DataTypeLookup = () => null, kept: KeptParts = NOTHING_KEPT): Fix[] {
+  const own = fixesInTheModel(f, doc, target, dataTypeOf);
+  if (own.length > 0 || doc.rewrite === 'all') return own;
+  if (target.kind === 'file') return kept.file ? [{ label: WRITE_FILE_AGAIN, apply: (d) => ({ ...d, rewrite: 'all' }) }] : [];
+  if (target.kind === 'info') return kept.info && doc.rewrite !== 'info' ? [{ label: WRITE_INFO_AGAIN, apply: (d) => ({ ...d, rewrite: 'info' }) }] : [];
+  const s = doc.specifications[target.spec];
+  return s && kept.specification(s) ? [{ label: WRITE_SPEC_AGAIN, apply: (d) => mapSpec(d, target.spec, (x) => ({ ...x, rewrite: true })) }] : [];
+}
+
+function fixesInTheModel(f: Pick<Finding, 'code' | 'message'>, doc: IdsDocument, target: Target, dataTypeOf: DataTypeLookup): Fix[] {
   if (target.kind !== 'field') return [];
   const index = target.spec;
   const dot = target.key.indexOf('.');
@@ -41,7 +62,8 @@ export function candidateFixes(f: Pick<Finding, 'code' | 'message'>, doc: IdsDoc
   if (!s) return [];
   if (uid === s.uid) {
     if (field === 'requirements' && f.code === 'requirements-not-allowed') {
-      return [{ label: 'Remove the "Must have" items', apply: (d) => mapSpec(d, index, (x) => ({ ...x, requirements: [], requirementsDescription: null })) }];
+      const n = s.requirements.length;
+      return [{ label: n === 1 ? 'Remove the 1 "Must have" item' : `Remove the ${n} "Must have" items`, apply: (d) => mapSpec(d, index, (x) => ({ ...x, requirements: [], requirementsDescription: null })) }];
     }
     if (field === 'ifcVersion' && s.ifcVersion.length === 0) {
       return IFC_VERSIONS.map((v) => ({ label: `Use ${v}`, apply: (d: IdsDocument) => mapSpec(d, index, (x) => ({ ...x, ifcVersion: [v] })) }));
@@ -53,7 +75,10 @@ export function candidateFixes(f: Pick<Finding, 'code' | 'message'>, doc: IdsDoc
   const set = (text: string): Fix => ({ label: `Change it to ${text}`, apply: (d) => mapFacet(d, index, uid, (x) => withText(x, field, text)) });
   const current = textOf(facet, field);
   const meant = /Did you mean '([^']+)'\?/.exec(f.message)?.[1];
-  if (meant && current !== null && current !== meant) return [set(meant)];
+  // The engine's "Did you mean" is the nearest name by spelling. Only when it is the same name in other letters is it
+  // certainly what was meant; a name one or two letters away may be another thing altogether (IFCPILE for IFCPIPE,
+  // Dir for Dim), so that stays a suggestion in the sentence and is not made one press.
+  if (meant && current !== null && current !== meant && current.toLowerCase() === meant.toLowerCase()) return [set(meant)];
   if (current && current !== current.toUpperCase() && ['entity-unknown-class', 'property-datatype-invalid'].includes(f.code)) return [set(current.toUpperCase())];
   if (f.code === 'value-needs-datatype' && facet.kind === 'property' && !facet.dataType) {
     const set_ = textOf(facet, 'propertySet'), name = textOf(facet, 'baseName');
@@ -63,12 +88,15 @@ export function candidateFixes(f: Pick<Finding, 'code' | 'message'>, doc: IdsDoc
   return [];
 }
 
-/** The same finding in two check results: same rule at the same place. */
+/**
+ * The same finding in two check results: same rule at the same place. The sentence is not compared: it quotes the
+ * value, so a change that leaves the problem standing would otherwise pass for one that removed it.
+ */
 const sameFinding = (a: Pick<Finding, 'code' | 'path'>, b: Pick<Finding, 'code' | 'path'>) => a.code === b.code && a.path === b.path;
 
 /**
- * Keeps the candidates the engine confirms: after the change, the engine no longer reports the finding and reports
- * fewer errors than before. `check` runs the engine on a document and returns its findings.
+ * Keeps the candidates the engine confirms: after the change, the engine reports nothing of that rule at that place
+ * any more, and fewer errors than before. `check` runs the engine on a document and returns its findings.
  */
 export async function verifyFixes(
   finding: Finding, fixes: Fix[], doc: IdsDocument, errorsNow: number,
@@ -80,7 +108,7 @@ export async function verifyFixes(
     if (!after) continue;
     const errors = after.filter((x) => x.severity === 'error');
     const improved = finding.severity === 'error' ? errors.length < errorsNow : errors.length <= errorsNow;
-    if (improved && !after.some((x) => sameFinding(x, finding) && x.message === finding.message)) out.push(fix);
+    if (improved && !after.some((x) => sameFinding(x, finding))) out.push(fix);
   }
   return out;
 }

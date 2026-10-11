@@ -558,14 +558,14 @@ try {
   check('a model with an IDS file that is not valid: the model waits, one sentence says the file comes first, nothing is run', waitingText === `This IDS file has ${noun(refErrors)}. The model is checked as soon as the file is valid.` && (await noRun()) && (await specs.first().locator('.state').innerText()) === 'Waiting' && workersStarted === 0, waitingText);
   check('...with its findings on the same page, one row per engine finding, and the list of things to fix', (await findingRows.count()) === ref.findings.length && (await findingRows.first().innerText()).includes(ref.findings[0].message) && (await page.locator('.to-fix h3').innerText()) === `${ref.findings.length} thing to fix in this IDS file`);
   await page.screenshot({ path: path.join(shots, 'model-waiting.png'), fullPage: true });
-  const oneFix = page.getByRole('button', { name: 'Remove the "Must have" items' });
+  const oneFix = page.getByRole('button', { name: 'Remove the 1 "Must have" item' });
   await oneFix.waitFor({ timeout: 20000 });
-  check('a one-press fix is offered on the line, beside Fix', (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Remove the "Must have" items Fix');
+  check('a one-press fix is offered on the line, beside Fix', (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Remove the 1 "Must have" item Fix');
   await oneFix.click();
   await runVerdict.waitFor({ timeout: 60000 });
   check('pressing it makes the file valid, the list goes, and the waiting model runs by itself', (await page.locator('.to-fix, .finding').count()) === 0 && ['Pass', 'Fail'].includes(await word()) && workersStarted === 1 && (await page.locator('.meta.notice').innerText()) === 'The IDS file was checked first and is valid.', await headline.innerText());
   check('the result names what was judged: the file with unsaved changes', /IDS file\s+invalid-prohibited[^\n]*\(with unsaved changes\)/.test(await page.locator('.record').innerText()) && (await page.locator('#ids-status').innerText()).includes('unsaved changes'));
-  check('the fix can be undone: nothing is applied silently', (await page.locator('.undo').innerText()).startsWith('Remove the "Must have" items.') && (await page.getByRole('button', { name: 'Undo' }).count()) === 1);
+  check('the fix can be undone: nothing is applied silently', (await page.locator('.undo').innerText()).startsWith('Remove the 1 "Must have" item.') && (await page.getByRole('button', { name: 'Undo' }).count()) === 1);
   await page.getByRole('button', { name: 'Undo' }).click();
   await page.locator('.verdict.fail .verdict-word', { hasText: 'Not valid' }).waitFor();
   check('Undo brings the file back as it was opened: Not valid again, no unsaved changes, the result gone', (await noRun()) && !(await page.locator('#ids-status').innerText()).includes('unsaved changes') && (await findingRows.count()) === ref.findings.length);
@@ -630,14 +630,24 @@ try {
   await specs.first().getByLabel('Name', { exact: true }).fill('Rabbits, renamed');
   await findingRows.first().locator('.finding-where').filter({ hasNotText: 'line 1,' }).waitFor({ timeout: 20000 });
   const whereEdited = await findingRows.first().locator('.finding-where').innerText();
-  check('once it is edited the position is in the file as it will be saved, and the record says so', /^line \d\d, column \d+$/.test(whereEdited) && /\(with unsaved changes\)/.test(await page.locator('.record').innerText()), whereEdited);
+  // Only the changed specification is written anew (on lines of its own); the rest of the line the file is written on stays as it is.
+  if ((await findingRows.first().locator('.excerpt').count()) === 0) await findingRows.first().locator('summary').click();
+  const exEdited = await findingRows.first().locator('.excerpt').innerText();
+  const markedLine = exEdited.split('\n').find((l) => l.startsWith('>')) ?? '';
+  check('once it is edited the position is in the file as it will be saved, and the record says so', /^line (?!1,)\d+, column \d+$/.test(whereEdited) && markedLine.includes('<simpleValue>IFCRABBIT</simpleValue>') && markedLine.startsWith(`> ${/^line (\d+)/.exec(whereEdited)[1]} |`) && /\(with unsaved changes\)/.test(await page.locator('.record').innerText()), `${whereEdited} | ${markedLine}`);
   await specs.first().getByLabel('Name', { exact: true }).fill('Rabbits');
   await findingRows.first().locator('.finding-where').filter({ hasText: 'line 1,' }).waitFor({ timeout: 20000 });
   check('taking the change back returns to the file as opened: line 1 again, no unsaved changes', !(await page.locator('#ids-status').innerText()).includes('unsaved changes') && !/unsaved/.test(await page.locator('.record').innerText()));
   // The run reads the opened File itself, not a copy: the page gives the worker the same bytes the browser gave the page.
   const bytesIds = write('bytes.ids', Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(fs.readFileSync(goodIds, 'utf8').replace('<info>', '<!-- é -->\r\n<info>'))]));
   await fresh();
-  await page.evaluate(() => { const t = File.prototype.text; window.__read = []; File.prototype.text = function () { window.__read.push(`${this.name}:${this.size}`); return t.call(this); }; });
+  // Every whole read of the IDS file, as text or as bytes (a slice of a File is a Blob, not a File, and is not counted).
+  await page.evaluate(() => {
+    const t = File.prototype.text, b = Blob.prototype.arrayBuffer; window.__read = [];
+    const note = (f) => { if (f instanceof File && /\.ids$/.test(f.name)) window.__read.push(`${f.name}:${f.size}`); };
+    File.prototype.text = function () { note(this); return t.call(this); };
+    Blob.prototype.arrayBuffer = function () { note(this); return b.call(this); };
+  });
   await setFiles(bytesIds, goodIfc);
   await settled();
   const read = await page.evaluate(() => window.__read);
@@ -701,6 +711,12 @@ try {
   await checkSettled();
   const gate = await page.locator('#ids-reason').innerText();
   check('an unknown IFC class: the engine\'s finding is on the page at its specification, and Download .ids is off with the engine\'s sentence', (await word()) === 'Not valid' && (await specs.first().locator('.finding-message').innerText()).includes('IFCWALLL') && (await page.getByRole('button', { name: 'Download .ids' }).isDisabled()) && /^Download is off until the IDS file is valid: .*IFCWALLL/.test(gate), gate);
+  // A name one letter away from a real one is the engine's guess (IFCPILE for IFCPIPE): it is in the sentence, and it is not made one press.
+  await page.locator('.to-fix[data-fixes="ready"]').waitFor({ timeout: 20000 });
+  check('a name one letter away from a real one: the engine\'s suggestion is in the sentence, and no button applies the guess', (await page.locator('.fix-line .fix-text').innerText()).includes("Did you mean 'IFCWALL'?") && (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Fix');
+  const otherLetters = write('other-letters.ids', idsText(spec('Unknown class', app(1, 'unbounded', 'IfcWall'))));
+  await load(otherLetters, null);
+  await checkSettled();
   await page.getByRole('button', { name: 'Change it to IFCWALL' }).waitFor({ timeout: 20000 });
   check('...and the engine\'s own suggestion is offered as a one-press fix', (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Change it to IFCWALL Fix');
   await page.getByRole('button', { name: 'Change it to IFCWALL' }).click();

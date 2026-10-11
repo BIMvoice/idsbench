@@ -4,7 +4,7 @@ import { specChoice, type Facet, type Specification, type Value } from './model'
 import { lengthOf, listOf, modeOf, patternOf, rangeOf } from './value';
 
 export const NOUNS: Record<string, string> = {
-  IFCWALL: 'wall', IFCWALLSTANDARDCASE: 'wall', IFCDOOR: 'door', IFCWINDOW: 'window', IFCSLAB: 'slab', IFCCOLUMN: 'column',
+  IFCWALL: 'wall', IFCDOOR: 'door', IFCWINDOW: 'window', IFCSLAB: 'slab', IFCCOLUMN: 'column',
   IFCBEAM: 'beam', IFCSPACE: 'space', IFCROOF: 'roof', IFCSTAIR: 'stair', IFCRAILING: 'railing', IFCCOVERING: 'covering',
   IFCFURNISHINGELEMENT: 'furnishing element', IFCBUILDINGSTOREY: 'building storey', IFCBUILDING: 'building', IFCSITE: 'site',
   IFCPROJECT: 'project', IFCCURTAINWALL: 'curtain wall', IFCPLATE: 'plate', IFCMEMBER: 'member', IFCFOOTING: 'footing',

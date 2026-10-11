@@ -82,7 +82,7 @@ describe('the page report', () => {
   const check = { kind: 'report' as const, headline: 'h', valid: true, errors: 0, warnings: 0, version: '1.0', findings: [] };
   it('is valid JSON without a run', () => {
     const j = JSON.parse(pageReportParts('a.ids', false, check, null).join(''));
-    expect(j).toEqual({ idsFile: 'a.ids', edited: false, check: { valid: true, idsVersion: '1.0', errors: 0, warnings: 0, findings: [] }, run: null });
+    expect(j).toEqual({ idsFile: 'a.ids', edited: false, ids: null, model: null, check: { valid: true, idsVersion: '1.0', errors: 0, warnings: 0, findings: [] }, run: null });
     expect(pageReportName('a.ids', null)).toBe('a-check-report.json');
   });
   it('is valid JSON with a run and holds every failing element', () => {

@@ -150,7 +150,7 @@ function checkFacet(f: Facet, requirement: boolean, where: string, add: Add) {
       field('name', f.name, true); caps('name', f.name, true); field('predefinedType', f.predefinedType, false); caps('predefinedType', f.predefinedType, false);
       break;
     case 'partOf':
-      field('entity', f.entity.name, true); caps('entity', f.entity.name, true);
+      field('entity', f.entity.name, true); caps('entity', f.entity.name, true); field('predefinedType', f.entity.predefinedType, false); caps('predefinedType', f.entity.predefinedType, false);
       break;
     case 'attribute':
       field('name', f.name, true); field('value', f.value, false);

@@ -113,7 +113,7 @@ describe('what the first bytes say', () => {
   it('readForCheck recognises an IFC from its first bytes and an empty file without reading them', async () => {
     expect(await readForCheck(new File(['ISO-10303-21;\n' + 'x'.repeat(1000)], 'm.ifc'))).toMatchObject({ sentence: expect.stringMatching(/IFC model/) });
     expect(await readForCheck(new File([], 'e.ids'))).toMatchObject({ sentence: expect.stringMatching(/is empty/) });
-    expect(await readForCheck(new File(['<ids/>'], 'a.ids'))).toEqual({ text: '<ids/>' });
+    expect(await readForCheck(new File(['<ids/>'], 'a.ids'))).toEqual({ text: '<ids/>', bom: false, utf8: true, encoding: 'UTF-8' });
   });
 });
 

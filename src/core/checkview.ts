@@ -135,16 +135,65 @@ export async function checkText(xml: string): Promise<CheckView> {
   return describeResult(xml, await checkIds(xml));
 }
 
+export const NOT_UTF8 =
+  'This file says it is written in UTF-8 but holds bytes that are not, so some of its letters cannot be read correctly. Save it again as UTF-8 in the tool that made it, and choose the new file.';
+export const UNKNOWN_ENCODING = (name: string) =>
+  `This file is written in the encoding ${name}, which cannot be read here. Save it again as UTF-8 and choose the new file.`;
+
+export interface ReadText {
+  text: string;
+  /** True when the file starts with a byte order mark (which `text` does not hold). */
+  bom: boolean;
+  /** False when the file is in another encoding than UTF-8: `text` is then its letters, with the XML declaration saying UTF-8. */
+  utf8: boolean;
+  /** The encoding the file was read in, as the file names it. */
+  encoding: string;
+}
+
+/**
+ * The letters of an XML file from its bytes: by its byte order mark, else by the encoding its XML declaration names,
+ * else UTF-8. Bytes that are not valid in that encoding are never replaced silently: the file is refused, because a
+ * replaced letter in a name or a value would be checked against the model as if the author had written it.
+ */
+export function decodeXml(bytes: Uint8Array): ReadText | { sentence: string } {
+  const [a, b, c] = bytes;
+  let encoding = 'UTF-8', bom = false;
+  if (a === 0xef && b === 0xbb && c === 0xbf) bom = true;
+  else if (a === 0xff && b === 0xfe) { encoding = 'UTF-16LE'; bom = true; }
+  else if (a === 0xfe && b === 0xff) { encoding = 'UTF-16BE'; bom = true; }
+  else {
+    const head = String.fromCharCode(...bytes.subarray(0, 200));
+    const named = /^\s*<\?xml[^>]*?\sencoding\s*=\s*["']([^"']+)["']/.exec(head)?.[1];
+    if (named) encoding = named;
+  }
+  const utf8 = /^utf-?8$/i.test(encoding);
+  let text: string;
+  try {
+    text = new TextDecoder(utf8 ? 'utf-8' : encoding, { fatal: true }).decode(bytes);
+  } catch (e) {
+    return { sentence: e instanceof RangeError ? UNKNOWN_ENCODING(encoding) : utf8 ? NOT_UTF8 : UNKNOWN_ENCODING(encoding) };
+  }
+  // What the page keeps and writes is UTF-8, so the declaration has to say so.
+  if (!utf8) text = text.replace(/^(\s*<\?xml[^>]*?\sencoding\s*=\s*["'])[^"']+/, '$1UTF-8');
+  return { text, bom, utf8, encoding };
+}
+
 /**
  * Read a file for checking. Looks at the first bytes first, so a large IFC model dropped by mistake is
  * recognised without reading it all.
  */
-export async function readForCheck(file: File): Promise<{ text: string } | { sentence: string }> {
+export async function readForCheck(file: File): Promise<ReadText | { sentence: string }> {
   if (file.size === 0) return { sentence: EMPTY_FILE };
   const head = sentenceForText(await file.slice(0, 64).text());
   if (head) return { sentence: head };
   if (file.size > MAX_IDS_BYTES) return { sentence: TOO_BIG };
-  return { text: await file.text() };
+  const read = decodeXml(new Uint8Array(await file.arrayBuffer()));
+  if ('sentence' in read) {
+    // A file that is not text at all (a picture, a zip) is not an encoding problem: say what it is not.
+    const start = String.fromCharCode(...new Uint8Array(await file.slice(0, 64).arrayBuffer())).replace(/^\xEF\xBB\xBF/, '').trimStart();
+    return start.startsWith('<') ? read : { sentence: NOT_XML };
+  }
+  return read;
 }
 
 export function reportFileName(idsName: string): string {

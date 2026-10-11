@@ -88,7 +88,11 @@ const VALUE_FIELDS = ['name', 'predefinedType', 'value', 'system', 'propertySet'
 const INFO_FIELDS = ['title', 'copyright', 'version', 'description', 'author', 'date', 'purpose', 'milestone'];
 
 function facetField(f: Facet, rest: string[], finding: Pick<Finding, 'code' | 'message'>): string {
-  if (f.kind === 'partOf') return /^cardinality-/.test(finding.code) ? 'cardinality' : 'entity';
+  if (f.kind === 'partOf') {
+    if (/^cardinality-/.test(finding.code)) return 'cardinality';
+    if (finding.code === 'partof-relation-invalid' || /'relation'/.test(finding.message)) return 'relation';
+    return rest.includes('predefinedType') ? 'predefinedType' : 'entity';
+  }
   if (rest.length && VALUE_FIELDS.includes(rest[0])) return rest[0];
   if (finding.code === 'cardinality-conflicts-datatype' || finding.code === 'property-datatype-invalid' || finding.code === 'value-needs-datatype' || /'dataType'/.test(finding.message)) return 'dataType';
   if (/^cardinality-/.test(finding.code) || /'cardinality'/.test(finding.message)) return f.kind === 'entity' ? 'name' : 'cardinality';
@@ -111,6 +115,8 @@ export function targetOf(f: Pick<Finding, 'path' | 'line' | 'code' | 'message'>,
     if (f.code === 'ifc-version-invalid' || /'ifcVersion'/.test(f.message)) return field(`${s.uid}.ifcVersion`);
     if (f.code === 'requirements-not-allowed' || f.code === 'requirements-needed') return field(`${s.uid}.requirements`);
     if (f.code === 'applicability-missing') return field(`${s.uid}.applicability`);
+    // "Applies to" and "Must have" name classes that exclude each other: the place to change it is what must be had.
+    if (f.code === 'applicability-requirements-incompatible') return field(`${s.uid}.${s.requirements.length ? 'requirements' : 'applicability'}`);
     if (f.code === 'xsd-missing-attribute' && /'name'/.test(f.message)) return field(`${s.uid}.name`);
     return { kind: 'specification', spec: place.index };
   }

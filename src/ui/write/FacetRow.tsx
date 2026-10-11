@@ -84,10 +84,11 @@ export function FacetFields({ facet: f, requirement, issues, onChange, schema, a
       </>}
       {f.kind === 'material' && vf('Material', 'value', f.value, true, (v) => set({ value: v }))}
       {f.kind === 'partOf' && <>
-        <SelectField label="Relationship" value={f.relation ?? ''} options={[...Object.entries(RELATIONS).filter(([k]) => k === '' || (PARTOF_RELATIONS as readonly string[]).includes(k)).map(([value, label]) => ({ value, label })),
+        <SelectField label="Relationship" dataKey={`${f.uid}.relation`} error={err('relation')} advice={adv('relation')} value={f.relation ?? ''} options={[...Object.entries(RELATIONS).filter(([k]) => k === '' || (PARTOF_RELATIONS as readonly string[]).includes(k)).map(([value, label]) => ({ value, label })),
           ...(f.relation && !(f.relation in RELATIONS) ? [{ value: f.relation, label: f.relation }] : [])]}
           onChange={(v) => set({ relation: v === '' ? null : v })} />
         {vf('Of this IFC class', 'entity', f.entity.name, false, (v) => onChange({ ...f, entity: { ...f.entity, name: v ?? simple() } }), { options: classes, customNote: NOT_STANDARD })}
+        {vf('Predefined type', 'predefinedType', f.entity.predefinedType, true, (v) => onChange({ ...f, entity: { ...f.entity, predefinedType: v } }), { options: predefined })}
       </>}
       {allowed && f.kind !== 'entity' && (
         <SelectField label="This item is" dataKey={`${f.uid}.cardinality`} value={f.cardinality as Cardinality}

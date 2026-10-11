@@ -7,7 +7,8 @@ import { simple, type Facet, type IdsDocument } from '../src/core/ids/model';
 import { readIdsText } from '../src/core/ids/read';
 import { writeIds } from '../src/core/ids/write';
 import { outline, targetOf } from '../src/core/place';
-import { candidateFixes, verifyFixes, type Fix } from '../src/core/quickfix';
+import { keepSource, sameContent, writeKept } from '../src/core/ids/keep';
+import { candidateFixes, verifyFixes, WRITE_SPEC_AGAIN, type Fix } from '../src/core/quickfix';
 import { nodeEnv } from './helpers/dom';
 import { doc, entity, property, spec } from './helpers/ids';
 
@@ -48,7 +49,7 @@ describe('one-press fixes', () => {
     const d = readIdsText(xml, nodeEnv);
     const found = await offered(d);
     const o = found.find((x) => x.finding.code === 'requirements-not-allowed')!;
-    expect(o.fixes.map((f) => f.label)).toEqual(['Remove the "Must have" items']);
+    expect(o.fixes.map((f) => f.label)).toEqual(['Remove the 1 "Must have" item']);
     expect((await checkIds(writeIds(o.fixes[0].apply(d)))).valid).toBe(true);
   });
   it('a value without a data type, in a standard property set: add the type the standard gives', async () => {
@@ -108,5 +109,57 @@ describe('"Fix" lands on the field', () => {
     const xml = writeIds(d);
     const f = (await checkIds(xml)).findings[0];
     expect(targetOf(f, d, outline(xml))).toEqual({ kind: 'info', key: 'info.author' });
+  });
+});
+
+describe('fixes that would change what the author meant are not one press', () => {
+  it('a name one letter away from another name is a guess: the sentence suggests it, no button applies it', async () => {
+    const [o] = await offered(doc(spec({ applicability: [entity('IFCWALLL')] })));
+    expect(o.finding.message).toContain("Did you mean 'IFCWALL'?");
+    expect(o.fixes).toEqual([]);
+    const pile = await offered(doc(spec({ applicability: [entity('IFCPIPE')] })));
+    expect(pile[0].finding.message).toContain("Did you mean 'IFCPILE'?");
+    expect(pile[0].fixes).toEqual([]);
+  });
+  it('the same name in other letters is certain, and is one press', async () => {
+    const [o] = await offered(doc(spec({ applicability: [entity('IfcWall')] })));
+    expect(o.fixes.map((f) => f.label)).toEqual(['Change it to IFCWALL']);
+  });
+  it('a data type that is not a data type in any letters gets no button, though capitals would remove one of its two findings', async () => {
+    const d = doc(spec({ requirements: [property('Pset_WallCommon', 'FireRating', { dataType: 'IfcDoor' } as Partial<Facet>)] }));
+    const found = await offered(d);
+    expect(found.map((x) => x.finding.code)).toContain('property-datatype-invalid');
+    expect(found.flatMap((x) => x.fixes)).toEqual([]);
+  });
+  it('removing "Must have" items says how many go', async () => {
+    const d = doc(spec({ minOccurs: '0', maxOccurs: '0', requirements: [property('P', 'a'), property('P', 'b'), property('P', 'c')] }));
+    const o = (await offered(d)).find((x) => x.finding.code === 'requirements-not-allowed')!;
+    expect(o.fixes.map((f) => f.label)).toEqual(['Remove the 3 "Must have" items']);
+  });
+});
+
+describe('a problem that is in the text of the opened file, not in what it says', () => {
+  const file = readFileSync(join(cases, '..', '..', 'audit-repo', 'InvalidFiles', 'xsdFailure.ids'), 'utf8');
+  it('is fixed by writing that specification again, proved by the engine on the text the page would save', async () => {
+    const d = readIdsText(file, nodeEnv);
+    const kept = keepSource(file, d, nodeEnv)!;
+    const textOf = (x: IdsDocument) => writeKept(kept, x).text;
+    const before = (await checkIds(file)).findings;
+    expect(before.map((f) => f.code).sort()).toEqual(['xsd-unexpected-attribute', 'xsd-unexpected-element']);
+    // Nothing the forms can change removes it: the document says the same, so the file's own text is written.
+    expect((await checkIds(textOf(d))).findings).toHaveLength(2);
+    for (const f of before) {
+      const candidates = candidateFixes(f, d, targetOf(f, d, outline(file)), () => null, { specification: () => true, info: true, file: true });
+      const ok = await verifyFixes(f, candidates, d, 2, async (x) => (await checkIds(textOf(x))).findings);
+      expect(ok.map((x) => x.label)).toEqual([WRITE_SPEC_AGAIN]);
+      const after = ok[0].apply(d);
+      expect((await checkIds(textOf(after))).valid).toBe(true);
+      expect(sameContent(after, d)).toBe(true);
+    }
+  });
+  it('is not offered where nothing of the file is kept', () => {
+    const d = readIdsText(file, nodeEnv);
+    const f = { code: 'xsd-unexpected-attribute', message: 'x', path: 'ids/specifications/specification/applicability/entity' };
+    expect(candidateFixes(f, d, targetOf(f, d, outline(file)))).toEqual([]);
   });
 });
