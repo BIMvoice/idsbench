@@ -8,7 +8,7 @@ idsbench is a small tool for IDS (Information Delivery Specification) files from
 - **Check**: choose an IDS file and it is checked at once. You get one sentence (valid, or how many problems), the IDS version found, and one row per finding with what is wrong, where it is (line and column) and a short code. A row opens to show the line of the file with two lines around it. You can download the findings as one JSON file. A file that is not XML, not an IDS, empty, or an IFC model chosen by mistake gets one sentence saying what to do.
 - **Run**: choose an IDS file and an IFC model, press Run. Run first checks the IDS file with the same engine as Check; if it has problems, Run does not start, says how many there are, and "Show them in Check" opens the same file there. Otherwise you get one line saying how many specifications passed, failed or could not be checked, and one row per specification. Each failing row lists the first 200 failing elements with IFC class, name, GlobalId and the reason. You can download the result as one JSON file; it holds every failing element, not only the 200 on the page.
 
-Check and Run accept IDS 1.0 only. A file that declares any other version (0.9.7 included) is refused with a sentence that names the version.
+Write, Check and Run accept IDS 1.0 only. A file that declares any other version (0.9.7 included) is refused with the same sentence in all three, which names the version. Write opens a file with its own quick reader, but it makes that decision with the same small module as the Check engine. The files Write offers to download or hand to Run have always been checked by the engine first, so Check never rejects what Write wrote.
 
 Run reads IFC files in the STEP format (`.ifc`) for IFC2X3, IFC4 and IFC4X3. It does not read IFCX, ifcXML or zipped IFC files. A file it cannot use is refused with a sentence that says why: a model that is cut off, zipped or of another IFC version, an IDS file with problems, or the two files put in each other's box.
 
@@ -50,7 +50,7 @@ Check is the package in `packages/check` (see its README). It validates the IDS 
 - Audit tool: [buildingSMART/IDS-Audit-tool](https://github.com/buildingSMART/IDS-Audit-tool), MIT licence. Its rules and IFC tables are ported to TypeScript. idsbench is not endorsed by buildingSMART.
 - Schema validator: [xmllint-wasm](https://github.com/noppa/xmllint-wasm) (libxml2 compiled to WebAssembly), MIT licence.
 
-Check loads only when you first open a file in it, about 410 KB over the wire (gzip), so the first page load and Run are not slowed.
+The Check engine loads when a file is first checked (in Check, in Run, or when Write downloads or hands a file over), about 408 KB over the wire (gzip), so the first page load is not slowed.
 
 ## Privacy
 
@@ -70,19 +70,25 @@ These are from the ifc-lite project. The build tools (Vite, TypeScript, Vitest, 
 ## Tests
 
 ```
-npm test                 # the app's unit tests (finding order, excerpts, the Run gate, result states, error messages, runs through the real libraries), then the Check package's tests, including its comparison with the official tool
-npm run truth -- <dir>   # runs every pass-/fail- pair of the buildingSMART IDS test cases
-npm run build && node scripts/browser-check.mjs <dir>   # drives the built site in headless Chromium with the network blocked
-npm run build && node scripts/write-check.mjs <IDS clone> <ids.xsd with local imports>   # the Write tab in headless Chromium
-npx vite-node scripts/roundtrip.ts <dir> <ids.xsd with local imports> <out dir>   # read, write back and compare every IDS 1.0 file under a directory
-node scripts/local-xsd.mjs <official ids.xsd> <dir with xml.xsd and XMLSchema.xsd> <out>   # makes the schema xmllint can read without the network
+npm test                                          # the app's unit tests, then the Check package's tests
+npm run build && npm run check:browser -- <IDS clone>   # both browser scripts (Write; then Check, Run and the hand-offs) in headless Chromium, network blocked
+npm run truth -- <TestCases dir>                  # every pass-/fail- pair of the buildingSMART IDS test cases through Check and Run
+npx vite-node scripts/roundtrip.ts <IDS clone> <ids.xsd with local imports> <out dir>   # read, write back and compare every IDS 1.0 file
+node scripts/local-xsd.mjs <official ids.xsd> <dir with xml.xsd and XMLSchema.xsd> <out>   # the schema xmllint can read without the network
 ```
 
-For `truth` and the browser check, clone https://github.com/buildingSMART/IDS and point them at `Documentation/ImplementersDocumentation/TestCases`. The inputs are used as they are; nothing is rewritten and no file is special-cased.
+`<IDS clone>` is a clone of https://github.com/buildingSMART/IDS; `<TestCases dir>` is its `Documentation/ImplementersDocumentation/TestCases`. Set `CHROMIUM_PATH` to use an installed headless Chromium. The inputs are used as they are; nothing is rewritten and no file is special-cased.
 
-Measured on the 307 official `pass-*` and `fail-*` pairs, with Run opening each IDS file through Check first: 307 give the verdict named in the file name, and Check rejects none of their IDS files. In 9 of them the specification lists IFC2X3 and the model is IFC4; they are checked like the others and carry the note described above. The 27 IDS files marked `invalid-*` are not part of this number: Run refuses all 27 because Check finds problems in them.
+Measured on the combined app (not copied from the branches):
 
-The browser check also generates a model of 20,000 walls that all fail one specification. On the machine it was measured on, the result appeared 0.8 s after pressing Run, the page listed 200 rows and said that 19,800 more were in the report, and the downloaded report (2.7 MB) held all 20,000.
+- Unit tests: 253 in the app, 44 in the Check package (1 more is skipped: it needs the official tool's output on disk).
+- `truth`: 307 of 307 `pass-` / `fail-` pairs give the verdict named in the file name, and Check rejects none of their IDS files. In 9 the specification lists IFC2X3 and the model is IFC4; they are checked like the others and carry a note. All 27 `invalid-*` files are refused by Run because Check finds problems in them.
+- Check against the official audit tool: 425 of 425 IDS 1.0 files get the same valid or invalid verdict, and for the 80 it rejects the same error numbers. One file declares IDS 0.9.7 and is refused by design.
+- Write round trip (read, write back, compare): 319 files read; 319 schema-valid, 319 parse-equal, 319 equal as XML; the verdict is the same for 307 of 307 pairs.
+- What Write writes is accepted by Check: 32 varied documents, and 345 of the 345 official IDS 1.0 files Check accepts, written back and accepted with no error. 22 rules are pinned one by one against the engine (`tests/writer-accepted-by-check.test.ts`).
+- Browser: 51 assertions for Write and 121 for Check, Run and the hand-offs, all passed, with no request to anything but the local server. Storage holds Write's `sessionStorage` draft and nothing else.
+- Size: `dist` is 13.2 MB in all. The first load transfers about 444 KB (gzip) and does not change when the Write or Check tab is opened. The first file in Check fetches about 408 KB more (the engine, its WebAssembly and the IFC 4 tables). The Write tab loads neither the engine nor the IFC reader.
+- Run on 20,000 walls that all fail one specification: the result appeared 0.8 s after pressing Run, the page listed 200 rows and said that 19,800 more were in the report, and the downloaded report (2.7 MB) held all 20,000. A 2,000-specification IDS (1.3 MB) was checked in Check in 0.23 s with the page never frozen for more than 71 ms.
 
 ## Licence
 
