@@ -4,7 +4,8 @@ import { capGroups, groupFailures, ownValues } from '../../core/groups';
 import type { Issue } from '../../core/ids/check';
 import type { Specification } from '../../core/ids/model';
 import { describeSpecification } from '../../core/ids/words';
-import { subtypeAction, type SubtypeNote } from '../../core/subtypes';
+import type { SubtypeNote } from '../../core/subtypes';
+import { SubtypeLine } from './SubtypeLine';
 import { plural } from '../../core/shape';
 import { FAILURE_CAP, type SpecRow as Result, type SpecState } from '../../core/types';
 import { SpecEditor } from '../write/SpecEditor';
@@ -96,19 +97,14 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
           <button type="button" className={primary ? 'btn small primary' : 'btn small'} aria-expanded={editing} aria-controls={`body-${s.uid}`} aria-label={`${editing ? 'Done editing' : 'Edit'} ${label}`} onClick={() => onEdit(!editing)}>{editing ? 'Done' : 'Edit'}</button>
         </span>
       </div>
-      {subtypes && (
-        <p className="note subtype-note">
-          {subtypes.text}{' '}
-          {onAddSubtypes && <button type="button" className="btn small" onClick={onAddSubtypes}>{subtypeAction(subtypes)}</button>}
-        </p>
-      )}
+      {subtypes && !editing && <SubtypeLine note={subtypes} onAdd={onAddSubtypes} />}
       {result && !editing && result.note && <p className="note">{result.note}</p>}
       {result && !editing && result.schemaNote && <p className="note schema-note">{result.schemaNote}</p>}
       <Findings findings={findings} xml={xml} label={`What was found in ${label}`} />
       {result && !editing && <FailureGroups spec={result} />}
       {editing && (
         <div id={`body-${s.uid}`}>
-          <SpecEditor spec={s} issues={issues} onChange={onChange} focusKey={focusKey} />
+          <SpecEditor spec={s} issues={issues} onChange={onChange} focusKey={focusKey} subtypes={subtypes ?? null} onAddSubtypes={onAddSubtypes} />
           <div className="spec-foot">
             <button type="button" className="btn small" onClick={() => onEdit(false)}>Done</button>
             <button type="button" className="btn small quiet" disabled={index === 0} onClick={() => onMove(-1)} aria-label={`Move ${label} up`}>Move up</button>

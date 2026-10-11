@@ -77,11 +77,14 @@ export function App() {
   }, []);
 
   // ---- downloads ----
-  // A browser drops a download that starts while the one before it is still being handed over (Chromium does so for
-  // downloads less than about a tenth of a second apart, and may ask or refuse after several in a row). A press that
-  // comes while the last file is still being saved is answered with a sentence instead of a file that would not arrive,
-  // and many files in a short time are followed by a sentence about what the browser may do.
-  const busy = useRef(false);
+  // A browser drops a download that starts within about a tenth of a second of the one before it (Chromium does; and it
+  // may ask or refuse after many in a row). So the downloads of this page go one at a time, at least SPACING_MS apart:
+  // a press while the last file is still being handed over waits its turn and then gives its file. Only a pile of more
+  // than MAX_WAITING presses is answered with a sentence instead, and many files in a short time are followed by a
+  // sentence about what the browser may do.
+  const lastStart = useRef(0);
+  const queued = useRef(0);
+  const lane = useRef<Promise<void>>(Promise.resolve());
   const recent = useRef<number[]>([]);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const say = (text: string | null) => {
@@ -89,22 +92,29 @@ export function App() {
     if (noteTimer.current) clearTimeout(noteTimer.current);
     if (text) noteTimer.current = setTimeout(() => setDownloadNote(null), 8000);
   };
-  const SETTLE_DOWNLOAD_MS = 400, MANY = 8;
-  /** Runs one download. Returns at once, with a sentence, if the last one is still being saved. */
-  const download = async (what: string, job: () => Promise<string | null>) => {
-    if (busy.current) { say(`${what} was not started again: the last file is still being saved. Press it again in a moment.`); return; }
-    busy.current = true;
-    try {
-      const name = await job();
-      if (name === null) return;
-      const now = Date.now();
-      recent.current = [...recent.current.filter((t) => now - t < 60_000), now];
-      if (recent.current.length >= MANY) {
-        say(`Download started: ${name}. That is ${recent.current.length} files in the last minute. A browser may ask before it saves more files from one page, or refuse without a word: if no file appears, allow downloads for this site (look in the address bar), then press again.`);
+  const rejectedUntil = useRef(0);
+  const SPACING_MS = 150, MAX_WAITING = 12, MANY = 8;
+  const download = (what: string, job: () => Promise<string | null>) => {
+    if (queued.current >= MAX_WAITING) { rejectedUntil.current = Date.now() + 8000; say(`${what} was not started again: ${MAX_WAITING} files are already waiting to be saved. Press it again in a moment.`); return lane.current; }
+    queued.current++;
+    lane.current = lane.current.then(async () => {
+      try {
+        const wait = lastStart.current + SPACING_MS - Date.now();
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        lastStart.current = Date.now();
+        const name = await job();
+        if (name === null) return;
+        const now = Date.now();
+        recent.current = [...recent.current.filter((t) => now - t < 60_000), now];
+        // The sentence for a press that found the queue full is not taken away by the one about many files.
+        if (recent.current.length >= MANY && Date.now() > rejectedUntil.current) {
+          say(`Download started: ${name}. That is ${recent.current.length} files in the last minute. A browser may ask before it saves more files from one page, or refuse without a word: if no file appears, allow downloads for this site (look in the address bar), then press again.`);
+        }
+      } finally {
+        queued.current--;
       }
-    } finally {
-      setTimeout(() => { busy.current = false; }, SETTLE_DOWNLOAD_MS);
-    }
+    });
+    return lane.current;
   };
   const guarded = (what: string, fn: () => string) => {
     try { setProblem(null); return fn(); } catch (e) {

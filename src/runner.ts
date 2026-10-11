@@ -45,7 +45,7 @@ const tokens = new WeakMap<File, number>();
 const tokenOf = (f: File): number => { let t = tokens.get(f); if (t === undefined) { t = nextToken++; tokens.set(f, t); } return t; };
 const refOf = (f: File): ModelRef => ({ token: tokenOf(f), name: f.name, size: f.size, lastModified: f.lastModified });
 
-interface Pending { id: number; onMessage: (m: WorkerMessage) => void; onDead: () => void }
+interface Pending { id: number; onMessage: (m: WorkerMessage) => void; onDead: (why: 'error' | 'gone') => void }
 let pending: Pending | null = null;
 let heardAt = Date.now();
 const listeners = new Set<(silent: boolean) => void>();
@@ -65,25 +65,26 @@ function start(): Worker {
     if (pending && 'id' in m && m.id === pending.id) pending.onMessage(m);
   };
   // A worker that crashes (for example when the browser cannot give it more memory) may report here, not through a message.
-  w.onerror = (ev) => { ev.preventDefault?.(); console.error(ev); died(w); };
-  w.onmessageerror = () => died(w);
+  w.onerror = (ev) => { ev.preventDefault?.(); console.error(ev); died(w, 'error'); };
+  w.onmessageerror = () => died(w, 'error');
   return w;
 }
 
 /** When the lock the worker holds is let go, the worker is gone, whether it said so or not. */
 function watchLock(w: Worker, lock: string | null) {
   if (!lock || !navigator.locks) return;
-  void navigator.locks.request(lock, () => { if (worker === w) died(w); });
+  void navigator.locks.request(lock, () => { if (worker === w) died(w, 'gone'); });
 }
 
-function died(w: Worker) {
+/** The worker is gone: it reported an error ('error', the reason is not known) or its lock was let go with no word ('gone': the browser ended it, which is what running out of memory looks like). */
+function died(w: Worker, why: 'error' | 'gone') {
   if (worker !== w) return;
   worker = null;
   w.terminate();
   setSilent(false);
   const p = pending;
   pending = null;
-  p?.onDead();
+  p?.onDead(why);
 }
 
 /** End the worker (and the model it has read). Used by "Stop and try again". */
@@ -94,7 +95,7 @@ export function stopWorker(): void {
   setSilent(false);
   const p = pending;
   pending = null;
-  p?.onDead();
+  p?.onDead('gone');
 }
 
 /** Tell the worker the model is no longer needed, so its memory is let go. */
@@ -173,7 +174,7 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
             else if (m.type === 'error') reject(new RunFailed(m.error));
             else reject(new RunCancelled());
           },
-          onDead: () => { if (!cancelled) reject(new RunFailed({ kind: 'worker-stopped', message: WORKER_STOPPED })); },
+          onDead: (why) => { if (!cancelled) reject(new RunFailed(why === 'gone' ? { kind: 'worker-stopped', message: WORKER_STOPPED } : { kind: 'unexpected', message: UNEXPECTED })); },
         };
         heardAt = Date.now();
         worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true } satisfies WorkerRequest);

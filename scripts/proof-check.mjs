@@ -104,14 +104,14 @@ try {
   page.on('download', () => { files++; });
   const report = page.getByRole('button', { name: 'Download report', exact: true });
   for (let i = 0; i < 25; i++) await report.click();
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 6000));
   const said = await page.locator('#download-note').innerText().catch(() => '');
-  check('25 presses at once: every press that did not start a file was answered with a sentence', files >= 1 && /still being saved/.test(said), `${files} files; ${said}`);
+  check('25 presses with no pause: each press that fitted in the queue of 12 gave its file (one at a time, a tenth of a second apart), and the others were answered with a sentence', files >= 12 && files < 25 && /files are already waiting to be saved\. Press it again in a moment\./.test(said), `${files} files; ${said}`);
   files = 0;
-  for (let i = 0; i < 12; i++) { await report.click(); await new Promise((r) => setTimeout(r, 600)); }
+  for (let i = 0; i < 12; i++) { await report.click(); await new Promise((r) => setTimeout(r, 300)); }
   await new Promise((r) => setTimeout(r, 1500));
   const many = await page.locator('#download-note').innerText().catch(() => '');
-  check('12 presses, one after the other: a file for each', files === 12, `${files}`);
+  check('12 presses, a third of a second apart: a file for each', files === 12, `${files}`);
   check('and after 8 in a minute a sentence says what the browser may do and what to do', /files in the last minute.*allow downloads for this site/.test(many), many);
 
   check('no request to anything but the local server', blocked.length === 0, blocked.join(', '));

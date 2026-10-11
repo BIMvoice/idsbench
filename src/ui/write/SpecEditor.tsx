@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FACET_INFO, FacetFields } from './FacetRow';
 import { TextField } from './fields';
+import { SubtypeLine } from '../page/SubtypeLine';
+import type { SubtypeNote } from '../../core/subtypes';
 import { useLists } from './useSchema';
 import type { Lists } from '../../core/picks';
 import { type Issue } from '../../core/ids/check';
@@ -22,10 +24,13 @@ interface Props {
   onChange: (s: Specification) => void;
   /** The field to put the keyboard in, when "Fix" or "Add" asked for one. */
   focusKey: { key: string; n: number } | null;
+  /** What the class it applies to leaves out (its subtypes), and the action that adds them. */
+  subtypes: SubtypeNote | null;
+  onAddSubtypes?: () => void;
 }
 
 /** The form of one specification. What the common case needs is in view; the rest is behind "More options". */
-export function SpecEditor({ spec: s, issues, onChange, focusKey }: Props) {
+export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAddSubtypes }: Props) {
   const err = (k: string) => issues.find((i) => i.key === `${s.uid}.${k}` && i.level === 'error')?.message ?? null;
   const adv = (k: string) => issues.find((i) => i.key === `${s.uid}.${k}` && i.level === 'advice')?.message ?? null;
   const choice = specChoice(s);
@@ -55,7 +60,8 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey }: Props) {
     <div className="spec-body" ref={root}>
       <TextField label="Name" dataKey={`${s.uid}.name`} required value={s.name} error={err('name')} onChange={(v) => onChange({ ...s, name: v })} />
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={issues} groupError={err('applicability')} groupAdvice={adv('applicability')}
-        dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={(f) => onChange({ ...s, applicability: sortApplicability(f) })} />
+        dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={(f) => onChange({ ...s, applicability: sortApplicability(f) })}
+        extra={subtypes ? <SubtypeLine note={subtypes} onAdd={onAddSubtypes} /> : undefined} />
       <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={issues} groupError={err('requirements')} groupAdvice={adv('requirements')}
         dataKey={`${s.uid}.requirements`} lists={lists} several={several} appliesTo={appliesTo} onChange={(f) => onChange({ ...s, requirements: f })}
         extra={(

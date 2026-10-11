@@ -131,9 +131,15 @@ try {
   const dialogs = [];
   page.on('pageerror', (e) => pageErrors.push(String(e)));
   page.on('dialog', async (d) => { dialogs.push(`${d.type()}: ${d.message()}`); await d.accept().catch(() => {}); });
-  let workersStarted = 0;
+  // The page keeps one worker between runs, so a run is counted when it is asked of the worker, not when a worker starts.
+  await ctx.addInitScript(() => {
+    window.__runsStarted = 0;
+    const post = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function (m, ...rest) { if (m && m.type === 'run') window.__runsStarted++; return post.call(this, m, ...rest); };
+  });
+  const runsStarted = () => page.evaluate(() => window.__runsStarted);
+  const resetRuns = () => page.evaluate(() => { window.__runsStarted = 0; });
   // The IFC parser starts a helper worker of its own from a blob: URL; only the app's worker is counted.
-  page.on('worker', (w) => { if (w.url().includes('/assets/worker-')) workersStarted++; });
   const stale = [];
   const collectStale = async () => { stale.push(...await page.evaluate(() => window.__stale.splice(0)).catch(() => [])); };
 
@@ -235,7 +241,9 @@ try {
   const kClosed = await page.evaluate(() => !document.activeElement.parentElement.open);
   check('a row opens and closes from the keyboard', kOpened && kClosed);
   await page.keyboard.press('Shift+Tab');
-  const kEdit = await focused();
+  let kEdit = await focused();
+  // IfcWall has subtypes: the action that adds them is one stop between the results and the row's Edit button.
+  if (/^button:Also apply it to/.test(kEdit)) { await page.keyboard.press('Shift+Tab'); kEdit = await focused(); }
   await page.keyboard.press('Enter');
   let kField = '';
   for (let i = 0; i < 12 && !/^combobox:.*$/.test(kField); i++) { await page.keyboard.press('Tab'); kField = await page.evaluate(() => { const e = document.activeElement; return `${e.getAttribute('role') ?? e.tagName.toLowerCase()}:${e.labels?.[0]?.textContent ?? ''}`; }); }
@@ -251,13 +259,13 @@ try {
 
   // ---- official pass pair -----------------------------------------------------
   const pass = 'pass-a_minimal_ids_can_check_a_minimal_ifc_2_2';
-  workersStarted = 0;
+  await resetRuns();
   await load(path.join(cases, pass + '.ids'), path.join(cases, pass + '.ifc'));
   await settled();
   const h1 = await headline.innerText();
   check('pass pair headline', h1 === 'The one specification passed.' && (await word()) === 'Pass', h1);
   check('pass pair row state Pass', (await specs.first().locator('.state').innerText()) === 'Pass');
-  check('a valid IDS file and a model run by themselves: no button was pressed, one worker started', workersStarted === 1 && (await page.getByRole('button', { name: /^Run$/ }).count()) === 0, `workers started: ${workersStarted}`);
+  check('a valid IDS file and a model run by themselves: no button was pressed, one run started', (await runsStarted()) === 1 && (await page.getByRole('button', { name: /^Run$/ }).count()) === 0, `runs started: ${await runsStarted()}`);
   check('file names and sizes shown in the boxes', (await page.locator('.drop-detail').first().innerText()).includes(pass + '.ids') && /\(\d/.test(await page.locator('.drop-detail').nth(1).innerText()));
   check('result names both files', (await page.locator('.record').innerText()).includes(pass + '.ids') && (await page.locator('.record').innerText()).includes(pass + '.ifc'));
   check('result says the IDS file was checked first and is valid', (await page.locator('.meta.notice').innerText()) === 'The IDS file was checked first and is valid.');
@@ -440,8 +448,8 @@ try {
   const csv = await download('Download failing elements', 'failing.csv');
   const csvBytes = fs.readFileSync(csv.path);
   const csvLines = csv.text.replace(/^﻿/, '').split('\r\n');
-  check('Download failing elements: a CSV named after the model, UTF-8 with a byte order mark, CRLF, one row per failing element', csv.file === 'mixed walls-failing-elements.csv' && csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf && csvLines[0] === 'Specification,Why it failed,IFC class,Name,GlobalId,Model,IDS file' && csvLines.length === 4 + 2 && csvLines[5] === '', `${csv.file}: ${csvLines.length - 2} rows`);
-  check('CSV: commas and quotes are quoted, letters outside ASCII are kept', csvLines[2].includes(',"Wand ""Süd"", außen",0000000000000000000002,mixed walls.ifc,two-requirements.ids') && csvLines[2].startsWith('"Walls, ""named"" and described",') && csvLines[3].includes('"Ușă, perete"'), csvLines[2]);
+  check('Download failing elements: a CSV named after the model, UTF-8 with a byte order mark, CRLF, one row per failing element, each marked as an element row', csv.file === 'mixed walls-failing-elements.csv' && csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf && csvLines[0] === 'Row about,Specification,Why it failed,IFC class,Name,GlobalId,Model,IDS file' && csvLines.length === 4 + 2 && csvLines[5] === '', `${csv.file}: ${csvLines.length - 2} rows`);
+  check('CSV: commas and quotes are quoted, letters outside ASCII are kept', csvLines[2].includes(',"Wand ""Süd"", außen",0000000000000000000002,mixed walls.ifc,two-requirements.ids') && csvLines[2].startsWith('Element,"Walls, ""named"" and described",') && csvLines[3].includes('"Ușă, perete"'), csvLines[2]);
 
   // ---- the worker -------------------------------------------------------------
   // A second pair after a first: the old result goes the moment a file changes.
@@ -457,7 +465,7 @@ try {
 
   // Changing a file while a run is in progress: the run must not deliver.
   await fresh();
-  workersStarted = 0;
+  await resetRuns();
   workerDelay = 3000;
   await setFiles(bigIds, bigIfc);
   await page.locator('.verdict.waiting .working').filter({ hasText: /IFC model|Checking the model|Checking the IDS file/ }).waitFor({ timeout: 10000 });
@@ -554,8 +562,8 @@ try {
   await load(officialInvalid, officialInvalidIfc);
   await settled();
   const waitingText = await headline.innerText();
-  workersStarted = 0;
-  check('a model with an IDS file that is not valid: the model waits, one sentence says the file comes first, nothing is run', waitingText === `This IDS file has ${noun(refErrors)}. The model is checked as soon as the file is valid.` && (await noRun()) && (await specs.first().locator('.state').innerText()) === 'Waiting' && workersStarted === 0, waitingText);
+  await resetRuns();
+  check('a model with an IDS file that is not valid: the model waits, one sentence says the file comes first, nothing is run', waitingText === `This IDS file has ${noun(refErrors)}. The model is checked as soon as the file is valid.` && (await noRun()) && (await specs.first().locator('.state').innerText()) === 'Waiting' && (await runsStarted()) === 0, waitingText);
   check('...with its findings on the same page, one row per engine finding, and the list of things to fix', (await findingRows.count()) === ref.findings.length && (await findingRows.first().innerText()).includes(ref.findings[0].message) && (await page.locator('.to-fix h3').innerText()) === `${ref.findings.length} thing to fix in this IDS file`);
   await page.screenshot({ path: path.join(shots, 'model-waiting.png'), fullPage: true });
   const oneFix = page.getByRole('button', { name: 'Remove the 1 "Must have" item' });
@@ -563,7 +571,7 @@ try {
   check('a one-press fix is offered on the line, beside Fix', (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Remove the 1 "Must have" item Fix');
   await oneFix.click();
   await runVerdict.waitFor({ timeout: 60000 });
-  check('pressing it makes the file valid, the list goes, and the waiting model runs by itself', (await page.locator('.to-fix, .finding').count()) === 0 && ['Pass', 'Fail'].includes(await word()) && workersStarted === 1 && (await page.locator('.meta.notice').innerText()) === 'The IDS file was checked first and is valid.', await headline.innerText());
+  check('pressing it makes the file valid, the list goes, and the waiting model runs by itself', (await page.locator('.to-fix, .finding').count()) === 0 && ['Pass', 'Fail'].includes(await word()) && (await runsStarted()) === 1 && (await page.locator('.meta.notice').innerText()) === 'The IDS file was checked first and is valid.', await headline.innerText());
   check('the result names what was judged: the file with unsaved changes', /IDS file\s+invalid-prohibited[^\n]*\(with unsaved changes\)/.test(await page.locator('.record').innerText()) && (await page.locator('#ids-status').innerText()).includes('unsaved changes'));
   check('the fix can be undone: nothing is applied silently', (await page.locator('.undo').innerText()).startsWith('Remove the 1 "Must have" item.') && (await page.getByRole('button', { name: 'Undo' }).count()) === 1);
   await page.getByRole('button', { name: 'Undo' }).click();
@@ -591,7 +599,7 @@ try {
   await settled();
   await page.getByRole('button', { name: 'Edit Walls are named Waldo' }).click();
   check('a row being edited does not show its result as its state; the other parts of the result stay', (await specs.first().locator('.state').innerText()) === 'Editing' && (await specs.first().locator('.spec-counts').count()) === 0 && (await word()) === 'Pass');
-  workersStarted = 0;
+  await resetRuns();
   workerDelay = 1500;
   const valueField = specs.first().getByRole('combobox', { name: 'Value', exact: true });
   await valueField.fill('Wilma');
@@ -602,10 +610,10 @@ try {
   await runVerdict.waitFor({ timeout: 60000 });
   workerDelay = 0;
   check('the page checks and runs again by itself after the pause: the new result is of the changed file', /^0 of 1 specification passed\./.test(await headline.innerText()) && (await word()) === 'Fail' && /\(with unsaved changes\)/.test(await page.locator('.record').innerText()), await headline.innerText());
-  check('typing three times in a row started one run, not three', workersStarted === 1, `workers started: ${workersStarted}`);
+  check('typing three times in a row started one run, not three', (await runsStarted()) === 1, `runs started: ${await runsStarted()}`);
   // an edit while a run is in flight stops that run
   workerDelay = 2500;
-  workersStarted = 0;
+  await resetRuns();
   await valueField.fill('Waldo');
   await page.locator('.working', { hasText: /model|specifications/ }).waitFor({ timeout: 10000 }).catch(() => {});
   await valueField.fill('Wilma again');
