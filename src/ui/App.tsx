@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { failureCount, failuresCsvName, failuresCsvParts } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
 import { pageReportName, pageReportParts, sha256Of } from '../core/report';
+import { alignResults, NOT_ALIGNED } from '../core/align';
 import { ROW_CAP } from '../core/checkview';
 import { About } from './page/About';
 import { saveFile } from './page/draft';
 import { FileBar } from './page/FileBar';
 import { Findings } from './page/Findings';
 import { SpecRow } from './page/SpecRow';
-import { mark, TitleBlock } from './page/TitleBlock';
+import { mark, modelMark, TitleBlock } from './page/TitleBlock';
 import { ToFix } from './page/ToFix';
 import { usePage } from './page/usePage';
 
@@ -22,6 +23,8 @@ export function App() {
   const [problem, setProblem] = useState<string | null>(null);
   const result = run && 'outcome' in run ? run.outcome.result : null;
   const failing = result ? failureCount(result) : 0;
+  // A result row is shown beside a specification only when the result is of exactly these specifications, in this order.
+  const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
 
   // ---- files dropped anywhere on the page ----
   const depth = useRef(0);
@@ -38,7 +41,16 @@ export function App() {
       e.preventDefault();
       depth.current = 0;
       setOver(false);
-      void addRef.current([...(e.dataTransfer?.files ?? [])]);
+      // A folder arrives as an entry that is a directory; its "file" cannot be read, so it is named and left out.
+      const folders: string[] = [], files: File[] = [];
+      for (const item of [...(e.dataTransfer?.items ?? [])]) {
+        if (item.kind !== 'file') continue;
+        const entry = typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null;
+        const file = item.getAsFile();
+        if (entry?.isDirectory) folders.push(entry.name);
+        else if (file) files.push(file);
+      }
+      void addRef.current(files.length || folders.length ? files : [...(e.dataTransfer?.files ?? [])], undefined, folders);
     };
     window.addEventListener('dragenter', enter);
     window.addEventListener('dragover', overIt);
@@ -116,7 +128,7 @@ export function App() {
   const waiting = !model ? null : report && !report.valid ? 'Waiting' : result ? null : run && 'error' in run ? null : 'Checking';
 
   return (
-    <div className="page" data-doc={mark(page.text)}>
+    <div className="page" data-doc={mark(page.text)} data-model={modelMark(model)}>
       <header className="top">
         <h1 className="brand">idsbench</h1>
         <p className="top-note">Checks IDS 1.0 files, and IFC models against them.</p>
@@ -141,6 +153,7 @@ export function App() {
           </p>
         )}
         {problem && <p className="error" role="alert">{problem}</p>}
+        {result && doc && !rows && <p className="error" role="alert" id="not-aligned">{NOT_ALIGNED}</p>}
         {next && <p className="next" id="next-step">{next}</p>}
 
         {hasPage && <h2 className="doc-title">{doc ? doc.info.title || 'Untitled IDS' : page.name}</h2>}
@@ -175,11 +188,11 @@ export function App() {
           <section aria-labelledby="specs-title" className="spec-section">
             <h3 id="specs-title">Specifications</h3>
             {doc.specifications.length === 0 && <p className="empty">No specifications yet. Add the first one to say what the model must contain.</p>}
-            <ol className={`specs page-specs${model ? ' with-state' : ''}`} data-of={result && run ? mark(run.text) : ''}>
+            <ol className={`specs page-specs${model ? ' with-state' : ''}`} data-of={result && run ? mark(run.text) : ''} data-of-model={result && run ? modelMark(run.model) : ''}>
               {doc.specifications.map((s, i) => (
                 <SpecRow
                   key={s.uid} spec={s} index={i} count={doc.specifications.length}
-                  result={result ? result.specs[i] ?? null : null}
+                  result={rows ? rows[i] : null}
                   waiting={waiting}
                   findings={report && page.text !== null ? shownFindings(page.placed?.specs.get(i)) : []}
                   xml={page.text ?? ''}

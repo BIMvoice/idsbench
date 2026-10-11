@@ -17,6 +17,11 @@ export function mark(text: string | null): string {
   return `${text?.length ?? 0}-${(h >>> 0).toString(36)}`;
 }
 
+/** A mark of a model file, so a check can tell which model a result on screen was made for. */
+export function modelMark(f: File | null): string {
+  return f ? `${f.name}:${f.size}:${f.lastModified}` : '';
+}
+
 /** The verdict and the record of what it judged. Pass and Fail are about a model; Valid and Not valid are about the IDS file. */
 export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
   // The live region is on the page from the start, before there is a document, so that what appears in it is announced.
@@ -48,7 +53,7 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
     verdict = <Verdict state={report.warnings ? 'incomplete' : 'pass'} word="Valid">{report.headline}</Verdict>;
   }
   return (
-    <section className="results title-block" aria-label="Result" data-of={of} data-kind={result ? 'run' : report ? 'check' : 'waiting'}>
+    <section className="results title-block" aria-label="Result" data-of={of} data-of-model={run ? modelMark(run.model) : ''} data-kind={result ? 'run' : report ? 'check' : 'waiting'}>
       {/* One live region, present from the start, so a screen reader announces progress, a refusal and the verdict as each appears. */}
       <div aria-live="polite" className="status">{verdict}</div>
       {result ? (

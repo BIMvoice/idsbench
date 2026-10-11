@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { exactOption, filterOptions, type Option } from '../../core/picks';
 
 interface Props {
@@ -33,10 +33,26 @@ export function Combo({ label, value, options, onChange, hint, error, advice, da
   const custom = value !== '' && options.length > 0 && !chosen && text === null;
   const message = error ?? advice ?? (custom ? customNote : null) ?? null;
 
+  // The list of a pick-list is loaded when the form opens, and a quick typist is there first: what is typed before the
+  // list has arrived is taken as it is. When the list arrives, text typed here that names one of its options (a plain
+  // name, "wall") becomes that option, as it would have had the list been there. Only text typed in this field, never
+  // a value that came from the file.
+  const typedEarly = useRef<string | null>(null);
+  useEffect(() => {
+    const early = typedEarly.current;
+    if (options.length === 0 || early === null) return;
+    typedEarly.current = null;
+    if (early.trim() !== value && early !== value) return;
+    const exact = exactOption(options, early);
+    if (exact && exact.value !== value) onChange(exact.value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options]);
+
   const pick = (o: Option) => { onChange(o.value); setText(null); setOpen(false); };
   const commit = () => {
     if (text !== null) {
       const exact = exactOption(options, text);
+      if (options.length === 0) typedEarly.current = text;
       onChange(exact ? exact.value : text.trim());
     }
     setText(null);
@@ -68,7 +84,7 @@ export function Combo({ label, value, options, onChange, hint, error, advice, da
         onChange={(e) => {
           // Free text (no list to pick from) is taken as it is typed; with a list, on choosing or on leaving the field.
           setText(e.target.value); setOpen(true); setActive(0);
-          if (options.length === 0) onChange(e.target.value);
+          if (options.length === 0) { typedEarly.current = e.target.value; onChange(e.target.value); }
         }}
         onClick={() => { if (options.length) setOpen(true); }}
         onKeyDown={onKey}

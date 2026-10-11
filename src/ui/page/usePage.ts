@@ -10,6 +10,7 @@
 //     specifications (or the info section) written anew (core/ids/keep.ts), so a change stays where it was made.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Finding } from '@idsbench/check';
+import { chooseDropped, type DroppedKind } from '../../core/align';
 import { checkText, readForCheck, type CheckView } from '../../core/checkview';
 import { keepSource, rewriteLosesComments, sameContent, writeKept, type Kept } from '../../core/ids/keep';
 import { AppError, UNEXPECTED } from '../../core/errors';
@@ -253,14 +254,23 @@ export function usePage() {
     }
   };
 
-  /** Takes one file or several, wherever they were dropped: an IFC model and an IDS file are told apart by content. */
-  const addFiles = async (files: File[], hint?: FileKind) => {
-    for (const f of files.slice(0, 2)) {
+  /**
+   * Takes one file or several, wherever they were dropped: an IFC model and an IDS file are told apart by content.
+   * `folders` are names of folders that were dropped. What is not taken (a second IDS file, a second model, a folder)
+   * is said by name.
+   */
+  const addFiles = async (files: File[], hint?: FileKind, folders: string[] = []) => {
+    const items: { file: { name: string; file?: File }; kind: DroppedKind }[] = folders.map((name) => ({ file: { name }, kind: 'folder' }));
+    for (const f of files) {
       let head = '';
       try { head = await f.slice(0, 4096).text(); } catch { /* an unreadable file is reported by whoever reads it next */ }
-      if (kindOfFile(f.name, head, files.length === 1 ? hint : undefined) === 'ifc') setModel(f);
-      else await openIds(f);
+      items.push({ file: { name: f.name, file: f }, kind: kindOfFile(f.name, head, files.length === 1 ? hint : undefined) });
     }
+    const taken = chooseDropped(items);
+    if (taken.ifc?.file) setModel(taken.ifc.file);
+    if (taken.ids?.file) await openIds(taken.ids.file);
+    // After the file is shown (which clears older notices), so that this one stays.
+    if (taken.left) setNotice(taken.left);
   };
 
   const startNew = () => {
@@ -310,8 +320,10 @@ export function usePage() {
     }
   };
 
+  // A file that was opened and not changed is saved as its own bytes: the form's own rules (a title, for one) say
+  // what a change must not leave behind, and do not stand between a person and the file they opened.
   const downloadBlocked: string | null = !doc ? null
-    : guardErrors.length > 0 ? `Download is off until this is fixed: ${guardErrors[0].where}: ${guardErrors[0].message}${guardErrors.length > 1 ? ` (and ${guardErrors.length - 1} more)` : ''}`
+    : guardErrors.length > 0 && !(asOpened && source) ? `Download is off until this is fixed: ${guardErrors[0].where}: ${guardErrors[0].message}${guardErrors.length > 1 ? ` (and ${guardErrors.length - 1} more)` : ''}`
     : report && !report.valid ? `Download is off until the IDS file is valid: ${report.findings.find((f) => f.severity === 'error')?.message ?? ''}`
     : null;
 

@@ -78,7 +78,7 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
     : result ? <span className={`state ${result.state}`}>{STATE_TEXT[result.state]}</span>
     : waiting ? <span className="state waiting">{waiting}</span> : null;
   return (
-    <li className={`spec${editing ? ' editing' : ''}`} id={`spec-${s.uid}`}>
+    <li className={`spec${editing ? ' editing' : ''}`} id={`spec-${s.uid}`} data-result-of={result ? result.name : undefined}>
       <div className={`spec-head static${state ? '' : ' no-state'}`}>
         {state}
         <span className="spec-name">{label}</span>
