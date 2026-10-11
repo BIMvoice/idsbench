@@ -52,8 +52,9 @@ Files are read and checked in your browser, in a Web Worker. Nothing is sent to 
 | `@ifc-lite/parser` | reading the IFC model | MPL-2.0 |
 | `@ifc-lite/ids` | reading the IDS and checking the model against it | MPL-2.0 |
 | `react`, `react-dom` | the interface | MIT |
+| Atkinson Hyperlegible Next, Barlow Condensed | the two typefaces, bundled as local files in `src/fonts/` | SIL OFL 1.1 |
 
-These are from the ifc-lite project. The build tools (Vite, TypeScript, Vitest, Playwright) are development dependencies only.
+The first two are from the ifc-lite project. How the interface looks and reads is described in `DESIGN.md`. The build tools (Vite, TypeScript, Vitest, Playwright) are development dependencies only.
 
 ## Tests
 
