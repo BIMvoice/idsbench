@@ -12,7 +12,7 @@ export type Finding = {
 
 export type CheckResult = {
   valid: boolean;
-  /** `1.0` or `0.9.7`, read from `xsi:schemaLocation`; absent when it could not be determined. */
+  /** The IDS version the file declares in `xsi:schemaLocation` (for example `1.0`, or `0.9.7` for a file that is refused); absent when it names none. */
   idsVersion?: string;
   findings: Finding[];
 };

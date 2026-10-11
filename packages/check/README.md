@@ -7,7 +7,7 @@ Specification, XML) is itself valid, and where it is wrong. Runs in the browser 
 import { checkIds } from '@idsbench/check';
 
 const result = await checkIds(xmlText);
-// { valid: boolean, idsVersion?: '1.0' | '0.9.7', findings: Finding[] }
+// { valid: boolean, idsVersion?: string, findings: Finding[] }
 // Finding = { severity: 'error' | 'warning', code, message, line?, column?, path? }
 ```
 
@@ -27,22 +27,22 @@ what is expected. `line`/`column` point into the input (1-based). `path` names t
 
 ### IDS versions accepted
 
-Chosen by `xsi:schemaLocation` on `<ids>`, compared exactly as the audit tool does:
+idsbench works with **IDS 1.0 only**. The version is read from `xsi:schemaLocation` on `<ids>`:
 
 | Location | Result |
 |---|---|
 | `http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd` | accepted (`idsVersion: '1.0'`) |
-| `http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/0.9.7/ids.xsd` | accepted with warning `ids-version-transitional` |
-| anything else, or missing | error `ids-version-unsupported` (the XSD to use is unknown) |
+| names another version, for example `.../IDS/0.9.7/ids.xsd`, `.../0.9.6/...` or `.../1.1/...` | error `ids-version-unsupported`, the only finding, on the line of `<ids>`: "This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again." (a later version says "Save the file as IDS 1.0" instead of "Update"). `idsVersion` holds the version named. |
+| names no version, or is not the IDS 1.0 location, or is missing | error `ids-version-unsupported` with a message that gives the 1.0 location |
 
-0.9.7 is the only earlier version the audit tool still embeds; it differs from 1.0 by also accepting `IFC4X3` in
-`ifcVersion`. Files that declare 0.9.6 or older are refused with a message naming the 1.0 location.
+This is a deliberate difference from the official audit tool, which still accepts 0.9.7 with a warning. The XSD of
+0.9.7 is therefore not bundled (it was 13.3 KB raw, 2.4 KB gzip) and there is no warning path left.
 
 ### How the XSD is loaded offline
 
 `schemas/*.xsd` are bundled and turned into `src/schemas.generated.ts` (`npm run build:schemas`) so there is no file or
 network access at runtime. `ids-1.0.xsd` is byte-identical to `Schema/ids.xsd` in buildingSMART/IDS (commit
-`870f9c4e`). `ids-0.9.7.xsd`, `XMLSchema.xsd` and `xml.xsd` are the copies embedded in the audit tool. The IDS schema
+`870f9c4e`). `XMLSchema.xsd` and `xml.xsd` are the copies embedded in the audit tool. The IDS schema
 imports three W3C namespaces by `http://www.w3.org/...` URL; at run time those `schemaLocation` strings are rewritten
 to in-memory file names and the files are handed to xmllint-wasm through its `preload` option (libxml2's virtual file
 system), so nothing is fetched. The IDS schema really needs the XML Schema schema (`ref="xs:restriction"`,
@@ -87,7 +87,7 @@ document in `test/rules.test.ts` unless noted. The audit tool's numbers are in `
 | 105 | no valid option exists (predefined type) | - | not implemented: unreachable, it needs a name matcher that matched no class, which 103 already rejected |
 | 106 | empty classification system / partOf entity | `classification-system-empty`, `value-empty` | implemented. `value-empty` is defensive for the same reason as above (the XSD requires `<entity>` in `<partOf>`) |
 | 107 | invalid IFC version in `ifcVersion` | `ifc-version-invalid` | implemented. Note `IFC4X3` is accepted by the rule (as in the tool) but the 1.0 XSD rejects it |
-| 108 | unsupported IDS schema version | `ids-version-unsupported`, `ids-version-transitional` (warning) | implemented, broader: every location other than 1.0 and 0.9.7 is refused |
+| 108 | unsupported IDS schema version | `ids-version-unsupported` | implemented, stricter than the tool: every location other than 1.0 is refused, 0.9.7 included |
 | 109 | invalid regular expression | `pattern-invalid` | implemented with the JavaScript regex engine, see limits |
 | 201 | clauses that can never be met together | `conditions-impossible`, `applicability-requirements-incompatible`, `partof-entity-incompatible` | implemented, including the class lists the tool derives for attributes, standard property sets (with type classes), classification, material and partOf |
 | 202 | cardinality not valid for the facet | `cardinality-needs-value` (optional without value/dataType), `cardinality-conflicts-datatype` (prohibited property with dataType) | implemented |
@@ -151,9 +151,12 @@ DOTNET_ROLL_FORWARD=Major node scripts/run-reference.mjs /tmp/idstool/ids-tool t
 (`DOTNET_ROLL_FORWARD=Major` lets the net8.0 tool run on a newer installed runtime.) `test/corpus.test.ts` runs
 `checkIds` over every file and compares it with that reference.
 
-Result: **426 of 426 files get the same valid/invalid verdict as the official tool** (346 valid, 80 invalid), and for
-all 80 invalid files the set of error numbers is identical too (our codes mapped through the table above; the tool's
+Result: **425 of 425 IDS 1.0 files get the same valid/invalid verdict as the official tool**, and for
+all 80 files the tool calls invalid the set of error numbers is identical too (our codes mapped through the table above; the tool's
 "critical"/502 reports for non-XML input are grouped with our `xml-not-well-formed`).
+One file, `ValidFiles/CanonicalVersions/canonical-0.9.7.ids`, declares IDS 0.9.7. The tool calls it valid (with a warning);
+idsbench refuses it by design, for the version reason alone (one finding, `ids-version-unsupported`). `test/corpus.test.ts`
+counts such files, asserts exactly that for each, and asserts exact agreement on every other file: 425 of 425, plus 1 refused by design = 426.
 Read this with care: the 426 files were used while building, so this is a regression guard, not an independent score.
 The first full run (before the fixes below) agreed on 399 of 426 and disagreed on 27:
 
@@ -166,7 +169,7 @@ The first full run (before the fixes below) agreed on 399 of 426 and disagreed o
 | `partof/invalid-a_group_predefined_type_must_match_exactly_1_2` | invalid (103) | valid | same | bug in this package |
 | `InvalidFiles/InvalidIfcPropertyForType` | invalid (201) | valid | class restriction implied by a standard property set not implemented yet | rule not implemented yet |
 
-No case was found where the reference tool is wrong; none was special-cased. After the fixes: 426/426.
+No case was found where the reference tool is wrong; none was special-cased. After the fixes: 425/425 on IDS 1.0 files.
 
 For files the rules were not tuned on, `scripts/make-mutants.mjs` builds altered copies of the valid corpus files: 273 with
 another `ifcVersion`, and 101 with one content mutation (misspelt class, attribute or property name, bad predefined

@@ -180,16 +180,32 @@ describe('document level', () => {
     const r = await checkIds('<html/>');
     expect(has(r, 'not-an-ids-file')).toBe(true);
   });
-  it('ids-version-unsupported for an unknown or missing schema location', async () => {
-    expect(has(await checkIds(ids(spec(wall), { version: '0.9.6' })), 'ids-version-unsupported')).toBe(true);
+  it('ids-version-unsupported when the schema location is missing', async () => {
     const r = await checkIds('<ids xmlns="http://standards.buildingsmart.org/IDS"/>');
-    expect(has(r, 'ids-version-unsupported')).toBe(true);
+    expect(r.valid).toBe(false);
+    expect(r.findings).toEqual([expect.objectContaining({ code: 'ids-version-unsupported', severity: 'error', line: 1, path: 'ids' })]);
+    expect(r.findings[0].message).toContain('no xsi:schemaLocation');
+    expect(r.idsVersion).toBeUndefined();
   });
-  it('0.9.7 is accepted with a warning', async () => {
-    const r = await checkIds(ids(spec(wall), { version: '0.9.7' }));
-    expect(r.valid).toBe(true);
-    expect(r.idsVersion).toBe('0.9.7');
-    expect(r.findings).toEqual([expect.objectContaining({ code: 'ids-version-transitional', severity: 'warning' })]);
+  it('ids-version-unsupported when the schema location names no version', async () => {
+    const r = await checkIds(ids(spec(wall)).replace('/1.0/ids.xsd', '/latest/ids.xsd'));
+    expect(r.findings).toEqual([expect.objectContaining({ code: 'ids-version-unsupported', severity: 'error' })]);
+    expect(r.findings[0].message).toContain('is not the IDS 1.0 location');
+  });
+  it.each([
+    ['0.9.7', 'This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.'],
+    ['0.9.6', 'This file is IDS 0.9.6. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.'],
+    ['1.1', 'This file is IDS 1.1. idsbench works with IDS 1.0 only. Save the file as IDS 1.0 and check it again.'],
+    ['2.0', 'This file is IDS 2.0. idsbench works with IDS 1.0 only. Save the file as IDS 1.0 and check it again.'],
+  ])('a file that declares IDS %s is refused by name, as the only finding, on the <ids> line', async (version, message) => {
+    const r = await checkIds(ids(spec(wall), { version }));
+    expect(r.valid).toBe(false);
+    expect(r.idsVersion).toBe(version);
+    expect(r.findings).toEqual([{ severity: 'error', code: 'ids-version-unsupported', message, line: 2, column: 1, path: 'ids' }]);
+  });
+  it('a refused version is refused even when the rest of the file is also wrong', async () => {
+    const r = await checkIds(ids(spec(entity('IFCWALLL')), { version: '0.9.7' }));
+    expect(r.findings.map((f) => f.code)).toEqual(['ids-version-unsupported']);
   });
   it('tolerates a byte-order mark', async () => {
     expect((await checkIds('﻿' + ids(spec(wall)))).valid).toBe(true);

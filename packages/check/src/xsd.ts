@@ -1,11 +1,9 @@
 // Layer 1: validate the document against the official IDS XSD with libxml2 compiled to WebAssembly
 // (npm: xmllint-wasm). All schema files are bundled (see schemas.generated.ts); nothing is fetched at runtime.
 import { validateXML } from 'xmllint-wasm';
-import { ids10, ids097, xml as xmlXsd, xmlSchema } from './schemas.generated.ts';
+import { ids10, xml as xmlXsd, xmlSchema } from './schemas.generated.ts';
 import type { Finding } from './types.ts';
 import { pathOf, walk, type XNode } from './xml.ts';
-
-export type SchemaVersion = '1.0' | '0.9.7';
 
 const XSI_STUB =
   '<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.w3.org/2001/XMLSchema-instance"/>';
@@ -24,8 +22,8 @@ export interface XsdOutcome {
   findings: Finding[];
 }
 
-export async function validateAgainstXsd(xml: string, version: SchemaVersion, tree?: XNode): Promise<XsdOutcome> {
-  const schema = localise(version === '1.0' ? ids10 : ids097);
+export async function validateAgainstXsd(xml: string, tree?: XNode): Promise<XsdOutcome> {
+  const schema = localise(ids10);
   let raw: string;
   try {
     const res = await validateXML({

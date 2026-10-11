@@ -49,11 +49,25 @@ describe('corpus against the official tool', () => {
       });
     }
     if (process.env.COMPARE_OUT) writeFileSync(process.env.COMPARE_OUT, JSON.stringify(rows, null, 1));
+    // idsbench accepts IDS 1.0 only (by design the official tool also accepts 0.9.7, with a warning). A file that
+    // declares anything else must be invalid for the version reason alone; every other file must agree exactly.
+    const declares = (file: string) => /xsi:schemaLocation="[^"]*\/IDS\/([0-9.]+)\/ids\.xsd"/.exec(readFileSync(join(corpus, file), 'utf8'))?.[1];
+    const other = rows.filter((x) => declares(x.file) !== undefined && declares(x.file) !== '1.0');
+    for (const x of other) {
+      expect(x.ours, x.file).toBe('invalid');
+      expect(x.ourCodes, x.file).toEqual(['fatal']);
+      expect(x.ourMessages[0], x.file).toContain(`This file is IDS ${declares(x.file)}`);
+    }
+    console.log(`files declaring a version other than 1.0: ${other.length} (${other.map((x) => `${x.file}: reference ${x.reference}`).join('; ')})`);
+    expect(other.length).toBe(1);
+    const rest = rows.filter((x) => !other.includes(x));
+    console.log(`IDS 1.0 files (and files naming no version): ${rest.length}, same verdict as the official tool: ${rest.filter((x) => x.reference === x.ours).length}`);
+    rows.splice(0, rows.length, ...rest);
     const disagree = rows.filter((x) => x.reference !== x.ours).map((x) => `${x.file}: reference ${x.reference}, ours ${x.ours}`);
     const invalid = rows.filter((x) => x.reference === 'invalid');
     const sameCodes = invalid.filter((x) => x.refCodes.join() === x.ourCodes.join());
     console.log(`files=${rows.length} verdict-agree=${rows.length - disagree.length} disagree=${disagree.length} identical-error-code-set=${sameCodes.length}/${invalid.length}`);
-    expect(rows.length).toBe(426);
+    expect(rows.length + other.length).toBe(426);
     expect(disagree).toEqual([]);
     const differing = invalid.filter((x) => x.refCodes.join() !== x.ourCodes.join()).map((x) => `${x.file}: reference [${x.refCodes}] ours [${x.ourCodes}]`);
     console.log(differing.join('\n'));
