@@ -8,12 +8,17 @@ type Report = Extract<CheckView, { kind: 'report' }>;
 /** Which file a report is about: its name, its size in bytes and the SHA-256 of its bytes (null when the browser cannot compute one). */
 export interface FileIdentity { name: string; bytes: number; sha256: string | null }
 
-/** The SHA-256 of a file's bytes in hexadecimal, or null where the browser offers no digest (a page not served over HTTPS or from this computer). */
-export async function sha256Of(blob: Blob): Promise<string | null> {
+/** The SHA-256 of bytes in hexadecimal, or null where there is no digest to ask (see sha256Of). */
+export async function sha256OfBytes(bytes: ArrayBuffer): Promise<string | null> {
   try {
-    const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
     return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
   } catch { return null; }
+}
+
+/** The SHA-256 of a file's bytes in hexadecimal, or null where the browser offers no digest (a page not served over HTTPS or from this computer). */
+export async function sha256Of(blob: Blob): Promise<string | null> {
+  try { return await sha256OfBytes(await blob.arrayBuffer()); } catch { return null; }
 }
 
 /**

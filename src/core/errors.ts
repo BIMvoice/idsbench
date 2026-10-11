@@ -29,6 +29,13 @@ export const OUT_OF_MEMORY =
 export const FILE_UNREADABLE =
   'One of the files could not be opened from your computer. It may have been moved, renamed or deleted, or it may be too large. Choose it again.';
 
+/** The model's bytes could not be had from the file that was chosen: what a browser does when the file changed or went away after it was chosen. */
+export const MODEL_UNREADABLE =
+  'The model could not be read from your computer. It was moved, renamed, deleted or saved again after it was chosen here, so no result was made. Choose it again.';
+
+/** True for what a browser says when an allocation fails. */
+export const isMemoryError = (err: unknown): boolean => MEMORY.test(err instanceof Error ? `${err.name} ${err.message}` : String(err));
+
 /** Word patterns the XML parser uses for a document that is not XML at all. */
 const XML_BROKEN = /(missing root|not well|unclosed|unexpected end|xml.*(error|fatal)|fatal.?error|invalid character|not valid xml|doctype|premature)/i;
 

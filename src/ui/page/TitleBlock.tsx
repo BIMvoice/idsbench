@@ -1,7 +1,6 @@
 import { Verdict } from '../Verdict';
 import { formatSize } from '../../core/format';
 import { LARGE_MODEL_BYTES } from '../../core/limits';
-import { SILENCE_MS } from '../../runner';
 import type { Verdict as RunVerdict } from '../../core/types';
 import type { Phase } from '../../core/validate';
 import type { Page } from './usePage';
@@ -56,7 +55,7 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
         <span className="working">{PHASE_TEXT[page.phase]}{model && model.size >= LARGE_MODEL_BYTES ? ` This model is ${formatSize(model.size)}; a large model needs several gigabytes of memory.` : ''}</span>
         {page.silent && (
           <span className="stalled" id="stalled" role="alert">
-            {' '}The check has not answered for {Math.round(SILENCE_MS / 1000)} seconds. It may still be working on a very large model, or the browser may have stopped it.{' '}
+            {' '}The check has not answered for {page.silentSeconds} seconds. It may still be working on a very large model, or the browser may have stopped it.{' '}
             <button type="button" className="btn small" onClick={page.stopAndRetry}>Stop and try again</button>
           </span>
         )}

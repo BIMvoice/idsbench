@@ -98,8 +98,8 @@ export function usePage() {
   const [ran, setRan] = useState<Ran | null>(null);
   const [phase, setPhase] = useState<Phase>('reading-ids');
   const [nonce, setNonce] = useState(0);
-  /** True while the worker has said nothing for a long time during a run: the page then offers to stop it. */
-  const [silent, setSilent] = useState(false);
+  /** Set while the worker has said nothing for longer than it may during a run (to how long that is, in milliseconds): the page then offers to stop it. */
+  const [silent, setSilent] = useState<number | null>(null);
   /** Set by "Run again" and "Stop and try again": the next run reads the model again instead of using the copy the worker keeps. */
   const freshNext = useRef(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -169,8 +169,10 @@ export function usePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runnable, idsFile, model, nonce]);
   useEffect(() => onSilence(setSilent), []);
-  // The model the worker has read is let go when the page no longer has a model.
-  useEffect(() => { if (model === null) forgetModel(); }, [model]);
+  // The model the worker has read is let go when the page no longer has that model: when the model is removed, and
+  // also when another is chosen while no run can start (the IDS file is not valid just then), so that a model that
+  // is no longer on the page does not go on holding its memory.
+  useEffect(() => { forgetModel(model); }, [model]);
   const run = ran !== null && ran.text === text && ran.model === model && ran.nonce === nonce && runnable ? ran : null;
   const running = runnable && run === null;
 
@@ -416,7 +418,9 @@ export function usePage() {
     runAgain: () => { freshNext.current = true; setNonce((n) => n + 1); },
     /** The worker has been silent too long: end it, and with it the model it holds, and run again from the file. */
     stopAndRetry: () => { stopWorker(); freshNext.current = true; setNonce((n) => n + 1); },
-    silent: silent && running,
+    silent: silent !== null && running,
+    /** How long the worker had to be silent for `silent` to be said, in seconds. */
+    silentSeconds: Math.round((silent ?? 0) / 1000),
   };
 }
 export type Page = ReturnType<typeof usePage>;

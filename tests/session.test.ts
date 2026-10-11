@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ModelKeeper, runSession, sameModel, type ModelRef } from '../src/core/session';
 import { RunStopped, readIds } from '../src/core/validate';
-import { AppError } from '../src/core/errors';
+import { AppError, mapError } from '../src/core/errors';
 
 const NS = 'http://standards.buildingsmart.org/IDS';
 const ifc = (names: string[], schema = 'IFC4') =>
@@ -107,4 +107,82 @@ describe('a run after the first only checks again', () => {
     expect(keptWhileReading).toBeNull();
     expect(keeper.ref?.name).toBe('b.ifc');
   });
+});
+
+// The report names the model by a SHA-256. It has to be of the bytes that were parsed, not of what the file holds later.
+describe('which bytes a result is of', () => {
+  const sha = async (b: ArrayBuffer) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  it('a run says how many bytes it parsed and their SHA-256', async () => {
+    const keeper = new ModelKeeper();
+    const text = ifc(['Waldo', 'Wilma']);
+    const m = model(text);
+    const r = await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: m.ref, read: m.read });
+    expect(r.model).toEqual({ bytes: bytes(text).byteLength, sha256: await sha(bytes(text)) });
+  });
+  it('a run served from the kept copy names the bytes that copy was read from, whatever the file holds by then', async () => {
+    const keeper = new ModelKeeper();
+    const before = ifc(['Waldo', 'Waldo']), after = ifc(['Wilma', 'Wilma']);
+    expect(after.length).toBe(before.length);
+    // One file object, whose content changes on disk in a way that keeps its size and its time.
+    let onDisk = before, reads = 0;
+    const ref: ModelRef = { token: 1, name: 'm.ifc', size: bytes(before).byteLength, lastModified: 1000 };
+    const read = async () => { reads++; return bytes(onDisk); };
+    const first = await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: ref, read });
+    onDisk = after;
+    const second = await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: ref, read });
+    expect([second.reused, reads]).toEqual([true, 1]);
+    // The verdict is of the first content (every wall is named Waldo), and so is the digest: the two are of the same bytes.
+    expect(second.result.verdict).toBe('pass');
+    expect(second.model.sha256).toBe(await sha(bytes(before)));
+    expect(second.model).toEqual(first.model);
+    // "Run again" reads the file as it is now: the verdict and the digest are both of the new content.
+    const third = await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: ref, read, fresh: true });
+    expect(third.result.verdict).toBe('fail');
+    expect(third.model.sha256).toBe(await sha(bytes(after)));
+  });
+});
+
+// A browser refuses to hand over the bytes of a file that changed or went away after it was chosen.
+describe('a model that cannot be read any more', () => {
+  it('is said as that, with what to do, and not as "something went wrong"', async () => {
+    const keeper = new ModelKeeper();
+    const m = model(ifc(['Waldo']));
+    const gone = Object.assign(new Error('A requested file or directory could not be found at the time an operation was processed.'), { name: 'NotFoundError' });
+    const failed = await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: m.ref, read: async () => { throw gone; } }).catch((e) => e);
+    expect(failed).toBeInstanceOf(AppError);
+    expect(mapError(failed, 'validate')).toEqual({ kind: 'file-unreadable', message: 'The model could not be read from your computer. It was moved, renamed, deleted or saved again after it was chosen here, so no result was made. Choose it again.' });
+    expect(keeper.ref).toBeNull();
+  });
+  it('but a file too large for the browser to hand over in one piece is a memory problem', async () => {
+    const m = model(ifc(['Waldo']));
+    const failed = await runSession(new ModelKeeper(), { ids: nameIs('Waldo'), idsName: 'a.ids', model: m.ref, read: async () => { throw new RangeError('Array buffer allocation failed'); } }).catch((e) => e);
+    expect(mapError(failed, 'validate').kind).toBe('out-of-memory');
+  });
+});
+
+// The page offers to stop a run when the worker has been silent for too long, so the worker has to speak from inside its long steps.
+describe('a run says that it is going on while the model is read', () => {
+  it('ticks while the model is counted and parsed, before the check begins', async () => {
+    const m = model(ifc(Array.from({ length: 30_000 }, (_, i) => `Wall ${i}`)));
+    let ticks = 0, beforeChecking = -1;
+    await runSession(new ModelKeeper(), { ids: nameIs('Waldo'), idsName: 'a.ids', model: m.ref, read: m.read, onTick: () => { ticks++; }, onPhase: (p) => { if (p === 'checking') beforeChecking = ticks; } });
+    expect(beforeChecking).toBeGreaterThan(0);
+  });
+  it('a run stopped while the model is being parsed ends as stopped, not as a damaged file, and keeps no copy', async () => {
+    const keeper = new ModelKeeper();
+    const m = model(ifc(Array.from({ length: 30_000 }, (_, i) => `Wall ${i}`)));
+    let phase = '';
+    const stopped = await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: m.ref, read: m.read, onPhase: (p) => { phase = p; }, onTick: () => { throw new RunStopped(); } }).catch((e) => e);
+    expect(stopped).toBeInstanceOf(RunStopped);
+    expect(phase).toBe('reading-ifc');
+    expect(keeper.ref).toBeNull();
+  });
+});
+
+// The page tells the worker which model it has now; a copy of any other model is let go, whether a run follows or not.
+describe('the kept copy is let go when the page has another model, or none', () => {
+  const kept = async () => { const keeper = new ModelKeeper(); const m = model(ifc(['Waldo'])); await runSession(keeper, { ids: nameIs('Waldo'), idsName: 'a.ids', model: m.ref, read: m.read }); return keeper; };
+  it('another file: let go', async () => { const k = await kept(); k.forgetOthers(2); expect(k.ref).toBeNull(); });
+  it('no model: let go', async () => { const k = await kept(); k.forgetOthers(null); expect(k.ref).toBeNull(); });
+  it('the same file: kept, so that the next run does not read it again', async () => { const k = await kept(); k.forgetOthers(1); expect(k.ref?.token).toBe(1); });
 });

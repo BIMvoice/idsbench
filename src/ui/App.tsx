@@ -116,6 +116,19 @@ export function App() {
     });
     return lane.current;
   };
+  // A press waits its turn, and the page can change while it waits (an edit, another model, a new result). A file is
+  // only ever of what is on the page: a press whose turn comes after such a change gives a sentence, not a file of what was there.
+  // (A result is told by the text, the model and the run it was made for, not by the object that holds it: the page may make the same result again.)
+  const shown = { ranText: result ? run?.text : null, ranModel: result ? run?.model : null, ranNonce: result ? run?.nonce : null, text: page.text, xml: page.xml };
+  const onPage = useRef(shown);
+  onPage.current = shown;
+  const outdated = (what: string, was: Partial<typeof shown>) => {
+    const now = onPage.current;
+    if ((Object.keys(was) as (keyof typeof shown)[]).every((k) => now[k] === was[k])) return false;
+    rejectedUntil.current = Date.now() + 8000;
+    say(`${what} was not saved: the page changed while the file was waiting its turn. Press it again for the file of what is on the page now.`);
+    return true;
+  };
   const guarded = (what: string, fn: () => string) => {
     try { setProblem(null); return fn(); } catch (e) {
       console.error(e);
@@ -124,6 +137,7 @@ export function App() {
     }
   };
   const downloadIds = () => download('The IDS file', async () => {
+    if (outdated('The IDS file', { xml: page.xml })) return null;
     const saved = await page.save();
     if (!saved) return null;
     saveFile(saved.parts, saved.name, 'application/xml');
@@ -132,14 +146,16 @@ export function App() {
   const downloadReport = () => download('The report', async () => {
     const idsName = page.name, blob = page.idsBlob();
     if (!report || !idsName || !blob) return null;
+    if (outdated('The report', { ranText: shown.ranText, ranModel: shown.ranModel, ranNonce: shown.ranNonce, text: page.text })) return null;
     // The report names the exact bytes it is about. They are read now; the result on the page was made from the same text and model.
     const edited = !page.asOpened && page.dirty;
     const ids = { name: idsName, bytes: blob.size, sha256: await sha256Of(blob) };
-    const ran = result && model ? { name: model.name, bytes: model.size, sha256: await sha256Of(model) } : null;
+    // The model is named by the bytes the worker parsed, hashed there and then: the file on disk may have changed since.
+    const ran = result && run && 'outcome' in run ? { name: result.ifcFile, ...run.outcome.model } : null;
     return guarded('The report', () => { const name = pageReportName(idsName, result); saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : []), name, 'application/json'); return name; });
   });
   const downloadCsv = () => download('The list', async () => {
-    if (!result) return null;
+    if (!result || outdated('The list', { ranText: shown.ranText, ranModel: shown.ranModel, ranNonce: shown.ranNonce })) return null;
     return guarded('The list', () => { const name = failuresCsvName(result.ifcFile); saveFile(failuresCsvParts(result), name, 'text/csv;charset=utf-8'); return name; });
   });
 
@@ -264,7 +280,7 @@ export function App() {
                     return { ...x, specifications: list };
                   })}
                   subtypes={subtypesOf(s)}
-                  onAddSubtypes={() => { const note = subtypesOf(s); if (note) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
+                  onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
                   onDelete={() => { page.change(`Deleted "${s.name || 'Untitled specification'}"`, (x) => ({ ...x, specifications: x.specifications.filter((y) => y.uid !== s.uid) })); page.setEditing(null); }}
                 />
               ))}

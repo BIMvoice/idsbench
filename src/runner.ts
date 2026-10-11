@@ -3,7 +3,7 @@ import { prepareIds, IdsInvalid } from './core/prepare';
 import { AppError, FILE_UNREADABLE, UNEXPECTED } from './core/errors';
 import { checkSize } from './core/limits';
 import type { AppErrorInfo, RunResult } from './core/types';
-import type { ModelRef } from './core/session';
+import type { ModelBytes, ModelRef } from './core/session';
 import type { WorkerMessage, WorkerRequest } from './worker';
 
 export class RunFailed extends Error {
@@ -23,6 +23,8 @@ export interface RunOutcome {
   idsWarnings: number;
   /** True when the model was not read again: the copy kept from the run before was checked. */
   modelReused: boolean;
+  /** The bytes the checked model was read from, as the worker had them when it parsed them: their number and SHA-256. */
+  model: ModelBytes;
 }
 
 export interface Run {
@@ -31,8 +33,19 @@ export interface Run {
   cancel: () => void;
 }
 
-/** How long the worker may say nothing before the page offers to stop the run. It says something every second while it is not parsing. */
+/** How long the worker may say nothing before the page offers to stop the run. It says something several times a second while it works. */
 export const SILENCE_MS = 30_000;
+/**
+ * What is added to that while the model is being read, for each megabyte of it. Reading has steps that cannot say
+ * anything until they are done (the longest was measured at 1.5 s for a 107 MB model, and all of them grow with the
+ * model), and a slow computer takes several times as long: a model that is only large must not be called stuck. A
+ * worker that the browser has ended is noticed at once whatever this says, through the lock it held.
+ */
+export const READING_MS_PER_MB = 150;
+/** How long the worker may be silent in this phase of a run on a model of this size before the page says so. */
+export function silenceAllowed(phase: Phase | null, modelBytes: number): number {
+  return phase === 'reading-ifc' ? SILENCE_MS + Math.round((modelBytes / (1024 * 1024)) * READING_MS_PER_MB) : SILENCE_MS;
+}
 
 export const WORKER_STOPPED =
   'The check was ended by the browser before it finished, most likely because the model needs more memory than the browser gives a tab. Close other tabs and programs and try again, or use a smaller model.';
@@ -45,17 +58,18 @@ const tokens = new WeakMap<File, number>();
 const tokenOf = (f: File): number => { let t = tokens.get(f); if (t === undefined) { t = nextToken++; tokens.set(f, t); } return t; };
 const refOf = (f: File): ModelRef => ({ token: tokenOf(f), name: f.name, size: f.size, lastModified: f.lastModified });
 
-interface Pending { id: number; onMessage: (m: WorkerMessage) => void; onDead: (why: 'error' | 'gone') => void }
+interface Pending { id: number; onMessage: (m: WorkerMessage) => void; onDead: (why: 'error' | 'gone') => void; phase: Phase | null; modelBytes: number }
 let pending: Pending | null = null;
 let heardAt = Date.now();
-const listeners = new Set<(silent: boolean) => void>();
-let silent = false;
-const setSilent = (v: boolean) => { if (v !== silent) { silent = v; listeners.forEach((l) => l(v)); } };
+/** Told how long the worker has been allowed to be silent when it has been silent longer (milliseconds), and null when it speaks again. */
+const listeners = new Set<(silentForMs: number | null) => void>();
+let silent: number | null = null;
+const setSilent = (v: number | null) => { if (v !== silent) { silent = v; listeners.forEach((l) => l(v)); } };
 
 function start(): Worker {
   const w = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   heardAt = Date.now();
-  const hear = () => { heardAt = Date.now(); setSilent(false); };
+  const hear = () => { heardAt = Date.now(); setSilent(null); };
   w.onmessage = (ev: MessageEvent<WorkerMessage>) => {
     if (worker !== w) return;
     hear();
@@ -81,7 +95,7 @@ function died(w: Worker, why: 'error' | 'gone') {
   if (worker !== w) return;
   worker = null;
   w.terminate();
-  setSilent(false);
+  setSilent(null);
   const p = pending;
   pending = null;
   p?.onDead(why);
@@ -92,25 +106,31 @@ export function stopWorker(): void {
   const w = worker;
   worker = null;
   w?.terminate();
-  setSilent(false);
+  setSilent(null);
   const p = pending;
   pending = null;
   p?.onDead('gone');
 }
 
-/** Tell the worker the model is no longer needed, so its memory is let go. */
-export function forgetModel(): void {
-  worker?.postMessage({ type: 'forget' } satisfies WorkerRequest);
+/**
+ * Tell the worker which model the page has now (none, or `current`): the memory of any other model it still holds is
+ * let go. The message names the page's model, so the copy of that model is kept whichever the worker handles first,
+ * this message or the run for that model.
+ */
+export function forgetModel(current: File | null = null): void {
+  worker?.postMessage({ type: 'forget', except: current ? tokenOf(current) : null } satisfies WorkerRequest);
 }
 
-/** Be told when the worker has said nothing for SILENCE_MS during a run, and when it speaks again. */
-export function onSilence(listener: (silent: boolean) => void): () => void {
+/** Be told when the worker has said nothing for longer than it may during a run (see silenceAllowed), and when it speaks again. */
+export function onSilence(listener: (silentForMs: number | null) => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
 
 const watchdog = setInterval(() => {
-  if (pending && Date.now() - heardAt > SILENCE_MS) setSilent(true);
+  if (!pending) return;
+  const allowed = silenceAllowed(pending.phase, pending.modelBytes);
+  if (Date.now() - heardAt > allowed) setSilent(allowed);
 }, 1000);
 // Not kept alive for tests that import this module in Node.
 (watchdog as unknown as { unref?: () => void }).unref?.();
@@ -168,13 +188,15 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
           id: myId,
           onMessage: (m) => {
             if (cancelled) return;
-            if (m.type === 'phase') { onPhase(m.phase); return; }
+            if (m.type === 'phase') { if (pending) pending.phase = m.phase; onPhase(m.phase); return; }
             pending = null;
-            if (m.type === 'done') resolve({ result: m.result, idsWarnings, modelReused: m.reused });
+            if (m.type === 'done') resolve({ result: m.result, idsWarnings, modelReused: m.reused, model: m.model });
             else if (m.type === 'error') reject(new RunFailed(m.error));
             else reject(new RunCancelled());
           },
           onDead: (why) => { if (!cancelled) reject(new RunFailed(why === 'gone' ? { kind: 'worker-stopped', message: WORKER_STOPPED } : { kind: 'unexpected', message: UNEXPECTED })); },
+          phase: null,
+          modelBytes: files.ifc.size,
         };
         heardAt = Date.now();
         worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true } satisfies WorkerRequest);

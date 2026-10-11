@@ -21,13 +21,13 @@ export interface RunInput {
   spill?: boolean;
   /** Called every so often while the check runs; throwing from it stops the run (the worker uses this to stop a run that was cancelled). */
   onTick?: () => void;
-  /** How many express ids one range of the check covers (see RANGE_IDS). Tests set it small to force many ranges. */
+  /** How many entities one range of the check holds at most (see RANGE_IDS). Tests set it small to force many ranges. */
   rangeIds?: number;
   /** Used instead of reading the bytes again when the model is already read (see ModelKeeper). */
   loaded?: LoadedModel;
 }
 
-/** How many express ids one range of the check covers. A model whose highest id is below this is checked as one range. */
+/** How many entities one range of the check holds at most. A model of no more entities than this is checked as one range. */
 export const RANGE_IDS = 400_000;
 
 type Accessor = ReturnType<typeof createDataAccessor>;
@@ -37,14 +37,29 @@ function inRange(a: Accessor, lo: number, hi: number): Accessor {
   return { ...a, getEntitiesByType: (t: string) => within(a.getEntitiesByType(t)), getAllEntityIds: () => within(a.getAllEntityIds()) };
 }
 
-/** [lo, hi) ranges that together cover every express id of the model. */
-async function idRanges(store: LoadedModel['store'], size: number): Promise<[number, number][]> {
-  if (store.entityCount <= size) return [[0, Infinity]];
-  let max = 0;
-  for (const id of createDataAccessor(store).getAllEntityIds()) if (id > max) max = id;
+/**
+ * [lo, hi) ranges of express ids that together cover every id, each holding at most `size` entities. They are cut by
+ * how many entities there are, not by how large the ids are: ids are often far apart (a model of 277 entities with
+ * ids up to 253,724 is ordinary), and ranges of a fixed width of ids would then be thousands, nearly all of them empty,
+ * each costing a pass over the model.
+ */
+export function cutRanges(ids: ArrayLike<number>, size: number): [number, number][] {
+  if (ids.length <= size) return [[0, Infinity]];
+  const sorted = Float64Array.from(ids).sort();
   const out: [number, number][] = [];
-  for (let lo = 0; lo <= max; lo += size) out.push([lo, lo + size > max ? Infinity : lo + size]);
-  return out.length ? out : [[0, Infinity]];
+  let lo = 0;
+  for (let i = size; i < sorted.length; i += size) {
+    const hi = sorted[i];
+    // The same id listed twice stays in one range.
+    if (hi > lo) { out.push([lo, hi]); lo = hi; }
+  }
+  out.push([lo, Infinity]);
+  return out;
+}
+
+function idRanges(store: LoadedModel['store'], size: number): [number, number][] {
+  if (store.entityCount <= size) return [[0, Infinity]];
+  return cutRanges(createDataAccessor(store).getAllEntityIds(), size);
 }
 
 /** A model that is read and ready to be checked against any IDS. Holds the parsed store, which is large: keep at most one. */
@@ -69,13 +84,18 @@ export function readIds(idsXml: string): IDSDocument {
   return doc;
 }
 
-/** Read a model: look at its header, parse it. Throws AppError with a plain-language message for every expected failure. */
-export async function loadModel(ifcBytes: ArrayBuffer): Promise<LoadedModel> {
+/**
+ * Read a model: look at its header, parse it. Throws AppError with a plain-language message for every expected failure.
+ * `onTick` is called as the parsing goes on (the parser says how far it is many times a second on a large model);
+ * throwing RunStopped from it stops the reading.
+ */
+export async function loadModel(ifcBytes: ArrayBuffer, onTick?: () => void): Promise<LoadedModel> {
   const header = inspectIfc(ifcBytes);
   let store;
   try {
-    store = await new IfcParser().parseColumnar(ifcBytes);
+    store = await new IfcParser().parseColumnar(ifcBytes, onTick ? { onProgress: () => onTick() } : {});
   } catch (e) {
+    if (e instanceof RunStopped) throw e;
     console.error('IFC parse failed', e);
     const m = mapError(e, 'ifc');
     throw new AppError(m.kind, m.message);
@@ -97,7 +117,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
   let loaded = input.loaded;
   if (!loaded) {
     input.onPhase?.('reading-ifc');
-    loaded = await loadModel(input.ifcBytes);
+    loaded = await loadModel(input.ifcBytes, input.onTick);
   }
   const { store } = loaded;
 
@@ -120,7 +140,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     // The model is checked one range of express ids at a time, each with its own accessor and its own results, which are
     // let go of before the next range: a model with millions of applicable elements never has all their results (or all
     // the values read from them) in memory at once. A model of ordinary size is one range, as if there were no ranges.
-    for (const [lo, hi] of await idRanges(store, input.rangeIds ?? RANGE_IDS)) {
+    for (const [lo, hi] of idRanges(store, input.rangeIds ?? RANGE_IDS)) {
       const accessor = hi === Infinity && lo === 0 ? createDataAccessor(store) : inRange(createDataAccessor(store), lo, hi);
       // Elements that pass are not needed for anything but a prohibited specification (every match of it is a failure
       // whatever its requirements say), so the library is asked to drop them from all the others: on a model with
