@@ -8,17 +8,20 @@ import type { RunResult } from '../core/types';
 import type { Phase } from '../core/validate';
 
 const PHASE_TEXT: Record<Phase, string> = {
-  'reading-ids': 'Reading the IDS file...',
+  'reading-ids': 'Checking the IDS file...',
   'reading-ifc': 'Reading the IFC model. Large models take a while...',
   checking: 'Checking the model against the specifications...',
 };
 
-export function RunTab() {
+export function RunTab({ onShowInCheck }: { onShowInCheck: (ids: File) => void }) {
   const [ids, setIds] = useState<File | null>(null);
   const [ifc, setIfc] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase | null>(null);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // True when the error is "the IDS file has problems": the page then offers to show them in Check.
+  const [refused, setRefused] = useState(false);
+  const [idsWarnings, setIdsWarnings] = useState(0);
   // The run in progress. A result is only ever shown by the run held here, so
   // a run that was replaced or whose files changed cannot put its result on
   // screen under other file names.
@@ -31,6 +34,7 @@ export function RunTab() {
     setPhase(null);
     setResult(null);
     setError(null);
+    setRefused(false);
   };
   useEffect(() => () => current.current?.cancel(), []);
 
@@ -42,6 +46,7 @@ export function RunTab() {
   const run = async () => {
     if (!ids || !ifc || current.current) return;
     setError(null);
+    setRefused(false);
     setResult(null);
     setPhase('reading-ids');
     // The phase callback can fire before runInWorker returns, so it is tied
@@ -52,11 +57,15 @@ export function RunTab() {
     current.current = mine;
     try {
       const r = await mine.promise;
-      if (current.current === mine) setResult(r);
+      if (current.current === mine) {
+        setIdsWarnings(r.idsWarnings);
+        setResult(r.result);
+      }
     } catch (e) {
       if (e instanceof RunCancelled || current.current !== mine) return;
       console.error(e);
       setError(e instanceof RunFailed ? e.info.message : UNEXPECTED);
+      setRefused(e instanceof RunFailed && e.info.kind === 'ids-invalid');
     } finally {
       live.on = false;
       if (current.current === mine) {
@@ -107,8 +116,20 @@ export function RunTab() {
       <div aria-live="polite" className="status">
         {phase && <p className="working">{PHASE_TEXT[phase]}</p>}
         {error && <p className="error">{error}</p>}
+        {error && refused && ids && (
+          <p className="refusal-action">
+            <button type="button" className="btn" onClick={() => onShowInCheck(ids)}>Show them in Check</button>
+          </p>
+        )}
         {result && <p className={`headline ${result.verdict}`}>{result.headline}</p>}
       </div>
+      {result && (
+        <p className="meta">
+          {idsWarnings > 0
+            ? `The IDS file is valid, with ${idsWarnings} ${idsWarnings === 1 ? 'thing' : 'things'} to look at in the Check tab. It was run as it is.`
+            : 'The IDS file was checked first and is valid.'}
+        </p>
+      )}
       {result && <Results result={result} />}
     </>
   );

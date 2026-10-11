@@ -4,7 +4,8 @@
 // Usage: npx vite-node scripts/truth.ts <TestCases dir> [rows.json]
 import fs from 'node:fs';
 import path from 'node:path';
-import { readIds, runValidation } from '../src/core/validate';
+import { runValidation } from '../src/core/validate';
+import { prepareIds } from '../src/core/prepare';
 
 const root = process.argv[2];
 if (!root) throw new Error('usage: truth.ts <TestCases dir> [rows.json]');
@@ -37,7 +38,7 @@ for (const idsPath of files) {
   let verdict: string, detail = '', schemaNotes = 0;
   try {
     const r = await runValidation({
-      ids: readIds(fs.readFileSync(idsPath, 'utf8')), idsName: base + '.ids',
+      ids: (await prepareIds(fs.readFileSync(idsPath, 'utf8'))).doc, idsName: base + '.ids',
       ifcBytes: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, ifcName: base + '.ifc',
     });
     verdict = r.verdict;
@@ -51,13 +52,18 @@ for (const idsPath of files) {
   rows.push({ file: path.relative(root, idsPath), expected: prefix, verdict, detail, schemaNotes });
 }
 
+// Run opens every IDS file through the Check engine first (prepareIds). A pair whose IDS the engine rejects gets
+// no verdict ('error:ids-invalid'); it is counted and listed below, never run anyway.
 const pf = rows.filter((r) => r.expected !== 'invalid');
 const dis = pf.filter((r) => r.expected !== r.verdict);
+const refusedPairs = pf.filter((r) => r.verdict.startsWith('error:'));
 const inv = rows.filter((r) => r.expected === 'invalid');
 console.log(`pass/fail pairs found: ${pf.length}`);
 console.log(`agreeing: ${pf.length - dis.length}`);
 console.log(`disagreeing: ${dis.length}`);
 for (const d of dis) console.log(`  DISAGREE ${d.file}: expected ${d.expected}, got ${d.verdict} | ${d.detail}`);
+console.log(`pass/fail pairs whose IDS file the Check engine rejects (no verdict): ${refusedPairs.length}`);
+for (const r of refusedPairs) console.log(`  REJECTED ${r.file}: ${r.verdict} | ${r.detail}`);
 console.log(`pairs where the model's IFC version is not one the specification lists (checked anyway, with a note): ${pf.filter((r) => r.schemaNotes > 0).length}`);
 const count = (v: string) => inv.filter((r) => r.verdict === v).length;
 console.log(`invalid-* pairs found: ${inv.length}; refused with a message: ${inv.filter((r) => r.verdict.startsWith('error:')).length}, verdict fail: ${count('fail')}, verdict pass: ${count('pass')}, verdict incomplete: ${count('incomplete')}`);
