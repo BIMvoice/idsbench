@@ -13,6 +13,8 @@ import { SpecRow } from './page/SpecRow';
 import { mark, modelMark, TitleBlock } from './page/TitleBlock';
 import { ToFix } from './page/ToFix';
 import { usePage } from './page/usePage';
+import { addSubtypes, namedClasses, subtypeNote } from '../core/subtypes';
+import { useSchemaMap, versionsFor } from './write/useSchema';
 
 /** One page around one document: the IDS file. It is checked when it arrives, run when a model is there, and edited in place. */
 export function App() {
@@ -26,6 +28,14 @@ export function App() {
   const wholeFailed = result ? wholeFailureCount(result) : 0;
   // A result row is shown beside a specification only when the result is of exactly these specifications, in this order.
   const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
+
+  // ---- the classes a specification names leave their subtypes out: IDS matches the exact class ----
+  const schemaMap = useSchemaMap(doc ? doc.specifications.filter((s) => namedClasses(s.applicability.find((f) => f.kind === 'entity')) !== null).flatMap((s) => versionsFor(s.ifcVersion)) : []);
+  const subtypesOf = (s: Specification) => {
+    const wanted = versionsFor(s.ifcVersion);
+    const have = wanted.map((v) => schemaMap[v]);
+    return have.every(Boolean) ? subtypeNote(s, have as NonNullable<(typeof have)[number]>[]) : null;
+  };
 
   // ---- files dropped anywhere on the page ----
   const depth = useRef(0);
@@ -208,6 +218,8 @@ export function App() {
                     [list[i], list[i + d]] = [list[i + d], list[i]];
                     return { ...x, specifications: list };
                   })}
+                  subtypes={subtypesOf(s)}
+                  onAddSubtypes={() => { const note = subtypesOf(s); if (note) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
                   onDelete={() => { page.change(`Deleted "${s.name || 'Untitled specification'}"`, (x) => ({ ...x, specifications: x.specifications.filter((y) => y.uid !== s.uid) })); page.setEditing(null); }}
                 />
               ))}

@@ -8,7 +8,7 @@ import type { Issue } from '../../core/ids/check';
 import type { Lists, Option } from '../../core/picks';
 
 export const FACET_INFO: Record<FacetKind, { name: string; about: string }> = {
-  entity: { name: 'Type of element', about: 'The kind of element, such as a wall or a door.' },
+  entity: { name: 'Type of element', about: 'The exact kind of element, such as a wall or a door. A class does not include its subtypes.' },
   attribute: { name: 'Attribute', about: 'A basic field every element has, such as its Name or Description.' },
   classification: { name: 'Classification', about: 'A code from a classification system, such as Uniclass or OmniClass.' },
   property: { name: 'Property', about: 'A named value in a property set, such as FireRating in Pset_WallCommon.' },

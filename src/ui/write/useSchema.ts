@@ -37,3 +37,22 @@ export function useLists(listed: string[]): Lists | null {
   const schemas = got && got.key === key ? got.schemas : null;
   return useMemo(() => (schemas ? listsFor(schemas) : null), [schemas]);
 }
+
+/**
+ * The IFC tables for the given versions, loaded as they are asked for and kept. `map` holds those loaded so far; a
+ * specification looks up the versions it ticks and shows nothing until all of them are there.
+ */
+export function useSchemaMap(versions: IfcVersion[]): Partial<Record<IfcVersion, SchemaData>> {
+  const [map, setMap] = useState<Partial<Record<IfcVersion, SchemaData>>>({});
+  const wanted = [...new Set(versions)].sort().join(' ');
+  useEffect(() => {
+    let live = true;
+    const missing = (wanted ? (wanted.split(' ') as IfcVersion[]) : []).filter((v) => !map[v]);
+    if (missing.length === 0) return;
+    import('@idsbench/check/ifc').then((m) => Promise.all(missing.map((v) => m.loadSchema(v))))
+      .then((loaded) => { if (live) setMap((prev) => ({ ...prev, ...Object.fromEntries(loaded.map((sc, i) => [missing[i], sc])) })); }, (e) => console.error(e));
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted]);
+  return map;
+}
