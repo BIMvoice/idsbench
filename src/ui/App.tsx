@@ -81,6 +81,8 @@ export function App() {
     page.setEditing(s.uid);
   };
   // goTo reads the document as it was when this render ran; a specification that was just added is focused here instead.
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (adding) menu.current?.querySelector<HTMLElement>('button')?.focus(); }, [adding]);
   const pendingFocus = useRef<string | null>(null);
   useEffect(() => {
     if (!pendingFocus.current) return;
@@ -133,9 +135,9 @@ export function App() {
         {problem && <p className="error" role="alert">{problem}</p>}
         {next && <p className="next" id="next-step">{next}</p>}
 
+        {hasPage && <h2 className="doc-title">{doc ? doc.info.title || 'Untitled IDS' : page.name}</h2>}
+        <TitleBlock page={page} shown={hasPage} />
         {hasPage && <>
-          <h2 className="doc-title">{doc ? doc.info.title || 'Untitled IDS' : page.name}</h2>
-          <TitleBlock page={page} />
           {(report || result) && (
             <div className="actions">
               {result && failing > 0 && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={downloadCsv}>Download failing elements</button>}
@@ -155,6 +157,13 @@ export function App() {
         </>}
 
         {doc && <>
+          <About
+            doc={doc} issues={page.issues} xml={page.text ?? ''}
+            findings={report ? shownFindings(page.placed?.info) : []}
+            editing={page.editing === 'about'} focusKey={page.editing === 'about' ? page.focusKey : null}
+            onEdit={(open) => page.setEditing(open ? 'about' : null)}
+            onChange={(k, v) => page.edit((d) => ({ ...d, info: { ...d.info, [k]: v } }))}
+          />
           <section aria-labelledby="specs-title" className="spec-section">
             <h3 id="specs-title">Specifications</h3>
             {doc.specifications.length === 0 && <p className="empty">No specifications yet. Add the first one to say what the model must contain.</p>}
@@ -182,7 +191,7 @@ export function App() {
               ))}
             </ol>
             {adding ? (
-              <div className="add-menu patterns" role="group" aria-label="Start a specification from">
+              <div ref={menu} className="add-menu patterns" role="group" aria-label="Start a specification from">
                 <p className="hint">Start from the shape closest to what you need, then change the choices.</p>
                 <ul>
                   {PATTERNS.map((p) => (
@@ -202,13 +211,6 @@ export function App() {
               <button type="button" className={primary === 'add' ? 'btn primary' : 'btn'} onClick={() => setAdding(true)}>Add a specification</button>
             )}
           </section>
-          <About
-            doc={doc} issues={page.issues} xml={page.text ?? ''}
-            findings={report ? shownFindings(page.placed?.info) : []}
-            editing={page.editing === 'about'} focusKey={page.editing === 'about' ? page.focusKey : null}
-            onEdit={(open) => page.setEditing(open ? 'about' : null)}
-            onChange={(k, v) => page.edit((d) => ({ ...d, info: { ...d.info, [k]: v } }))}
-          />
         </>}
         {!doc && page.source && page.lines && report && [...(page.placed?.specs ?? [])].map(([i, list]) => (
           <section key={i} className="spec-section" aria-label={`Specification ${i + 1}`}>

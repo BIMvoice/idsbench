@@ -65,7 +65,11 @@ export function Combo({ label, value, options, onChange, hint, error, advice, da
         aria-invalid={error ? true : undefined} aria-describedby={message || hint ? `${id}-msg` : undefined}
         value={shown}
         onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => { setText(e.target.value); setOpen(true); setActive(0); }}
+        onChange={(e) => {
+          // Free text (no list to pick from) is taken as it is typed; with a list, on choosing or on leaving the field.
+          setText(e.target.value); setOpen(true); setActive(0);
+          if (options.length === 0) onChange(e.target.value);
+        }}
         onClick={() => { if (options.length) setOpen(true); }}
         onKeyDown={onKey}
         onBlur={commit}

@@ -213,6 +213,7 @@ export function usePage() {
     if (!discardOk()) return;
     show({ doc: blankDocument(), source: null, fileName: null });
     setEditing('about');
+    setFocusKey((p) => ({ key: 'info.title', n: (p?.n ?? 0) + 1 }));
   };
   const tryExample = () => {
     if (!discardOk()) return;

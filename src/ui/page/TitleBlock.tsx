@@ -18,7 +18,9 @@ export function mark(text: string | null): string {
 }
 
 /** The verdict and the record of what it judged. Pass and Fail are about a model; Valid and Not valid are about the IDS file. */
-export function TitleBlock({ page }: { page: Page }) {
+export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
+  // The live region is on the page from the start, before there is a document, so that what appears in it is announced.
+  if (!shown) return <section className="results title-block" aria-label="Result"><div aria-live="polite" className="status" /></section>;
   const { report, check, run, model, name, dirty } = page;
   const idsName = `${name ?? 'Untitled.ids'}${dirty ? ' (with unsaved changes)' : ''}`;
   const of = run ? mark(run.text) : check ? mark(check.text) : '';
