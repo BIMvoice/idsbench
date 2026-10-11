@@ -5,7 +5,7 @@ import { ValueField } from './ValueField';
 import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple } from '../../core/ids/model';
 import { baseForDataType, fromPattern, modeOf } from '../../core/ids/value';
 import type { Issue } from '../../core/ids/check';
-import { plainName, type Lists, type Option } from '../../core/picks';
+import { onlySomeNote, plainName, type Lists, type Option } from '../../core/picks';
 
 export const FACET_INFO: Record<FacetKind, { name: string; about: string }> = {
   entity: { name: 'Type of element', about: 'The exact kind of element, such as a wall or a door. A class does not include its subtypes.' },
@@ -117,7 +117,7 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
         }, { options: props, extraOptions: propsPartial, typedNote: (t, found) => (found === 0 ? mentionable(t) : null), customNote: mentionable(baseName) ?? undefined })}
         {onlySome?.onlyIn && (
           <p className="msg advice-msg limit-versions">
-            {onlySome.value} is defined by {onlySome.onlyIn.join(' and ')} only, and this specification also lists the other IFC versions, so the check would refuse it.{' '}
+            {onlySomeNote(onlySome.value, psetName, onlySome.onlyIn)}{' '}
             <button type="button" className="btn small" onClick={() => onLimitVersions?.(onlySome.onlyIn!)}>Apply this specification to {onlySome.onlyIn.join(' and ')} only</button>
           </p>
         )}

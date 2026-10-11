@@ -175,3 +175,22 @@ describe('pick-lists hold for every IFC version the specification ticks, and for
     expect((await rejected(['IFC4', 'IFC4X3_ADD2'], [{ cls: 'IFCBRIDGE' }]))[0]).toMatch(/entity-unknown-class.*IFC4/);
   });
 });
+
+// A name only some ticked IFC versions define: what the note beside it says has to be what the Check engine does.
+describe('a name that only some of the ticked IFC versions define', () => {
+  const file = (pset: string, prop: string, versions: string) => `<?xml version="1.0"?><ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd"><info><title>t</title></info><specifications><specification name="s" ifcVersion="${versions}"><applicability minOccurs="0" maxOccurs="unbounded"><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability><requirements><property><propertySet><simpleValue>${pset}</simpleValue></propertySet><baseName><simpleValue>${prop}</simpleValue></baseName></property></requirements></specification></specifications></ids>`;
+  const errors = async (xml: string) => (await (await import('@idsbench/check')).checkIds(xml)).findings.filter((f) => f.severity === 'error').length;
+  it('a property of a Pset_ set that IFC2X3 does not give it is refused while IFC2X3 is ticked, and the note says so; limited to the versions that define it, the file is valid', async () => {
+    const { onlySomeNote } = await import('../src/core/picks');
+    expect(await errors(file('Pset_WallCommon', 'Status', 'IFC2X3 IFC4 IFC4X3_ADD2'))).toBeGreaterThan(0);
+    expect(await errors(file('Pset_WallCommon', 'Status', 'IFC4 IFC4X3_ADD2'))).toBe(0);
+    expect(onlySomeNote('Status', 'Pset_WallCommon', ['IFC4', 'IFC4X3_ADD2'])).toBe('Status is defined by IFC4 and IFC4X3_ADD2 only, and this specification also lists the other IFC versions, so the check would refuse it.');
+  });
+  it('a Qto_ set that IFC2X3 does not define is accepted with IFC2X3 ticked, so the note does not say the check would refuse it', async () => {
+    const { onlySomeNote } = await import('../src/core/picks');
+    expect(await errors(file('Qto_WallBaseQuantities', 'NetVolume', 'IFC2X3 IFC4 IFC4X3_ADD2'))).toBe(0);
+    const note = onlySomeNote('Qto_WallBaseQuantities', 'Qto_WallBaseQuantities', ['IFC4', 'IFC4X3_ADD2']);
+    expect(note).not.toMatch(/refuse/);
+    expect(note).toMatch(/^Qto_WallBaseQuantities is defined by IFC4 and IFC4X3_ADD2 only\./);
+  });
+});

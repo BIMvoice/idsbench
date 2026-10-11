@@ -77,6 +77,19 @@ export function dataTypeOptions(s: SchemaData): Option[] {
   return s.dataTypeNames.map((n) => withPlain(n, n.toUpperCase())).sort(byLabel);
 }
 
+/**
+ * What is said beside a name that only some of the ticked IFC versions define. The Check engine refuses such a name in
+ * a set whose name starts with Pset_ (the prefix is the standard's, so for the other versions the set is unknown, or
+ * known without that property); a Qto_ set that a version does not define is to the engine a set of one's own there,
+ * and is accepted. The sentence claims a refusal only where there is one.
+ */
+export function onlySomeNote(name: string, propertySet: string, onlyIn: string[]): string {
+  const where = onlyIn.join(' and ');
+  return /^Pset_/.test(propertySet)
+    ? `${name} is defined by ${where} only, and this specification also lists the other IFC versions, so the check would refuse it.`
+    : `${name} is defined by ${where} only. This specification also lists the other IFC versions, where it is not a name of the standard: a model of those versions has it only if someone added it by hand.`;
+}
+
 /** Type-ahead: options whose plain or technical name holds the text, those that start with it first. */
 export function filterOptions(options: Option[], query: string, limit = 50): Option[] {
   const q = query.trim().toLowerCase();
