@@ -14,7 +14,7 @@ export function readIdsText(text: string, env: XmlEnv = browserEnv): IdsDocument
   const t = text.replace(/^﻿/, '');
   if (t.trim() === '') throw new AppError('ids-empty', 'The file is empty. Choose another file.');
   if (t.trimStart().startsWith('ISO-10303-21')) {
-    throw new AppError('ids-is-ifc', 'This is an IFC model, not an IDS file. Open an IDS file here; models go in the Run tab.');
+    throw new AppError('ids-is-ifc', 'This is an IFC model, not an IDS file. Put the IDS file in the IDS box and the model in the IFC box.');
   }
   const doc = env.parse(t);
   const root = doc.documentElement;

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Combo } from './Combo';
 import { Field, TextField } from './fields';
 import { modeOf, listOf, patternOf, rangeOf, lengthOf, switchMode, fromList, fromPattern, fromRange, fromLength, type ValueMode } from '../../core/ids/value';
 import type { Value } from '../../core/ids/model';
+import type { Option } from '../../core/picks';
 
 interface Props {
   label: string;
@@ -11,11 +13,12 @@ interface Props {
   optional?: boolean;
   /** xs:base for a new restriction (a property's data type decides it). */
   base?: string;
-  suggestions?: string;
-  /** Problems found with this value, and advice about it. */
+  /** Names the standard defines for this field. With them the field is a pick-list; other text stays possible. */
+  options?: Option[];
+  customNote?: string;
   error?: string | null;
   advice?: string | null;
-  exactHint?: string;
+  dataKey?: string;
 }
 
 const MODES: { value: ValueMode; label: string }[] = [
@@ -26,53 +29,57 @@ const MODES: { value: ValueMode; label: string }[] = [
   { value: 'length', label: 'A text length' },
 ];
 
-/** One value of a facet. The user picks how to match; only the inputs that choice needs are shown. */
-export function ValueField({ label, value, onChange, optional, base = 'xs:string', suggestions, error, advice, exactHint }: Props) {
-  // A restriction with nothing filled in yet has no shape to read the choice from, so the choice just made is kept.
+/** One value of an item. The field itself comes first; beside it, the choice of how the value is compared. */
+export function ValueField({ label, value, onChange, optional, base = 'xs:string', options = [], customNote, error, advice, dataKey }: Props) {
+  // A rule with nothing filled in yet has no shape to read the choice from, so the choice just made is kept.
   const [picked, setPicked] = useState<ValueMode | null>(null);
   const mode = value?.kind === 'restriction' && value.facets.length === 0 && picked ? picked : modeOf(value);
   const restBase = value?.kind === 'restriction' && value.base ? value.base : base;
-  const options = [
+  const choices = [
     ...(optional ? [{ value: 'any' as ValueMode, label: 'Any value' }] : []),
     ...MODES,
     ...(mode === 'other' ? [{ value: 'other' as ValueMode, label: 'Combined rule (kept as in the file)' }] : []),
   ];
+  const select = (visible: boolean) => (
+    <Field label={visible ? label : `${label}: accepted values`}>
+      {({ id }) => (
+        <select id={id} value={mode} onChange={(e) => { const m = e.target.value as ValueMode; setPicked(m); onChange(switchMode(value, m, base)); }}>
+          {choices.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      )}
+    </Field>
+  );
   return (
-    <fieldset className="value-field">
-      <legend>{label}</legend>
+    <div className={`value-field${mode === 'any' ? ' any' : ''}`} data-key={dataKey} role="group" aria-label={label}>
       <div className="value-row">
-        <Field label="How to match">
-          {({ id, describedBy }) => (
-            <select id={id} value={mode} aria-describedby={describedBy} onChange={(e) => { const m = e.target.value as ValueMode; setPicked(m); onChange(switchMode(value, m, base)); }}>
-              {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          )}
-        </Field>
-        <div className="value-inputs">
-          {mode === 'exact' && value?.kind === 'simple' && (
-            <TextField label="Value" value={value.value} list={suggestions} hint={exactHint} onChange={(v) => onChange({ kind: 'simple', value: v })} />
-          )}
-          {mode === 'list' && <ListInput value={value} base={restBase} onChange={onChange} />}
-          {mode === 'pattern' && (
-            <TextField label="Pattern" mono value={patternOf(value)} hint="A dot is any one character, .* is anything. DT[0-9]{2} matches DT01 and DT02."
-              onChange={(v) => onChange(fromPattern(v, restBase))} />
-          )}
-          {mode === 'range' && <RangeInput value={value} base={restBase} onChange={onChange} />}
-          {mode === 'length' && <LengthInput value={value} base={restBase} onChange={onChange} />}
-          {mode === 'other' && <p className="hint">This rule combines several kinds of match. It is kept as it is. Choose another way to match to replace it.</p>}
-        </div>
+        {mode !== 'any' && (
+          <div className="value-inputs">
+            {mode === 'exact' && value?.kind === 'simple' && (
+              <Combo label={label} value={value.value} options={options} customNote={customNote} onChange={(v) => onChange({ kind: 'simple', value: v })} />
+            )}
+            {mode === 'list' && <ListInput label={label} value={value} base={restBase} onChange={onChange} />}
+            {mode === 'pattern' && (
+              <TextField label={`${label}: pattern`} value={patternOf(value)} hint="A dot is any one character, .* is anything. DT[0-9]{2} matches DT01 and DT02."
+                onChange={(v) => onChange(fromPattern(v, restBase))} />
+            )}
+            {mode === 'range' && <RangeInput value={value} base={restBase} onChange={onChange} />}
+            {mode === 'length' && <LengthInput value={value} base={restBase} onChange={onChange} />}
+            {mode === 'other' && <p className="hint">{label}: this rule combines several conditions. It is kept as it is. Choose another kind to replace it.</p>}
+          </div>
+        )}
+        <div className={mode === 'any' ? 'value-mode' : 'value-mode beside'}>{select(mode === 'any')}</div>
       </div>
       {error && <span className="msg error-msg">{error}</span>}
       {!error && advice && <span className="msg advice-msg">{advice}</span>}
-    </fieldset>
+    </div>
   );
 }
 
 /** One value per line. The text is held here so a new empty line can be typed before the next value. */
-function ListInput({ value, base, onChange }: { value: Value | null; base: string; onChange: (v: Value) => void }) {
+function ListInput({ label, value, base, onChange }: { label: string; value: Value | null; base: string; onChange: (v: Value) => void }) {
   const [text, setText] = useState(() => listOf(value).join('\n'));
   return (
-    <TextField label="Values" multiline hint="One value per line." value={text}
+    <TextField label={`${label}: values`} multiline hint="One value per line." value={text}
       onChange={(t) => { setText(t); onChange(fromList(t.split('\n').filter((l) => l.trim() !== ''), base)); }} />
   );
 }

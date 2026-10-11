@@ -1,0 +1,86 @@
+// Fixes the engine's own finding already spells out, offered as one press. Each is a change to the document model,
+// the same one the forms make. A fix is only offered after the engine has been run on the changed file and no longer
+// reports that finding (see verifyFixes), so a button never leads to the same problem again.
+import type { Finding } from '@idsbench/check';
+import { IFC_VERSIONS, type Facet, type IdsDocument, type Specification, type Value } from './ids/model';
+import type { Target } from './place';
+
+export interface Fix { label: string; apply: (doc: IdsDocument) => IdsDocument }
+
+const mapSpec = (doc: IdsDocument, index: number, fn: (s: Specification) => Specification): IdsDocument =>
+  ({ ...doc, specifications: doc.specifications.map((s, i) => (i === index ? fn(s) : s)) });
+const mapFacet = (doc: IdsDocument, index: number, uid: string, fn: (f: Facet) => Facet): IdsDocument =>
+  mapSpec(doc, index, (s) => ({ ...s, applicability: s.applicability.map((f) => (f.uid === uid ? fn(f) : f)), requirements: s.requirements.map((f) => (f.uid === uid ? fn(f) : f)) }));
+
+function findFacet(doc: IdsDocument, index: number, uid: string): Facet | null {
+  const s = doc.specifications[index];
+  return s ? [...s.applicability, ...s.requirements].find((f) => f.uid === uid) ?? null : null;
+}
+/** The simple text in one field of an item, or null when the field holds something else. */
+function textOf(f: Facet, field: string): string | null {
+  if (field === 'dataType') return f.kind === 'property' ? f.dataType : null;
+  const v: Value | null | undefined = field === 'entity' && f.kind === 'partOf' ? f.entity.name : (f as unknown as Record<string, Value | null>)[field];
+  return v && typeof v === 'object' && v.kind === 'simple' ? v.value : null;
+}
+function withText(f: Facet, field: string, text: string): Facet {
+  if (field === 'dataType') return { ...f, dataType: text } as Facet;
+  if (field === 'entity' && f.kind === 'partOf') return { ...f, entity: { ...f.entity, name: { kind: 'simple', value: text } } };
+  return { ...f, [field]: { kind: 'simple', value: text } } as Facet;
+}
+
+/** Looks up the data type the standard gives a property of a standard property set; null when it is not known (yet). */
+export type DataTypeLookup = (propertySet: string, property: string) => string | null;
+
+/** The fixes a finding suggests, before the engine has confirmed them. Pure. */
+export function candidateFixes(f: Pick<Finding, 'code' | 'message'>, doc: IdsDocument, target: Target, dataTypeOf: DataTypeLookup = () => null): Fix[] {
+  if (target.kind !== 'field') return [];
+  const index = target.spec;
+  const dot = target.key.indexOf('.');
+  const uid = target.key.slice(0, dot), field = target.key.slice(dot + 1);
+  const s = doc.specifications[index];
+  if (!s) return [];
+  if (uid === s.uid) {
+    if (field === 'requirements' && f.code === 'requirements-not-allowed') {
+      return [{ label: 'Remove the "Must have" items', apply: (d) => mapSpec(d, index, (x) => ({ ...x, requirements: [], requirementsDescription: null })) }];
+    }
+    if (field === 'ifcVersion' && s.ifcVersion.length === 0) {
+      return IFC_VERSIONS.map((v) => ({ label: `Use ${v}`, apply: (d: IdsDocument) => mapSpec(d, index, (x) => ({ ...x, ifcVersion: [v] })) }));
+    }
+    return [];
+  }
+  const facet = findFacet(doc, index, uid);
+  if (!facet) return [];
+  const set = (text: string): Fix => ({ label: `Change it to ${text}`, apply: (d) => mapFacet(d, index, uid, (x) => withText(x, field, text)) });
+  const current = textOf(facet, field);
+  const meant = /Did you mean '([^']+)'\?/.exec(f.message)?.[1];
+  if (meant && current !== null && current !== meant) return [set(meant)];
+  if (current && current !== current.toUpperCase() && ['entity-unknown-class', 'property-datatype-invalid'].includes(f.code)) return [set(current.toUpperCase())];
+  if (f.code === 'value-needs-datatype' && facet.kind === 'property' && !facet.dataType) {
+    const set_ = textOf(facet, 'propertySet'), name = textOf(facet, 'baseName');
+    const type = set_ && name ? dataTypeOf(set_, name) : null;
+    if (type) return [{ label: `Add the data type ${type}`, apply: (d) => mapFacet(d, index, uid, (x) => ({ ...x, dataType: type } as Facet)) }];
+  }
+  return [];
+}
+
+/** The same finding in two check results: same rule at the same place. */
+const sameFinding = (a: Pick<Finding, 'code' | 'path'>, b: Pick<Finding, 'code' | 'path'>) => a.code === b.code && a.path === b.path;
+
+/**
+ * Keeps the candidates the engine confirms: after the change, the engine no longer reports the finding and reports
+ * fewer errors than before. `check` runs the engine on a document and returns its findings.
+ */
+export async function verifyFixes(
+  finding: Finding, fixes: Fix[], doc: IdsDocument, errorsNow: number,
+  check: (doc: IdsDocument) => Promise<Finding[] | null>,
+): Promise<Fix[]> {
+  const out: Fix[] = [];
+  for (const fix of fixes) {
+    const after = await check(fix.apply(doc));
+    if (!after) continue;
+    const errors = after.filter((x) => x.severity === 'error');
+    const improved = finding.severity === 'error' ? errors.length < errorsNow : errors.length <= errorsNow;
+    if (improved && !after.some((x) => sameFinding(x, finding) && x.message === finding.message)) out.push(fix);
+  }
+  return out;
+}

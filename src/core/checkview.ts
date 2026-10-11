@@ -85,7 +85,7 @@ export type CheckView =
 
 export const EMPTY_FILE = 'This file is empty. Choose the IDS file again, or save it again from the tool that made it.';
 export const IS_IFC =
-  'This is an IFC model, not an IDS file. Choose an IDS file here. To check a model against an IDS file, use the Run tab.';
+  'This is an IFC model, not an IDS file. Put the IDS file in the IDS box and the model in the IFC box.';
 export const NOT_XML =
   'This file is not XML, so it is not an IDS file. Check that you chose the right file.';
 export const BROKEN_XML =
@@ -127,7 +127,7 @@ export function describeResult(xml: string, result: { valid: boolean; idsVersion
   };
 }
 
-/** Load the engine on first use, so the first paint and the Run tab never pay for it. */
+/** Load the engine on first use, so the first paint never pays for it. */
 export async function checkText(xml: string): Promise<CheckView> {
   const early = sentenceForText(xml);
   if (early) return { kind: 'sentence', text: early };

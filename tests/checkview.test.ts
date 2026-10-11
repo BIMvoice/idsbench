@@ -107,7 +107,7 @@ describe('what the first bytes say', () => {
   });
   it('an IFC model, also after a byte order mark', () => {
     expect(sentenceForText('ISO-10303-21;\nHEADER;')).toMatch(/IFC model, not an IDS file/);
-    expect(sentenceForText('﻿  ISO-10303-21;')).toMatch(/Run tab/);
+    expect(sentenceForText('﻿  ISO-10303-21;')).toBe('This is an IFC model, not an IDS file. Put the IDS file in the IDS box and the model in the IFC box.');
   });
   it('anything else needs the engine', () => expect(sentenceForText('<ids/>')).toBeNull());
   it('readForCheck recognises an IFC from its first bytes and an empty file without reading them', async () => {

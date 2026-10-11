@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
 interface Props {
-  /** Decides the colour and the mark. */
-  state: 'pass' | 'fail' | 'incomplete';
+  /** Decides the colour and the mark. "waiting" is not a verdict: a dashed cell, for a check that has not finished. */
+  state: 'pass' | 'fail' | 'incomplete' | 'waiting';
   /** The verdict in one or two words, for example "Pass". */
   word: string;
   /** The sentence that gives the counts. */
