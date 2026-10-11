@@ -63,7 +63,8 @@ export function suggestName(s: Pick<Specification, 'applicability' | 'requiremen
   const subject = plural(noun);
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
   if (s.minOccurs === '0' && s.maxOccurs === '0') return `No ${subject}`;
-  const phrases = s.requirements.map((f) => phrase(f, o)).filter((p): p is string => p !== null);
+  // "have a name and have a reference" reads "have a name and a reference".
+  const phrases = s.requirements.map((f) => phrase(f, o)).filter((p): p is string => p !== null).map((p, i, all) => (i > 0 && p.startsWith('have a ') && all[i - 1].startsWith('have a ') ? p.slice('have '.length) : p));
   return cap([subject, phrases.join(' and ')].filter(Boolean).join(' '));
 }
 

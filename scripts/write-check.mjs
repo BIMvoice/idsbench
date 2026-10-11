@@ -207,7 +207,7 @@ try {
   const kinds = new Set(p1.specifications.flatMap((s) => [...s.applicability.facets, ...s.requirements.map((r) => r.facet)].map((f) => f.type)));
   check('facet kinds in the file: entity, property, attribute, classification', ['entity', 'property', 'attribute', 'classification'].every((k) => kinds.has(k)), [...kinds].join(','));
   check('restriction kinds in the file: list, pattern and length', /<xs:enumeration value="1HR"\/>/.test(text1) && /<xs:pattern value="Wal\.\*"\/>/.test(text1) && /<xs:minLength value="3"\/>/.test(text1));
-  check('what the pick-lists wrote is the technical form, and the Check engine accepts the file', /<simpleValue>IFCWALL<\/simpleValue>/.test(text1) && /<simpleValue>Pset_WallCommon<\/simpleValue>/.test(text1) && /<simpleValue>FireRating<\/simpleValue>/.test(text1) && /dataType="IFCLABEL"/.test(text1) && JSON.parse(spawnSync(path.resolve('node_modules/.bin/vite-node'), ['scripts/engine-findings.ts', f1], { encoding: 'utf8' }).stdout.split('@@')[1]).findings.length === 0);
+  check('what the pick-lists wrote is the technical form, and the Check engine accepts the file', /<xs:enumeration value="IFCWALL"\/>/.test(text1) && /<xs:enumeration value="IFCWALLSTANDARDCASE"\/>/.test(text1) && /<simpleValue>Pset_WallCommon<\/simpleValue>/.test(text1) && /<simpleValue>FireRating<\/simpleValue>/.test(text1) && /dataType="IFCLABEL"/.test(text1) && JSON.parse(spawnSync(path.resolve('node_modules/.bin/vite-node'), ['scripts/engine-findings.ts', f1], { encoding: 'utf8' }).stdout.split('@@')[1]).findings.length === 0);
   check('after download the unsaved mark is gone', !(await status()).includes('unsaved'));
   check('the description of the requirements is in the file, as the description attribute of the requirements element, and the file is valid', /<requirements description="The wall must carry its classification: &quot;FireRating&quot; &lt;set&gt;">/.test(text1) && lint1.ok);
   {
@@ -255,6 +255,7 @@ try {
   fs.writeFileSync(draft, fs.readFileSync(path.join(out, 'wall-checks.ids'), 'utf8').replace('IDS/1.0/ids.xsd', 'IDS/0.9.7/ids.xsd'));
   await page.locator('input[type=file]').first().setInputFiles(draft);
   await page.locator('.fix-line').waitFor({ timeout: 30000 });
+  await page.locator('.fix-line .fix-details > summary').click();
   check('an IDS 0.9.7 file is Not valid with one plain sentence, the engine\'s own', (await page.locator('.verdict-word').innerText()) === 'Not valid' && (await page.locator('.fix-line .fix-text').innerText()).split('\nDetails')[0] === 'This file is IDS 0.9.7, an older draft. idsbench works with IDS 1.0 only: update the file to version 1.0 in the tool that made it.' && (await page.locator('.fix-line .technical').first().textContent()).includes('This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.'), await page.locator('.fix-line .fix-text').innerText());
   check('and it is not opened in the forms: no Edit, no Fix, and the page says to correct it in the tool that made it', (await page.getByRole('button', { name: /^(Edit|Fix)/ }).count()) === 0 && /This file cannot be changed here\. Correct it in the tool that made it, then open it again\./.test(await page.locator('.to-fix').innerText()));
 
@@ -364,6 +365,61 @@ try {
   await clean.getByRole('button', { name: 'New' }).click();
   await clean.waitForTimeout(500);
   check('New clears the draft', hadDraft && await clean.evaluate(() => sessionStorage.length === 0));
+
+  // ---- first-time-user fixes: what an IDS is, names that follow, "number" for a space, what an edit changed ------------
+  {
+    const fctx = await newContext({ width: 1280, height: 900 });
+    const fp = await fctx.newPage();
+    fp.on('pageerror', (e) => pageErrors.push(String(e)));
+    await fp.goto(origin + '/');
+    check('the empty page says in one sentence what an IDS file is, with an example, and what the page does', /^An IDS file lists what a building model must contain, for example that every door has a fire rating; here you check that such a file is valid, check a model against it, and write one\.$/.test(await fp.locator('#what-is-ids').innerText()));
+    await fp.getByRole('button', { name: 'New' }).click();
+    await fp.getByLabel('Title').fill('Names');
+    const fspec = fp.locator('.page-specs > li.spec');
+    const fadd = async (how) => { const n = await fspec.count(); await fp.getByRole('button', { name: 'Add a specification' }).click(); await fp.getByRole('group', { name: 'Start a specification from' }).getByRole('button', { name: how }).click(); await fp.waitForFunction((k) => document.querySelectorAll('.page-specs > li.spec').length > k, n); };
+    await fadd('Elements must have a name');
+    const fs0 = fspec.nth(0);
+    const fname = fs0.getByLabel('Name', { exact: true });
+    check('a new specification is named from what it says, and made optional with all three IFC versions', (await fname.inputValue()) === 'Spaces have a name' && (await fs0.getByRole('radio', { name: /^That is fine/ }).isChecked()) && (await fs0.locator('details.more').last().locator('summary').click().then(() => fs0.getByLabel('IFC2X3', { exact: true }).isChecked())) && (await fs0.getByLabel('IFC4', { exact: true }).isChecked()) && (await fs0.getByLabel('IFC4X3_ADD2', { exact: true }).isChecked()));
+    check('the choice "If the model has no space" is in plain view', await fs0.getByText('If the model has no spaces').isVisible());
+    const fclass = fs0.getByRole('combobox', { name: 'IFC class', exact: true });
+    await fclass.fill('door'); await fp.locator('[role=option]').first().waitFor(); await fclass.press('Enter');
+    check('while the name is the generated one it follows the content: changing the class changes the name', (await fname.inputValue()) === 'Doors have a name', await fname.inputValue());
+    await fname.fill('Door naming');
+    await fclass.fill('window'); await fp.locator('[role=option]').first().waitFor(); await fclass.press('Enter');
+    check('once a name is typed it is never touched', (await fname.inputValue()) === 'Door naming', await fname.inputValue());
+    // "number" for a space
+    await fclass.fill('space'); await fp.locator('[role=option]').first().waitFor(); await fclass.press('Enter');
+    const must = fs0.getByRole('region', { name: 'Must have' });
+    await must.getByRole('button', { name: 'Add an item to Must have' }).click();
+    await must.getByRole('button', { name: 'Property', exact: true }).click();
+    const fprop = must.locator('li.facet').nth(1);
+    await pick(fprop, 'Property set', 'space common');
+    const pbox = fprop.getByRole('combobox', { name: 'Property', exact: true });
+    await pbox.fill('number');
+    await fprop.locator('[role=option]').first().waitFor();
+    const offered = await fprop.locator('[role=option]').allInnerTexts();
+    check('typing "number" for a space offers Reference, with what it means, and the field with text in it never says "Fill this in"', offered.some((t) => /^Reference\n[\s\S]*room number/.test(t)) && !(await fprop.innerText()).includes('Fill this in'), offered.join(' | '));
+    await pbox.fill('zzz');
+    await fp.waitForTimeout(200);
+    const said = await fprop.locator('.msg, .hint').allInnerTexts();
+    check('a name that is not in the standard set is said at the field before it is left, in plain words', said.some((t) => /^Pset_SpaceCommon has no property called zzz\. Standard ones are: .*Reference.*\. Use a custom property set for your own properties\.$/.test(t)), said.join(' | '));
+    await pbox.press('Tab');
+    check('and after it is left', (await fprop.innerText()).includes('Pset_SpaceCommon has no property called zzz.'));
+    // what an edit did to the result
+    await fp.locator('input[type=file]').nth(1).setInputFiles(ifc);
+    await fclass.fill('wall'); await fp.locator('[role=option]').first().waitFor(); await fclass.press('Enter');
+    await pick(fprop, 'Property set', 'wall common');
+    await pick(fprop, 'Property', 'fire r');
+    await fs0.getByRole('button', { name: /^Done editing/ }).first().click();
+    await fp.locator('.title-block[data-kind="run"] .headline').waitFor({ timeout: 60000 });
+    await fs0.getByRole('button', { name: /^Edit / }).click();
+    await pick(fprop, 'Property', 'acoustic');
+    await fs0.getByRole('button', { name: /^Done editing/ }).first().click();
+    await fs0.locator('.change-line').waitFor({ timeout: 30000 });
+    check('after Done the row says what changed, in one line, next to it and in view', /^Now fails: 1 element/.test(await fs0.locator('.change-line').innerText()) && (await fs0.evaluate((e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < window.innerHeight; })), await fs0.locator('.change-line').innerText());
+    await fctx.close();
+  }
 
   // ---- the network ---------------------------------------------------------
   check('no request to anywhere but the local server', blocked.length === 0, `blocked=${JSON.stringify(blocked)} local=${local.length}`);

@@ -138,6 +138,12 @@ describe('the name follows the content until a name is typed', () => {
     expect(changed.name).toBe('Doors are classified in Uniclass 2015');
   });
 
+  it('joins two "have" requirements: "Spaces have a name and a reference"', async () => {
+    const s = await started(PATTERNS[3]);
+    const two = syncName({ ...s, requirements: [...s.requirements, { ...newFacet('property', 'requirements'), propertySet: simple('Pset_SpaceCommon'), baseName: simple('Reference') } as Facet] }, { className: await className() });
+    expect(two.name).toBe('Spaces have a name and a reference');
+  });
+
   it('is never touched once the person has typed a name (autoName is off)', async () => {
     const o = { className: await className() };
     const s = await started(PATTERNS[3]);

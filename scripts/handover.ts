@@ -50,7 +50,7 @@ for (const idsPath of files) {
     if (same === 1 && mine !== (s.failureTotal ?? s.failures.length)) wrong.push(`${where}: "${s.name}" has ${s.failureTotal} failing elements and ${mine} element rows`);
   }
   // A whole-specification row has no element in it, and there is one for each specification that failed as a whole.
-  if (wholeRows.some((x) => x[3] || x[4] || x[5])) wrong.push(`${where}: a whole-specification row names an element`);
+  if (wholeRows.some((x) => x[5] || x[6] || x[7] || x[8])) wrong.push(`${where}: a whole-specification row names an element`);
   if (wholeRows.length !== wholeFailureCount(r)) wrong.push(`${where}: ${wholeFailureCount(r)} specifications failed as a whole and ${wholeRows.length} such rows`);
   for (const s of r.specs) {
     specs++;

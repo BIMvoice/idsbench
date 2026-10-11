@@ -410,3 +410,40 @@ Large models, the model kept between runs, a worker that goes silent or is ended
 - tests/limits.test.ts, the same sentence; and "estimates those of a large file from its first and last megabyte, within 5 percent" became "counts those of a large file exactly too".
 - tests/subtypes.test.ts, "counts the subtypes of every ticked version": with IFC2X3 and IFC4 ticked, IfcSlabElementedCase and IfcSlabStandardCase (IFC4 only) are still named in the line but are no longer in the list the action adds; the list holds what every ticked version has.
 
+
+## Walk-through fixes (first-time user): new, and changed on purpose
+
+New in scripts/write-check.mjs (9, now 81 in all):
+- the empty page says in one sentence what an IDS file is, with an example, and what the page does
+- a new specification is named from what it says, is optional, and ticks all three IFC versions
+- the choice "If the model has no space" (that is fine / that is a failure / none may exist) is in plain view
+- while the name is the generated one it follows the content (changing the class changes it); once a name is typed it is never touched
+- typing "number" for a space offers Reference with its plain meaning, and the field with text in it never says "Fill this in"
+- a property that is not in the standard set is said at the field before it is left, in plain words, and after it is left
+- after Done the row says what changed, in one line ("Now fails: 1 element"), next to it and in view
+- keyboard: the choice "That is fine" is reached with Tab and "That is a failure" with an arrow key, then Download is on
+
+New in scripts/browser-check.mjs (1, now 151): opened, a finding row shows the engine's own sentence beside the plain one.
+New in scripts/proof-check.mjs (now 21): a new "every wall" lists IfcWall and the subtype every version has, and the run applies to both walls; an abstract class chosen in a new specification is replaced by its concrete subtypes.
+scripts/replay-job3.mjs (new, not an assertion script): the walk-through's third job from an empty page, run against three models, with the number of actions.
+
+Expectations changed because a default or a wording changed on purpose:
+- write-check, the five starting shapes: "Elements must be named a certain way" is now "Elements must have a name" (it no longer carries the pattern L[0-9]{2}.*).
+- write-check, "In words" for the specification: a new wall specification is "Every wall, including wall standard case, must ..." and, being optional by default, has no "The model must contain at least one wall." sentence. A pattern's sentence "Every door must have a classification in Uniclass 2015." likewise.
+- write-check, "what the pick-lists wrote": the class is the list IFCWALL, IFCWALLSTANDARDCASE (two enumeration values), not one simpleValue.
+- write-check, the pick-lists: the first line of an option is the pick; a property people look for by meaning carries its plain meaning on a second line.
+- write-check, keyboard journey: "Walls exist" now needs the choice "That is a failure" (a new specification is optional and an optional one needs a requirement).
+- write-check, the 0.9.7 file, and browser-check the same: the line is a plain sentence ("This file is IDS 0.9.7, an older draft. ..."); the engine's own sentence is behind Details.
+- write-check, acoustic rating: the sentence starts "Every wall, including wall standard case, must have ...".
+- browser-check, Download failing elements and the CSV cell checks: the CSV has 11 columns (Row about, Specification, Requirement, Why it failed, What to fix, IFC class, Name, GlobalId, Storey or space, Model, IDS file).
+- browser-check, "Fix opens that specification ..." and "a name one letter away": the sentences are the plain ones ("IFCRABBIT is not an IFC class in IFC4. ...", "Did you mean IFCWALL?").
+- browser-check, "invalid official file, first row": the row shows the plain sentence and a Details word; opening it shows the engine's sentence and the lines of the file. The list of things to fix shows the same lines once: the file-level list that repeated them is gone, and Details holds the position, the code and the excerpt (made when opened, so "rows start closed" still holds).
+- browser-check, "scale: reasons are readable": "The property "FireRating" is missing: the property set "Pset_WallCommon" is not on this element." replaces "Property set ... not found".
+- browser-check, "scale: the CSV holds every failing element": the GlobalId is the fourth cell from the end.
+- review-check, the CSV of 8 columns: 11; names are in the seventh column; the whole-specification row carries the specification's sentence and what to do.
+- proof-check, exact classes: the exact-class assertions first narrow a new specification with "Include the subtypes" and tick IFC4 only; the abstract-class specification is for IFC4 only (IfcBuildingElement is not a class of IFC4X3) and is replaced at once by its subtypes; a typed text that matches no list entry is left with Tab, not Escape (Escape puts the text back).
+- tests/helpers/ids.ts, tests/run.test.ts, tests/picks-patterns.test.ts, scripts/picklists.ts: the specifications they build say what the opened file's default says (required, IFC4), as before; a specification made by newSpecification() is now optional with three versions.
+- tests/patterns-run.test.ts: the five shapes start optional, so the existence sentence is only in the choices that make the specification required; the "name" shape starts as "must have a name"; a pattern is a choice after the start.
+- tests/ids-words.test.ts, tests/subtypes.test.ts: the listing says "type of element wall" (plain name) and a list of classes reads "wall, including wall elemented case and wall standard case".
+- tests/groups-csv.test.ts, tests/handover.test.ts, tests/whole-spec.test.ts, scripts/handover.ts: the new CSV columns.
+- tests/picks-patterns.test.ts, "choosing a property set narrows the properties": FireRating also carries its meaning and search words.

@@ -31,7 +31,9 @@ const versionLabel = (o: Option) => (o.onlyIn ? `${o.label} (only ${o.onlyIn.joi
 export function Combo({ label, value, options, onChange, hint, error, advice, dataKey, customNote, extraOptions = [], typedNote, onDraft }: Props) {
   const id = useId();
   const listId = `${id}-list`;
-  const [text, setText] = useState<string | null>(null); // null: not being edited, show the value
+  const [text, setTextOnly] = useState<string | null>(null); // null: not being edited, show the value
+  // The text being typed is told to the field around this one in the same step it changes, so that nothing is drawn in between.
+  const setText = (t: string | null) => { setTextOnly(t); onDraft?.(t); };
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -40,7 +42,6 @@ export function Combo({ label, value, options, onChange, hint, error, advice, da
   const typed = (text ?? '').trim();
   const matches = open ? [...filterOptions(options, text ?? ''), ...filterOptions(extraOptions, text ?? '', 20)].slice(0, 50) : [];
   const found = typed ? filterOptions(options, typed).length + filterOptions(extraOptions, typed).length : 0;
-  useEffect(() => { onDraft?.(text); }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
   const expanded = open && matches.length > 0;
   const custom = value !== '' && options.length > 0 && !chosen && text === null;
   // A field with text in it never says "Fill this in": the text is not taken into the file until the field is left, but it is there.
