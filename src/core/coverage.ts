@@ -26,10 +26,15 @@ export function coverageOf(named: string[], applicable: number, count: (upper: s
   const add = (u: string, how: 'subtype' | 'supertype' | 'sibling') => { if (!named.includes(u) && cls(u)?.kind === 'concrete' && !related.has(u)) related.set(u, how); };
   for (const n of real) {
     for (const u of schema.concrete(n)) add(u, 'subtype');
-    for (let p = cls(n)?.parentUpper; p; p = cls(p)?.parentUpper) {
-      if (cls(p)?.kind !== 'concrete') continue;
-      add(p, 'supertype');
-      for (const sib of schema.children.get(p) ?? []) for (const u of schema.concrete(sib)) add(u, 'sibling');
+    const parent = cls(n)?.parentUpper;
+    for (let p = parent; p; p = cls(p)?.parentUpper) if (cls(p)?.kind === 'concrete') add(p, 'supertype');
+    // A sibling is told only in a small family: the other variants of the class named (IfcWallElementedCase beside
+    // IfcWallStandardCase, both an IfcWall). Where the class above is itself one of many under a class elements can be
+    // (IfcSanitaryTerminal under IfcFlowTerminal under IfcDistributionFlowElement), its siblings are other things
+    // altogether (light fixtures, air terminals), and a specification for one has nothing to say about them.
+    const grand = parent ? cls(parent)?.parentUpper : undefined;
+    if (parent && cls(parent)?.kind === 'concrete' && !(grand && cls(grand)?.kind === 'concrete')) {
+      for (const sib of schema.children.get(parent) ?? []) for (const u of schema.concrete(sib)) add(u, 'sibling');
     }
   }
   const present = [...related].map(([upper, how]) => ({ upper, how, count: count(upper) })).filter((r) => r.count > 0).sort((a, b) => b.count - a.count || a.upper.localeCompare(b.upper));
