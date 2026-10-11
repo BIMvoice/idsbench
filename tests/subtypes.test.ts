@@ -41,15 +41,16 @@ describe('the line on the specification', () => {
     expect(subtypeNote(specOf('IFCWALL'), await schemas('IFC4'))?.text).toBe('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase.');
     expect(subtypeNote(specOf('IFCWALL', 'IFC2X3'), await schemas('IFC2X3'))?.text).toBe('This applies to IfcWall only, not to IfcWallStandardCase.');
   });
-  it('names the subtypes of every ticked version, and none of a version that is not ticked; it offers to add only those every ticked version has', async () => {
+  it('names the subtypes of every ticked version, and none of a version that is not ticked; it offers to add them all, also those only one ticked version has', async () => {
     expect(subtypeNote(specOf('IFCSLAB', 'IFC2X3'), await schemas('IFC2X3'))).toBeNull();
     expect(subtypeNote(specOf('IFCSLAB'), await schemas('IFC4'))?.text).toBe('This applies to IfcSlab only, not to IfcSlabElementedCase or IfcSlabStandardCase.');
-    // IFC2X3 has no subtype of IfcSlab: with both versions ticked the two of IFC4 are named, and not offered.
+    // IFC2X3 has no subtype of IfcSlab: with both versions ticked the two of IFC4 are named and offered, because an IFC4
+    // model is checked against this specification too, and its IfcSlabStandardCase slabs would be passed over.
     const both = subtypeNote(specOf('IFCSLAB', 'IFC2X3 IFC4'), await schemas('IFC2X3', 'IFC4'))!;
-    expect(both.subtypes).toEqual([]);
-    expect(both.partial.map((s) => [s.name, s.versions])).toEqual([['IfcSlabElementedCase', ['IFC4']], ['IfcSlabStandardCase', ['IFC4']]]);
-    expect(both.text).toBe('This applies to IfcSlab only, not to IfcSlabElementedCase or IfcSlabStandardCase. IfcSlabElementedCase (IFC4 only) and IfcSlabStandardCase (IFC4 only) are not in every IFC version this specification ticks, so they are not offered.');
-    expect(subtypeAction(both)).toBeNull();
+    expect(both.subtypes.map((s) => s.name)).toEqual(['IfcSlabElementedCase', 'IfcSlabStandardCase']);
+    expect(both.partial).toEqual([]);
+    expect(both.text).toBe('This applies to IfcSlab only, not to IfcSlabElementedCase or IfcSlabStandardCase.');
+    expect(subtypeAction(both)).toBe('Also apply it to the 2 subtypes');
   });
   it('says nothing for a class without subtypes, an unknown class, or a pattern', async () => {
     expect(subtypeNote(specOf('IFCSPACE'), await schemas('IFC4'))).toBeNull();
@@ -92,40 +93,42 @@ describe('the action that adds the subtypes as a list', () => {
   });
 });
 
-// With several versions ticked the list may hold only what each of them has as a class an element can be.
+// With several versions ticked the list holds the subtypes of each of them, but for a class that another ticked version puts under a different class.
 describe('the subtypes offered, for each IFC version and for several ticked together', () => {
   const combos: IfcVersion[][] = [['IFC2X3'], ['IFC4'], ['IFC4X3_ADD2'], ['IFC2X3', 'IFC4'], ['IFC4', 'IFC4X3_ADD2'], ['IFC2X3', 'IFC4X3_ADD2'], ['IFC2X3', 'IFC4', 'IFC4X3_ADD2']];
   for (const combo of combos) {
-    it(`${combo.join(' + ')}: for every class, exactly the concrete subtypes that every ticked version has`, async () => {
+    it(`${combo.join(' + ')}: for every class, exactly the concrete subtypes of any ticked version that no ticked version has under another class`, async () => {
       const all = await schemas(...combo);
       const classes = new Set(all.flatMap((s) => [...s.classes].filter(([, c]) => c.kind !== 'enumeration').map(([u]) => u)));
       let offers = 0;
       for (const c of classes) {
         const note = subtypeNote(specOf(c, combo.join(' ')), all);
         // Worked out here from the tables alone: a class is a subtype in a version when it is concrete there and has `c` above it.
-        const expected = [...classes].filter((u) => u !== c && all.every((s) => s.classes.get(u)?.kind === 'concrete' && s.classes.has(c) && s.isA(u, c))).sort();
+        const subtypeIn = (s: SchemaData, u: string) => s.classes.get(u)?.kind === 'concrete' && s.classes.has(c) && s.isA(u, c);
+        const expected = [...classes].filter((u) => u !== c && all.some((s) => subtypeIn(s, u)) && all.every((s) => s.classes.get(u)?.kind !== 'concrete' || subtypeIn(s, u))).sort();
         expect((note?.subtypes ?? []).map((x) => x.upper).sort(), c).toEqual(expected);
         offers += expected.length ? 1 : 0;
-        // Nothing offered is abstract or missing in any ticked version.
-        for (const x of note?.subtypes ?? []) for (const s of all) expect(s.classes.get(x.upper)?.kind, `${x.upper} in ${s.label}`).toBe('concrete');
-        // And what is named but not offered is concrete in some ticked version and not in all.
-        for (const x of note?.partial ?? []) expect(all.some((s) => s.classes.get(x.upper)?.kind === 'concrete') && !expected.includes(x.upper), x.upper).toBe(true);
+        // Everything offered is a class an element can be in some ticked version (IfcBoundedSurface is one in IFC2X3 and abstract in IFC4: there it matches nothing, which is right).
+        for (const x of note?.subtypes ?? []) expect(all.some((s) => s.classes.get(x.upper)?.kind === 'concrete'), x.upper).toBe(true);
+        // And what is named but not offered is a subtype in some ticked version and a class under something else in another.
+        for (const x of note?.partial ?? []) expect(all.some((s) => subtypeIn(s, x.upper)) && all.some((s) => s.classes.get(x.upper)?.kind === 'concrete' && !subtypeIn(s, x.upper)), x.upper).toBe(true);
       }
       expect(offers).toBeGreaterThan(100);
     });
   }
-  it('IFC2X3 and IFC4 ticked: IfcWallStandardCase, which both have, is offered; IfcWallElementedCase, which only IFC4 has, is named and not offered', async () => {
+  it('IFC2X3 and IFC4 ticked: IfcWallStandardCase, which both have, and IfcWallElementedCase, which only IFC4 has, are both offered, and the list is accepted by the Check engine', async () => {
     const note = subtypeNote(specOf('IFCWALL', 'IFC2X3 IFC4'), await schemas('IFC2X3', 'IFC4'))!;
-    expect(note.subtypes.map((x) => x.name)).toEqual(['IfcWallStandardCase']);
-    expect(note.text).toBe('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase. IfcWallElementedCase (IFC4 only) is not in every IFC version this specification ticks, so it is not offered.');
-    expect(subtypeAction(note)).toBe('Also apply it to IfcWallStandardCase');
-    const changed = addSubtypes(specOf('IFCWALL', 'IFC2X3 IFC4'), note);
+    expect(note.subtypes.map((x) => x.name)).toEqual(['IfcWallElementedCase', 'IfcWallStandardCase']);
+    expect(note.text).toBe('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase.');
+    expect(subtypeAction(note)).toBe('Also apply it to the 2 subtypes');
+    const doc = readIdsText(idsText(specXml('S', 'IFCWALL', undefined, nameIs('x'), 'IFC2X3 IFC4')), nodeEnv);
+    const changed = addSubtypes(doc.specifications[0], note);
     const entity = changed.applicability[0];
-    expect(entity.kind === 'entity' && entity.name.kind === 'restriction' && entity.name.facets.map((f) => f.value)).toEqual(['IFCWALL', 'IFCWALLSTANDARDCASE']);
-    // The line stays for what is still left out, with nothing to press.
-    const after = subtypeNote(changed, await schemas('IFC2X3', 'IFC4'))!;
-    expect(after.text).toBe('This applies to IfcWall and IfcWallStandardCase only, not to IfcWallElementedCase. IfcWallElementedCase (IFC4 only) is not in every IFC version this specification ticks, so it is not offered.');
-    expect(subtypeAction(after)).toBeNull();
+    expect(entity.kind === 'entity' && entity.name.kind === 'restriction' && entity.name.facets.map((f) => f.value)).toEqual(['IFCWALL', 'IFCWALLELEMENTEDCASE', 'IFCWALLSTANDARDCASE']);
+    // Nothing is left out any more, so the line goes.
+    expect(subtypeNote(changed, await schemas('IFC2X3', 'IFC4'))).toBeNull();
+    const v = await checkText(writeIds({ ...doc, specifications: [changed] }));
+    expect(v.kind === 'report' && v.errors).toBe(0);
   });
 });
 
@@ -162,7 +165,7 @@ describe('a class that is abstract', () => {
       const listed = entity.kind === 'entity' && entity.name.kind === 'restriction' ? entity.name.facets.map((f) => f.value) : [];
       // The abstract class is not in the list: it could never match.
       expect(listed).not.toContain(abstractClass);
-      for (const u of listed) for (const s of all) expect(s.classes.get(u)?.kind, `${u} in ${s.label}`).toBe('concrete');
+      for (const u of listed) expect(all.some((s) => s.classes.get(u)?.kind === 'concrete'), u).toBe(true);
       const xml = writeIds(changed);
       expect(await valid(xml)).toBe(true);
       const after = await runText(xml, three(schema));
