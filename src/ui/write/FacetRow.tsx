@@ -3,7 +3,7 @@ import { Combo } from './Combo';
 import { SelectField, TextField } from './fields';
 import { ValueField } from './ValueField';
 import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple } from '../../core/ids/model';
-import { baseForDataType, fromPattern } from '../../core/ids/value';
+import { baseForDataType, fromPattern, modeOf } from '../../core/ids/value';
 import type { Issue } from '../../core/ids/check';
 import { plainName, type Lists, type Option } from '../../core/picks';
 
@@ -42,7 +42,7 @@ export interface Props {
   /** The IFC class this specification applies to, when it names exactly one: it narrows the lists. */
   appliesTo: string;
   /** Set on the "Type of element" item when its classes are one class and its subtypes: the class is shown as that class, with the choice to include the subtypes. */
-  family?: { head: string; subtypes: string[]; onHead: (upper: string) => void; onExact: () => void } | null;
+  family?: { head: string; subtypes: string[]; onHead: (upper: string) => void; onExact: () => void; /** Show the list as the list it is, to be changed by hand. */ onList: () => void } | null;
   /** Apply the specification to these IFC versions only (the person pressed the button beside a name that only they define). */
   onLimitVersions?: (versions: string[]) => void;
 }
@@ -66,7 +66,8 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
   const dataTypes = lists?.dataTypes ?? NONE;
   // In "Must have" the attribute has to be one the class named in "Applies to" has, or the two can never describe the same element.
   const attributes = useMemo(() => (lists && f.kind === 'attribute' ? lists.attributes(requirement ? appliesTo || undefined : undefined) : NONE), [lists, f.kind, requirement, appliesTo]);
-  const ownClass = f.kind === 'entity' ? text(f.name) : f.kind === 'partOf' ? text(f.entity.name) : '';
+  // The predefined types offered are those of the class; for a class with its subtypes included, those of the class.
+  const ownClass = f.kind === 'entity' ? (family?.head ?? text(f.name)) : f.kind === 'partOf' ? text(f.entity.name) : '';
   const predefined = useMemo(() => (lists && ownClass ? lists.predefinedTypes(ownClass) : NONE), [lists, ownClass]);
   const psets = useMemo(() => (lists && f.kind === 'property' ? lists.propertySets(appliesTo || undefined) : NONE), [lists, f.kind, appliesTo]);
   const psetName = f.kind === 'property' ? text(f.propertySet) : '';
@@ -83,7 +84,8 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
     <div className="facet-fields">
       {f.kind === 'entity' && <>
         {family
-          ? vf('IFC class', 'name', simple(family.head), false, (v) => (v?.kind === 'simple' ? family.onHead(v.value) : set({ name: v ?? simple() })), { options: classes, customNote: notListed })
+          // "One of a list" chosen here opens the list as it is written (the class and its subtypes), not a list of the class alone.
+          ? vf('IFC class', 'name', simple(family.head), false, (v) => (v?.kind === 'simple' ? family.onHead(v.value) : v && modeOf(v) === 'list' ? family.onList() : set({ name: v ?? simple() })), { options: classes, customNote: notListed })
           : vf('IFC class', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: classes, customNote: notListed })}
         {family && (
           <label className="check subtype-choice">

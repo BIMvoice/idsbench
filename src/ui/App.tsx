@@ -85,7 +85,8 @@ export function App() {
     // Nothing to look up while no class is named: the form opens at once.
     if (made.applicability.length > 0) try {
       const tables = await loadSchemas(versionsFor(made.ifcVersion));
-      s = syncName(withDefaultSubtypes(made, tables), { className: classNameIn(tables) });
+      const wide = withDefaultSubtypes(made, tables);
+      s = syncName(wide, { className: classNameIn(tables), family: familyOf(wide, tables) });
     } catch (e) { console.error(e); }
     pendingFocus.current = s.uid;
     addSpec(s);
@@ -336,7 +337,7 @@ export function App() {
                   subtypes={subtypesOf(s)}
                   words={wordsOf(s)}
                   changed={changed?.uid === s.uid ? changed.text : null}
-                  onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
+                  onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? (x.made ? { ...addSubtypes(x, note, true), exact: undefined } : addSubtypes(x, note)) : x)) })); }}
                   onDelete={() => { page.change(`Deleted "${s.name || 'Untitled specification'}"`, (x) => ({ ...x, specifications: x.specifications.filter((y) => y.uid !== s.uid) })); page.setEditing(null); }}
                 />
               ))}

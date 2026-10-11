@@ -22,7 +22,7 @@ const tables = Promise.all(IFC_VERSIONS.map((v) => loadSchema(v)));
 const className = async () => { const t = await tables; return (u: string) => t.map((s) => s.classes.get(u)?.name).find(Boolean); };
 const doc = (...s: Specification[]) => ({ ...blankDocument(), info: { ...blankDocument().info, title: 't' }, specifications: s });
 /** A specification as the page makes it when a starting shape is chosen. */
-const started = async (p: (typeof PATTERNS)[number]) => syncName(withDefaultSubtypes(p.make(), await tables), { className: await className() });
+const started = async (p: (typeof PATTERNS)[number]) => { const wide = withDefaultSubtypes(p.make(), await tables); return syncName(wide, { className: await className(), family: familyOf(wide, await tables) }); };
 
 describe('a new specification', () => {
   it('ticks all three IFC versions and does not demand that the model has the element (optional)', () => {

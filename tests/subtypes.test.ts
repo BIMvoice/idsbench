@@ -105,13 +105,14 @@ describe('the subtypes offered, for each IFC version and for several ticked toge
         const note = subtypeNote(specOf(c, combo.join(' ')), all);
         // Worked out here from the tables alone: a class is a subtype in a version when it is concrete there and has `c` above it.
         const subtypeIn = (s: SchemaData, u: string) => s.classes.get(u)?.kind === 'concrete' && s.classes.has(c) && s.isA(u, c);
-        const expected = [...classes].filter((u) => u !== c && all.some((s) => subtypeIn(s, u)) && all.every((s) => s.classes.get(u)?.kind !== 'concrete' || subtypeIn(s, u))).sort();
+        // A class that some ticked version does not have brings none in (the engine refuses the name for that version).
+        const expected = !all.every((s) => s.classes.has(c)) ? [] : [...classes].filter((u) => u !== c && all.some((s) => subtypeIn(s, u)) && all.every((s) => s.classes.get(u)?.kind !== 'concrete' || subtypeIn(s, u))).sort();
         expect((note?.subtypes ?? []).map((x) => x.upper).sort(), c).toEqual(expected);
         offers += expected.length ? 1 : 0;
         // Everything offered is a class an element can be in some ticked version (IfcBoundedSurface is one in IFC2X3 and abstract in IFC4: there it matches nothing, which is right).
         for (const x of note?.subtypes ?? []) expect(all.some((s) => s.classes.get(x.upper)?.kind === 'concrete'), x.upper).toBe(true);
         // And what is named but not offered is a subtype in some ticked version and a class under something else in another.
-        for (const x of note?.partial ?? []) expect(all.some((s) => subtypeIn(s, x.upper)) && all.some((s) => s.classes.get(x.upper)?.kind === 'concrete' && !subtypeIn(s, x.upper)), x.upper).toBe(true);
+        for (const x of note?.partial ?? []) expect(all.some((s) => subtypeIn(s, x.upper)) && all.some((s) => s.classes.get(x.upper)?.kind === 'concrete' && !subtypeIn(s, x.upper)), `${c}: ${x.upper}`).toBe(true);
       }
       expect(offers).toBeGreaterThan(100);
     });

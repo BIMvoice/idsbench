@@ -55,10 +55,15 @@ export function subtypeNote(spec: Pick<Specification, 'applicability'>, schemas:
   // has it as a class that is NOT under any named class there (IfcZone is an IfcSystem in IFC4 and a class of its own in
   // IFC2X3): in a list it would apply to elements that version does not count among the named class.
   const under = (s: SchemaData, u: string) => known.some((c) => s.classes.has(c) && s.isA(u, c));
+  // A named class that some ticked version does not have brings nothing in: the Check engine refuses the name for that
+  // version, and a list of its subtypes would pass for a file that covers the class there, which it would not.
+  const everywhere = (c: string) => schemas.every((s) => s.classes.has(c));
   const found = new Set<string>();
-  for (const c of known) for (const s of schemas) if (s.classes.has(c)) for (const u of s.concrete(c)) if (u !== c && !named.includes(u)) found.add(u);
+  for (const c of known) if (everywhere(c)) for (const s of schemas) for (const u of s.concrete(c)) if (u !== c && !named.includes(u)) found.add(u);
   const elsewhere = (u: string) => schemas.some((s) => s.classes.get(u)?.kind === 'concrete' && !under(s, u));
-  const abstract = byName(known.filter(isAbstract).map((upper) => ({ upper, name: display(upper) })));
+  // An abstract class whose subtypes are all named beside it (as this page writes it) needs no word: the list applies to them.
+  const covered = (c: string) => everywhere(c) && schemas.some((s) => s.concrete(c).length > 0) && schemas.every((s) => s.concrete(c).every((u) => named.includes(u) || elsewhere(u)));
+  const abstract = byName(known.filter((c) => isAbstract(c) && !covered(c)).map((upper) => ({ upper, name: display(upper) })));
   if (found.size === 0 && abstract.length === 0) return null;
   const subtypes = byName([...found].filter((u) => !elsewhere(u)).map((upper) => ({ upper, name: display(upper) })));
   const partial = byName([...found].filter(elsewhere).map((upper) => ({ upper, name: display(upper), versions: schemas.filter((s) => s.classes.get(upper)?.kind === 'concrete' && under(s, upper)).map((s) => s.label) })));
@@ -81,10 +86,14 @@ export function subtypeNote(spec: Pick<Specification, 'applicability'>, schemas:
   return { chosen, subtypes, abstract, partial, text: parts.join(' ') };
 }
 
-/** The entity name as a list of the classes it names and their subtypes, without the classes that are abstract (when there is something to put in their place). */
-export function withSubtypes(name: Value, note: SubtypeNote): Value {
+/**
+ * The entity name as a list of the classes it names and their subtypes, without the classes that are abstract (when
+ * there is something to put in their place). With `keepAbstract` an abstract class stays at the head of its subtypes:
+ * it applies to nothing itself, and it is what says which class the list was made from.
+ */
+export function withSubtypes(name: Value, note: SubtypeNote, keepAbstract = false): Value {
   const named = name.kind === 'simple' ? [name.value] : listOf(name);
-  const gone = new Set(note.subtypes.length ? note.abstract.map((a) => a.upper) : []);
+  const gone = new Set(note.subtypes.length && !keepAbstract ? note.abstract.map((a) => a.upper) : []);
   return fromList([...named.filter((c) => !gone.has(c.toUpperCase())), ...note.subtypes.map((s) => s.upper)], 'xs:string');
 }
 
@@ -98,8 +107,8 @@ export function subtypeAction(note: SubtypeNote): string | null {
 }
 
 /** The specification with its entity facet naming the classes and their subtypes. */
-export function addSubtypes<S extends Pick<Specification, 'applicability'>>(spec: S, note: SubtypeNote): S {
-  return { ...spec, applicability: spec.applicability.map((f) => (f.kind === 'entity' ? { ...f, name: withSubtypes(f.name, note) } : f)) };
+export function addSubtypes<S extends Pick<Specification, 'applicability'>>(spec: S, note: SubtypeNote, keepAbstract = false): S {
+  return { ...spec, applicability: spec.applicability.map((f) => (f.kind === 'entity' ? { ...f, name: withSubtypes(f.name, note, keepAbstract) } : f)) };
 }
 
 // ---- the default for a specification made by this page: the class and its subtypes ----
@@ -123,10 +132,14 @@ export function familyOf(spec: Pick<Specification, 'applicability'>, schemas: Sc
   return head ? { head, others: named.filter((c) => c !== head) } : null;
 }
 
-/** The specification applying to the class it names and its subtypes: what a specification made by this page does, unless the person narrowed it. Unchanged when there is nothing to add. */
+/**
+ * The specification applying to the class it names and its subtypes: what a specification made by this page does, unless
+ * the person narrowed it. Unchanged when there is nothing to add. The class named stays first in the list, also when it
+ * is abstract, so that the page (and a reader of the file) can tell which class the list stands for.
+ */
 export function withDefaultSubtypes<S extends Pick<Specification, 'applicability'>>(spec: S, schemas: SchemaData[]): S {
   const note = subtypeNote(spec, schemas);
-  return note && note.subtypes.length ? addSubtypes(spec, note) : spec;
+  return note && note.subtypes.length ? addSubtypes(spec, note, true) : spec;
 }
 
 /** The specification applying to the head class alone. */

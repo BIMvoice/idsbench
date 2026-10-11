@@ -16,8 +16,8 @@ import {
 } from '../../core/ids/model';
 
 const CHOICES: { value: Cardinality; label: string; about: (what: string) => string }[] = [
-  { value: 'optional', label: 'That is fine', about: (w) => `The specification applies to every ${w} the model has. A model with none passes.` },
-  { value: 'required', label: 'That is a failure', about: (w) => `The model must contain at least one ${w}, and each must meet "Must have".` },
+  { value: 'optional', label: 'That is fine', about: (w) => `The specification applies to all ${w} the model has. A model with none passes.` },
+  { value: 'required', label: 'That is a failure', about: (w) => `The model must contain at least one of the ${w}, and each must meet "Must have".` },
   { value: 'prohibited', label: 'None may exist', about: (w) => `The model must not contain any ${w}. "Must have" is not checked.` },
 ];
 const KINDS: FacetKind[] = ['entity', 'attribute', 'classification', 'property', 'material', 'partOf'];
@@ -40,7 +40,9 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
   const choice = specChoice(s);
   const schemas = useSchemas(s.ifcVersion);
   const lists = useMemo(() => (schemas ? listsFor(schemas) : null), [schemas]);
-  const naming = useMemo(() => ({ className: classNameIn(schemas ?? []) }), [schemas]);
+  const className = useMemo(() => classNameIn(schemas ?? []), [schemas]);
+  // A name is worked out with the IFC tables at hand (they say whether a list is one class and its subtypes); until they have loaded it is left as it is.
+  const named = (n: Specification): Specification => (schemas ? syncName(n, { className, family: familyOf(n, schemas) }) : n);
   const several = s.ifcVersion.length > 1;
   const entity = s.applicability.find((f) => f.kind === 'entity');
   // The class the lists follow: the one the specification names, or the head of a list that is one class and its subtypes.
@@ -58,7 +60,13 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
   }, [focusKey]);
 
   // Every change goes through here: a name the page worked out follows the content, until the person types one of their own.
-  const change = (n: Specification) => onChange(syncName(n, naming));
+  const change = (n: Specification) => onChange(named(n));
+  // A list of classes the person wrote, or a pattern, is theirs: it is kept as written and no subtype is brought into it.
+  const changeApplicability = (f: Facet[]) => {
+    const was = s.applicability.find((x) => x.kind === 'entity'), now = f.find((x) => x.kind === 'entity');
+    const own = now?.kind === 'entity' && now.name.kind === 'restriction' && JSON.stringify(now.name) !== JSON.stringify(was?.kind === 'entity' ? was.name : null);
+    change({ ...s, applicability: sortApplicability(f), ...(own ? { exact: true as const } : {}) });
+  };
   const setVersions = (next: string[]) => change({ ...s, ifcVersion: [...IFC_VERSIONS.filter((x) => next.includes(x)), ...next.filter((x) => !(IFC_VERSIONS as readonly string[]).includes(x))] });
   const toggleVersion = (v: string) => setVersions(s.ifcVersion.includes(v) ? s.ifcVersion.filter((x) => x !== v) : [...s.ifcVersion, v]);
 
@@ -68,30 +76,41 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
   const entityFacet = s.applicability.find((f) => f.kind === 'entity');
   const classChosen = entityFacet?.kind === 'entity' && entityFacet.name.kind === 'simple' && entityFacet.predefinedType === null;
   useEffect(() => {
-    if (!schemas || !s.made || s.exact) return;
-    const base = family ? narrowToHead(s, family) : classChosen ? s : null;
-    if (!base) return;
-    const wide = withDefaultSubtypes(base, schemas);
-    const names = (x: Specification) => JSON.stringify(x.applicability.map((f) => (f.kind === 'entity' ? f.name : null)));
-    if (names(wide) !== names(s) && (!family || entityFacet?.kind === 'entity' && entityFacet.predefinedType === null)) onChange(syncName(wide, naming));
+    if (!schemas || !s.made) return;
+    let next = s;
+    const base = s.exact ? null : family ? narrowToHead(s, family) : classChosen ? s : null;
+    if (base) {
+      const wide = withDefaultSubtypes(base, schemas);
+      const names = (x: Specification) => JSON.stringify(x.applicability.map((f) => (f.kind === 'entity' ? f.name : null)));
+      if (names(wide) !== names(s) && (!family || entityFacet?.kind === 'entity' && entityFacet.predefinedType === null)) next = wide;
+    }
+    // The name too: it may have been worked out before the tables were there.
+    next = named(next);
+    if (next !== s) onChange(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schemas, s.applicability, s.ifcVersion, s.exact, s.made]);
-  const subtypeNames = family ? family.others.map((u) => plainName(naming.className(u) ?? u).toLowerCase()) : [];
+  }, [schemas, s.applicability, s.requirements, s.minOccurs, s.maxOccurs, s.ifcVersion, s.exact, s.made]);
+  // A list the person wrote is shown as the list it is; one this page made, or one read from a file, as the class with its subtypes included.
+  const shownFamily = s.exact ? null : family;
+  const subtypeNames = shownFamily ? shownFamily.others.map((u) => plainName(className(u) ?? u).toLowerCase()) : [];
   const withClass = (upper: string): Specification => ({ ...s, applicability: s.applicability.map((f) => (f.kind === 'entity' ? { ...f, name: simple(upper) } : f)) });
-  const familyProps = family ? {
-    head: family.head,
+  const familyProps = shownFamily ? {
+    head: shownFamily.head,
     subtypes: subtypeNames,
     // Another class chosen: its own subtypes come with it, as they did for the first.
     onHead: (upper: string) => change(schemas ? withDefaultSubtypes(withClass(upper), schemas) : withClass(upper)),
-    onExact: () => change({ ...narrowToHead(s, family), exact: true }),
+    onExact: () => change({ ...narrowToHead(s, shownFamily), exact: true }),
+    onList: () => change({ ...s, exact: true }),
   } : null;
-  const what = pluralSubject(s, naming) ?? 'matching element';
+  // "If the model has no walls": with a predefined type or another condition under "Applies to" it is not all walls that are meant.
+  const some = s.applicability.some((f) => f.kind !== 'entity' || f.predefinedType !== null);
+  const subject = pluralSubject(s, { className, family: schemas ? familyOf(s, schemas) : null });
+  const what = subject ? (some ? `${subject} that match "Applies to"` : subject) : 'matching elements';
 
   return (
     <div className="spec-body" ref={root}>
       <TextField label="Name" dataKey={`${s.uid}.name`} required value={s.name} error={err('name')} onChange={(v) => onChange({ ...s, name: v, autoName: undefined })} />
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={issues} groupError={err('applicability')} groupAdvice={adv('applicability')}
-        dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={(f) => change({ ...s, applicability: sortApplicability(f) })} onLimitVersions={setVersions}
+        dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={changeApplicability} onLimitVersions={setVersions}
         extra={subtypes ? <SubtypeLine note={subtypes} onAdd={onAddSubtypes} /> : undefined} family={familyProps} />
       <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={issues} groupError={err('requirements')} groupAdvice={adv('requirements')}
         dataKey={`${s.uid}.requirements`} lists={lists} several={several} appliesTo={appliesTo} onChange={(f) => change({ ...s, requirements: f })} onLimitVersions={setVersions}
