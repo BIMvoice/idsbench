@@ -66,7 +66,7 @@ function thingOf(subject: string): string {
 const noMatch: Rule = (message) => {
   let m: RegExpExecArray | null;
   const tail = (t: string | undefined) => (t ?? '').replace(/ Check the spelling; the names are case-sensitive\./, '').replace(/ Did you mean '([^']+)'\?/, ' Did you mean $1?');
-  if ((m = /^No enumeration option of the (.+?) \((.*?)\) is valid in (.+?)\.( .*)?$/.exec(message))) return `None of ${m[2]} is a ${thingOf(m[1])} in ${m[3]}.${tail(m[4])}`;
+  if ((m = /^No enumeration option of the (.+?) \((.*?)\) is valid in (.+?)\.( .*)?$/.exec(message))) return `${m[2].includes(', ') ? `None of ${m[2]} is` : `${m[2]} is not`} ${an(thingOf(m[1]))} in ${m[3]}.${tail(m[4])}`;
   if ((m = /^The pattern '(.*?)' for the (.+?) matches no valid value in (.+?)\.( .*)?$/.exec(message))) return `The pattern ${m[1]} matches no ${thingOf(m[2])} in ${m[3]}.${tail(m[4])}`;
   if ((m = /^The length restriction '(.*?)' for the (.+?) matches no valid value in (.+?)\.$/.exec(message))) return `A length of ${m[1]} fits no ${thingOf(m[2])} in ${m[3]}.`;
   return null;
@@ -98,7 +98,10 @@ const RULES: Record<string, Rule> = {
     rx(/An optional (\w+) needs a value to check/, (m) => `An optional ${m[1]} only means something when you also say what its value must be. Give the value, or make the ${m[1]} required.`),
   ),
   'classification-system-empty': () => 'Name the classification system, for example Uniclass 2015. It is empty.',
-  'conditions-impossible': rx(/can never be met together for ([\w, ]+?):/, (m) => `No IFC class fits all the conditions under "Applies to" in ${m[1]}, so this specification can never match anything.`),
+  // The engine says which part it is about: the conditions that say what the specification applies to, or those of "Must have".
+  'conditions-impossible': rx(/The conditions in this (applicability|requirements) can never be met together for ([\w, ]+?):/, (m) => (m[1] === 'applicability'
+    ? `No IFC class fits all the conditions under "Applies to" in ${m[2]}, so this specification can never match anything.`
+    : `No IFC class can have everything "Must have" asks for in ${m[2]}, so no element can ever meet this specification. Check the items under "Must have" against each other.`)),
   'entity-unknown-class': first(
     rx(/entity name '([^']*)' is not valid in ([\w ,]+?)\./, (m, all) => `${m[1]} is not an IFC class in ${m[2]}. Class names are written in capitals, like IFCWALL.${didYouMean(all)}`),
     noMatch,
@@ -110,6 +113,7 @@ const RULES: Record<string, Rule> = {
   ),
   'ids-version-unsupported': first(
     rx(/This file is IDS ([\d.]+)\. idsbench works with IDS 1\.0 only/, (m) => `This file is IDS ${m[1]}, an older draft. idsbench works with IDS 1.0 only: update the file to version 1.0 in the tool that made it.`),
+    rx(/has no xsi:schemaLocation, so the IDS version is unknown/, () => 'This file does not say which version of IDS it is written for, so it cannot be told to be an IDS 1.0 file. Its first element, <ids>, must carry xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd".'),
     rx(/The schema location '([^']*)' is not the IDS 1\.0 location/, () => 'This file does not point to the IDS 1.0 schema, so it cannot be told to be an IDS 1.0 file. Its schemaLocation must be http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd.'),
   ),
   'ifc-version-invalid': first(
@@ -126,7 +130,12 @@ const RULES: Record<string, Rule> = {
     rx(/The data type '([^']*)' is not valid as an IFC data type in ([\w ,]+?)\./, (m) => `${m[1]} is not an IFC data type in ${m[2]}. Data types are written in capitals, like IFCLABEL.${didYouMean(m[0])}`),
   ),
   'property-reserved-prefix': rx(/'Pset_' are reserved for the IFC standard; this custom set needs a different name(?: \(you wrote '([^']*)'\))?/, (m) => `Names that start with Pset_ belong to the IFC standard.${m[1] ? ` ${m[1]} is not one of its sets.` : ''} Give your own property set another name, such as MyCompany_Walls.`),
-  'property-unknown-in-standard-set': first(noMatch, rx(/The property name in '([^']*)' '([^']*)' is not valid in ([\w ,]+?)\. (.*)$/, (m) => `${m[1]} has no property called ${m[2]} in ${m[3]}. ${m[4].replace(/^(\d+) values are accepted, for example (.*?)\.$/, 'Standard ones include $2 and others.').replace(/^Accepted values are (.*?)\.$/, 'Standard ones are $1.')} Use a custom property set for your own properties.`)),
+  'property-unknown-in-standard-set': first(noMatch, rx(/The property name in '([^']*)' '([^']*)' is not valid in ([\w ,]+?)\. (.*)$/, (m) => {
+    // With a suggestion from the engine the name is most likely misspelt: the advice is then the suggestion, not a set of one's own.
+    const meant = /Did you mean '([^']+)'\?/.exec(m[4]);
+    const standard = m[4].replace(/ ?Did you mean '[^']+'\?/, '').replace(/^(\d+) values are accepted, for example (.*?)\.$/, 'Standard ones include $2 and others.').replace(/^Accepted values are (.*?)\.$/, 'Standard ones are $1.').replace(/^The only accepted value is (.*?)\.$/, 'The only standard one is $1.');
+    return `${m[1]} has no property called ${m[2]} in ${m[3]}. ${standard} ${meant ? `Did you mean ${meant[1]}?` : 'Use a custom property set for your own properties.'}`;
+  })),
   'property-value-not-allowed': first(rx(/The value '([^']*)' is not valid in ([\w ,]+?)\. (.*)$/, (m) => `${m[1]} is not a value this property can have in ${m[2]}. ${m[3]}`), noMatch),
   'property-value-type-mismatch': rx(/uses base type (\S+), but (\w+) needs (\S+) in ([\w, ]+?)\./, (m) => `The value of this ${m[2]} property has to be ${typeOnly(m[3])} in ${m[4]}, but the rule is set up for ${m[1] === 'xs:invalid' ? 'a kind of value that does not exist' : typeOnly(m[1])}.`),
   'requirements-needed': () => 'A specification that applies "if the model has any" must say what those elements need. Add a requirement under "Must have", or make the specification required.',
@@ -143,19 +152,31 @@ const RULES: Record<string, Rule> = {
     rx(/The value '([^']*)' is not a valid (xs:\w+) value, which is what (\w+) needs\./, (m) => `${m[1] === '' ? 'An empty value is not allowed here: it' : `The value ${m[1]}`} must be ${typeWords(m[2], m[1])}, because ${m[3]} needs that.`),
     rx(/The value '([^']*)' is not a valid (xs:\w+) value\./, (m) => `${m[1] === '' ? 'An empty value is not allowed here: it' : `The value ${m[1]}`} must be ${typeWords(m[2], m[1])}.`),
   ),
-  'value-missing': rx(/The (\w+) facet needs a (\w+) given as a simple value or a restriction/, (m) => `${el(m[1]).replace(/^a /, 'A ')} needs ${el(m[2])}, as a value or as a rule. None is given.`),
+  'value-missing': rx(/The (\w+) facet needs a (\w+) given as a simple value or a restriction/, (m) => `${el(m[1]).replace(/^./, (c) => c.toUpperCase())} needs ${el(m[2])}, as a value or as a rule. None is given.`),
   'value-needs-datatype': () => 'A property that has a value must also say its data type, for example IFCLABEL.',
-  'xml-not-well-formed': rx(/The file is not well-formed XML: (.*)$/, (m) => `This file is not readable as XML, so it cannot be an IDS file: ${m[1].replace(/\.$/, '')}. It may be damaged or cut off.`),
+  'xml-not-well-formed': rx(/The file is not well-formed XML: (.*)$/, (m) => `This file is not readable as XML, so it cannot be read as an IDS file: ${m[1].replace(/\.$/, '')}.`),
   'xsd-invalid-value': first(
     rx(/^(?:The attribute '([^']+)' on )?<(\w+)>(?: is)? is '([^']*)', which is not a valid (\w+) value\./, (m) => `${m[1] ? `The ${m[1]} of ${el(m[2])}` : `The value of ${el(m[2])}`} (${m[3] === '' ? 'empty' : m[3]}) must be ${typeWords(m[4], m[3])}.`),
     rx(/^The attribute '([^']+)' on <(\w+)> is '([^']*)', but it must be one of (.*)\.$/, (m) => `${m[1] === 'cardinality' ? `For ${el(m[2])} the choice must be one of ${list(m[4].replace(/'/g, '').split(', '))}` : `The ${m[1]} of ${el(m[2])} must be one of ${list(m[4].replace(/'/g, '').split(', '))}`}; it is ${m[3] === '' ? 'empty' : `"${m[3]}"`}.`),
-    rx(/^The attribute '([^']+)' on <(\w+)> is '([^']*)', which does not match the required form (.*)\.$/, (m) => `The ${m[1]} of ${el(m[2])} (${m[3]}) is not written in the form the standard asks for.`),
+    rx(/^The attribute '([^']+)' on <(\w+)> is '([^']*)', which does not match the required form (.*)\.$/, (m) => `The ${m[1]} of ${el(m[2])} (${m[3]}) is not written in the form the standard asks for${m[4] === '[A-Z]+' ? ': capital letters only, like IFCLABEL' : ''}.`),
+    rx(/^<author> is '([^']*)', which does not match the required form/, (m) => `The author must be an email address, such as name@company.com. It is "${m[1]}".`),
+    rx(/^<(\w+)> is '([^']*)', which does not match the required form (.*)\.$/, (m) => `The value of ${el(m[1])} (${m[2]}) is not written in the form the standard asks for.`),
     rx(/^<(\w+)> is '([^']*)', but it must be one of (.*)\.$/, (m) => `The value of ${el(m[1])} is "${m[2]}". Choose one of ${m[3].replace(/'/g, '')}.`),
   ),
   'xsd-missing-attribute': rx(/^<(\w+)> needs the attribute '([^']+)'; add it\.$/, (m) => `${el(m[1]).replace(/^a /, 'A ')} must have its ${m[2]}. Add it.`),
   'xsd-missing-element': rx(/^The element <(\w+)> is incomplete; it needs (.*)\.$/, (m) =>
     m[1] === 'specifications' ? 'Add at least one specification.' : `${el(m[1]).replace(/^(a|the) /, (x) => x.toUpperCase()).replace(/^./, (c) => c.toUpperCase())} is not finished: it needs ${list(tags(m[2]).map(el))}.`),
-  'xsd-unexpected-attribute': rx(/^The attribute '([^']+)' is not allowed on <(\w+)>; remove it\.$/, (m) => `${m[1]} does not belong on ${el(m[2])}. Remove it.`),
+  'xsd-unexpected-attribute': rx(/^The attribute '([^']+)' is not allowed on <(\w+)>; remove it\.$/, (m) => {
+    // The engine says "remove it" of every attribute the schema does not know there. Two cases are common in real files,
+    // and removing is the wrong repair for both: a name of the standard written in other letters (datatype for dataType),
+    // and the occurrence written where IDS 0.9 had it.
+    const known = ['dataType', 'cardinality', 'minOccurs', 'maxOccurs', 'ifcVersion', 'identifier', 'description', 'instructions', 'uri', 'name', 'base', 'value'];
+    const meant = known.find((k) => k !== m[1] && k.toLowerCase() === m[1].toLowerCase());
+    if (meant) return `${m[1]} is not a name IDS knows on ${el(m[2])}: it is written ${meant}. Names are case-sensitive, so correct the spelling.`;
+    if ((m[1] === 'minOccurs' || m[1] === 'maxOccurs') && m[2] === 'specification') return `${m[1]} does not belong on a specification: in IDS 1.0 it is written on the "Applies to" part (<applicability>). Move it there.`;
+    if ((m[1] === 'minOccurs' || m[1] === 'maxOccurs') && ['attribute', 'property', 'classification', 'material', 'partOf'].includes(m[2])) return `${m[1]} does not belong on ${el(m[2])}: in IDS 1.0 an item under "Must have" says cardinality="required", "optional" or "prohibited" instead. Replace it.`;
+    return `${m[1]} does not belong on ${el(m[2])}. Remove it.`;
+  }),
   'xsd-unexpected-element': first(
     rx(/^The root element <([^>]*)> is not <ids>/, (m) => `This file starts with <${m[1]}>, not <ids> in the IDS namespace, so it is not an IDS 1.0 file.`),
     rx(/^The element <(\w+)> is not allowed here; expected (.*)\.$/, (m) => `${el(m[1]).replace(/^./, (c) => c.toUpperCase())} is not allowed here. What belongs here is ${list(tags(m[2]).map(el))}.`),
