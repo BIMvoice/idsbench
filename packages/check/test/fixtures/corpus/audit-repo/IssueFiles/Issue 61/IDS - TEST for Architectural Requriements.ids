@@ -1,0 +1,1683 @@
+<ids:ids xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd" xmlns:ids="http://standards.buildingsmart.org/IDS">
+  <!--edited with usBIM.IDSeditor 2.3.20.0 (http://www.accasoftware.com)-->
+  <ids:info>
+    <ids:title>TEST for Architectural Requirements</ids:title>
+    <ids:version>1.0</ids:version>
+    <ids:description>Object-specific requirements for architectural elements</ids:description>
+    <ids:author>fm@statsbygg.no</ids:author>
+    <ids:date>2026-01-08</ids:date>
+    <ids:purpose>ARK</ids:purpose>
+    <ids:milestone>B5.1.1</ids:milestone>
+  </ids:info>
+  <ids:specifications>
+    <ids:specification ifcVersion="IFC4" name="IfcSpatialZone">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSPATIALZONE</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="&quot;At least two spatial zone objects shall be present for each storey:&#xA;GFA = Gross Floor Area [no: BRA = &quot;&quot;bruttoareal&quot;&quot; according to NS 3940]&#xA;UA = Usable Area (total area within a storey, excluding external wall footprint area) [no: &quot;&quot;bruksareal&quot;&quot; according to NS 3940]&#xA;&#xA;There may be additional types of spatial zones as defined in projects.&quot;&#xA;">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcZone">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCZONE</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required" instructions="Any further description of the zone.">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="&quot;Name for a zone. Used to specify type of zone. &#xA;E.g. Security zone, fire safety zone, air handling zone, rental zone etc. &quot;">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="Long name for a zone, used for informal purposes. It should be used, if available, in conjunction with the inherited Name attribute.">
+          <ids:name>
+            <ids:simpleValue>LongName</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcSpace">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSPACE</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required" instructions="Any further, more specified description of the spatial function (no: &quot;Rombetegnelse&quot;) as named in the LongName field, e.g. &quot;for 20 persons&quot;.">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="Spatial Function Number (no: &quot;Romfunksjonsnummer&quot;) according to the project specific spatial program, typically denoted by a main function number, a sub function number, and a sequential room number, dot delimited, e.g. 03.05.004.">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^\d{2}\.\d{2}\.\d{3}$" />
+            </xs:restriction>
+          </ids:value>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="3-digit spatial code and name (no: &quot;Romnavn&quot;) according to Norwegian Standard NS3457-4:2015 Classification of construction works - Part 4: Spatial functions. Syntax according to the standard, i.e. first the 3-digit code followed by a space and then the name, e.g. &quot;212 Møterom&quot; (en: 212 Meeting room). &#xA;Special case: Gross Floor Area (GFA) objects shall specifically be denoted &quot;BTA&quot; (no: &quot;bruttoareal&quot;) in this field, optionally followed by a space and a further specification, e.g. &quot;BTA Floor 3&quot;.">
+          <ids:name>
+            <ids:simpleValue>LongName</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>PubliclyAccessible</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HandicapAccessible</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceOccupancyRequirements</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>OccupancyNumber</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceOccupancyRequirements</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>MinimumHeadroom</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceOccupancyRequirements</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsOutlookDesirable</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTEXT" cardinality="required" instructions="UH-Romkoder">
+          <ids:propertySet>
+            <ids:simpleValue>NTNU_Reference</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>UHRoomCode</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^(?:10\.1 - Soverom|10\.2 - Hybel|10\.3 - Internat|11\.0 - Oppholdsrom|12\.0 - Venterom|13\.0 - Veranda|14\.1 - Bad|14\.2 - HC - bad|15\.1 - Damer|15\.2 - Herrer|15\.3 - Unisex|15\.4 - HC - toalett|16\.0 - Stelle- og ammerom|17\.1 - Damer|17\.2 - Herrer|17\.3 - Unisex|18\.1 - Idrett/garderobe|18\.2 - Nøddusjrom|19\.0 - Badstue|20\.0 - Forrom med vask|21\.1 - Kontor|21\.2 - Kontorlandskap|21\.3 - Stillerom|21\.4 - Multirom|22\.0 - Møterom|23\.0 - Ekspedisjon|24\.1 - Utsalg|24\.2 - Produksjonsrom|26\.1 - Undervisningsrom|26\.2 - Auditorium|27\.1 - Lesesal felles|27\.2 - Lesesal|27\.3 - Grupperom felles|27\.4 - Grupperom|27\.5 - Eksamensrom|27\.6 - Øvingsrom|28\.0 - Overvåknings- og observasjonsrom|29\.0 - Kontrollrom|30\.0 - Verksted|31\.1 - Storkjøkken|31\.2 - Minikjøkken|32\.0 - Funksjonsstøtterom|33\.0 - Kontorstøtterom|34\.1 - Renholdsrom bygningsdrift|34\.2 - Rom for spesialrengjøring|34\.3 - Bøttekott|34\.9 - Annet|35\.0 - Idrettshall|36\.1 - Trening og velvære|36\.2 - Behandling|37\.0 - Ishall|38\.0 - Treningsrom|39\.1 - Kantine|39\.2 - Spiserom|40\.0 - Bibliotek|41\.0 - Sal|42\.0 - Utstillingsrom|43\.0 - Livssynsrom|44\.1 - Våtlaboratorium|44\.2 - Tørrlaboratorium|44\.3 - Tørrlaboratorium - enkel|44\.4 - Medisinsk laboratorium|44\.5 - Støtteareal laboratorium|45\.1 - Mennesker|45\.2 - Dyr|46\.1 - Avfall|46\.2 - Farlig avfall|46\.3 - Destruksjon|47\.1 - Gass|47\.2 - Kjemikalier|47\.9 - Annet|48\.1 - Medisiner|48\.2 - Biologisk materiale|48\.9 - Annet|49\.1 - kjøle/fryselager|49\.2 - Tørrlager|49\.3 - Lager for dyrefor|50\.0 - Generelt lagerrom|51\.0 - Parkering / garasje|52\.1 - Dokument-/bokarkiv|52\.2 - Museumsarkiv|52\.9 - Annet|53\.1 - Museumsmagasin|53\.9 - Annet|54\.0 - Morsrom|55\.0 - Oppstillingsplass|56\.0 - Ladestasjon|57\.1 - Tørre rom|57\.2 - Våte rom|58\.0 - Veksthus|59\.0 - Tekniske installasjoner|60\.1 - Varme/kjøling|60\.2 - Ventilasjon|60\.3 - Gass/trykkluft|60\.4 - Sanitær|60\.9 - Annet|61\.1 - Tavlerom|61\.2 - Nødstrøm|61\.3 - Trafo|61\.9 - Annet|62\.0 - Tele- og automatiseringsrom|63\.0 - Maskinrom|64\.1 - Teknisk/transport|64\.2 - Teknisk|65\.0 - Sjakt|66\.0 - Lyssjakt|67\.0 - Vrimleareal|68\.1 - Vindfang|68\.2 - Varemottak|69\.0 - Sluse|70\.1 - Korridor|70\.2 - Lukket gangbro|70\.3 - Åpen gangbro|71\.0 - Trapperom|72\.0 - Heissjakt|96\.0 - Reserveareal|97\.0 - Ikke disponibelt areal|98\.0 - Avstengt areal|99\.0 - Ikke klassifisert/ukjent)$" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCTEXT" cardinality="required" instructions="Romfunksjon iht. NS 3457-4">
+          <ids:propertySet>
+            <ids:simpleValue>NTNU_Reference</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>RefClassNS3457-4</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^(?:123 - UU-toalett|211 - Kontor|221 - Verksted|241 - Spiserom|251 - Våtlaboratorium|252 - Tørrlaboratorium|26 - Undersøkelses- og behandlingsrom|261 - Medisinsk undersøkelsesrom|262 - Medisinsk behandlingsrom|263 - Kombinert medisinsk undersøkelses- og behandlingsrom|265 - Ikke-medisinsk undersøkelses- og behandlingsrom|311 - Avfallsrom|315 - Mat- og drikkelager|321 - Tøy- og skolager|325 - Apparatlager|327 - Våpen- og ammunisjonslager|411 - VVS-teknisk rom|412 - Elkraftrom|413 - Tele- og automatiseringsrom|511 - Adkomstrom)$" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>GrossPlannedArea</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SpaceCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>NetPlannedArea</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcGrid">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCGRID</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required" instructions="Indicates the grid's purpose.">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="A descriptive name of the grid.&#xA;">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcAnnotation">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCANNOTATION</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required" instructions="Optional description, provided for exchanging informative comments.&#xA;">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="Optional name for use by the participating software systems or users. For some subtypes of IfcRoot the insertion of the Name attribute may be required. This would be enforced by a where rule.&#xA;">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBuildingElementProxy">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasThermalRequirements</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_Thermal</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Thermal transmittance requirement</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NOSSB_Thermal</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Light transmittance LT requirement</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>LoadBearing</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCovering">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOVERING</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCovering.PredefinedType.CEILING">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOVERING</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>CEILING</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCovering.PredefinedType.FLOORING">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOVERING</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>FLOORING</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCovering.PredefinedType.INSULATION">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOVERING</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>INSULATION</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CoveringCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcRamp">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCRAMP</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>RequiredHeadroom</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireExit</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HandicapAccessible</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcRampFlight">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCRAMPFLIGHT</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampFlightCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampFlightCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Headroom</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RampFlightCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Slope</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcWall">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCWALL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Compartmentation</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcSlab">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSLAB</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SlabCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SlabCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SlabCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SlabCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_SlabCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Compartmentation</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcFurniture">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCFURNITURE</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute cardinality="required" instructions="Requirements for Description attribute">
+          <ids:name>
+            <ids:simpleValue>Description</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:attribute cardinality="required" instructions="&quot;Use ComponentTypeID (RefCompType) aggregated from Component class according to three letter code, NS3457-8 + Component Type Number level 1. + Optional Component Subtype Number level 2. &#xA;Number of digits in type numbers to be agreed in the project. &#xA;Example: Chair = FOZ.012:06&quot;">
+          <ids:name>
+            <ids:simpleValue>Name</ids:simpleValue>
+          </ids:name>
+        </ids:attribute>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_FurnitureTypeCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcColumn">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCOLUMN</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ColumnCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ColumnCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ColumnCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBeam">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBEAM</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BeamCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BeamCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BeamCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcCurtainWall">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCURTAINWALL</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CurtainWallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CurtainWallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CurtainWallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CurtainWallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_CurtainWallCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcDoor">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCDOOR</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HandicapAccessible</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireExit</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDrive</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>SecurityRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_DoorCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>SelfClosing</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcWindow">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCWINDOW</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireExit</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>SecurityRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_WindowCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDrive</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcRoof">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCROOF</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RoofCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RoofCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>AcousticRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RoofCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RoofCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTHERMALTRANSMITTANCEMEASURE" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RoofCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcChimney">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCCHIMNEY</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ChimneyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ChimneyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_ChimneyCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcRailing">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCRAILING</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RailingCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RailingCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Height</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_RailingCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcStairFlight">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSTAIRFLIGHT</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairFlightCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairFlightCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Headroom</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcStair">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCSTAIR</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>RequiredHeadroom</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HandicapAccessible</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>IsExternal</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireRating</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireExit</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_StairCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcTransportElement">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCTRANSPORTELEMENT</ids:simpleValue>
+          </ids:name>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireExit</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcTransportElement.PredefinedType.ELEVATOR">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCTRANSPORTELEMENT</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>ELEVATOR</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasBuildingControlConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasDataConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasElectricalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>NONS_ReqTriggers</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>HasMechanicalConnection</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementElevator</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireFightingLift</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementElevator</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ClearWidth</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementElevator</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ClearDepth</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementElevator</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>ClearHeight</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>FireExit</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL" cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_TransportElementCommon</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Status</ids:simpleValue>
+          </ids:baseName>
+          <ids:value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="NEW" />
+              <xs:enumeration value="EXISTING" />
+              <xs:enumeration value="DEMOLISH" />
+              <xs:enumeration value="TEMPORARY" />
+              <xs:enumeration value="OTHER" />
+            </xs:restriction>
+          </ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+    <ids:specification ifcVersion="IFC4" name="IfcBuildingElementProxy.PROVISIONFORVOID">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity>
+          <ids:name>
+            <ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue>
+          </ids:name>
+          <ids:predefinedType>
+            <ids:simpleValue>PROVISIONFORVOID</ids:simpleValue>
+          </ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Shape</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Width</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Height</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Diameter</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>Depth</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+        <ids:property cardinality="required">
+          <ids:propertySet>
+            <ids:simpleValue>Pset_BuildingElementProxyProvisionForVoid</ids:simpleValue>
+          </ids:propertySet>
+          <ids:baseName>
+            <ids:simpleValue>System</ids:simpleValue>
+          </ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+  </ids:specifications>
+</ids:ids>

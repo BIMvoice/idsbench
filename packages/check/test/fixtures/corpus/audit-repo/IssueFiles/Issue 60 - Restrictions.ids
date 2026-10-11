@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ids xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd"
+    xmlns="http://standards.buildingsmart.org/IDS">
+  <info>
+    <title>Not all XSD restrictions are valid IDS restrictions</title>
+  </info>
+  <specifications>
+    <specification name="Invalid IDS restrictions" ifcVersion="IFC4">
+      <applicability maxOccurs="unbounded">
+        <entity>
+          <name>
+            <simpleValue>IFCWALL</simpleValue>
+          </name>
+        </entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER">
+          <propertySet>
+            <simpleValue>Acme_WallCommon</simpleValue>
+          </propertySet>
+          <baseName>
+            <simpleValue>SomeProp</simpleValue>
+          </baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+
+              <!-- Should be invalid according to IDS -->
+              <xs:totalDigits value="2"></xs:totalDigits>
+              <!-- invalid -->
+              <xs:fractionDigits value="0"></xs:fractionDigits>
+              <!-- invalid -->
+
+              <!-- IDS spec is silent on this, but permitted by IDS Audit-->
+              <xs:whiteSpace value="preserve"></xs:whiteSpace>
+              <!-- invalid -->
+
+              <!-- IDS spec is silent on these, but picked up as invalid by IDS Audit -->
+              <xs:assertion test="$value lt 100" />
+              <!-- invalid twice (schema and content errors) -->
+              <xs:explicitTimezone value="required"></xs:explicitTimezone>
+              <!-- invalid -->
+
+              <!-- Permitted by IDS Audit - but slightly weird to use regex on numeric. Presume the string value is to be tested -->
+              <xs:pattern value="[A-Z]{2}[0-9]{2}" />
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>

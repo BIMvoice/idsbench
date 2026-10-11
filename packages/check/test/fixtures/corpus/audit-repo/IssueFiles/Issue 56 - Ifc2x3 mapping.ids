@@ -1,0 +1,29 @@
+<ids:ids xmlns:ids="http://standards.buildingsmart.org/IDS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+    <ids:info>
+        <ids:title>Test of conformity</ids:title>
+    </ids:info>
+    <ids:specifications>
+      <!-- 
+      This specification is to be interpreted according to the mapping table for IFC2X3 occurrences, which can be found at the following link:
+      https://github.com/buildingSMART/IDS/blob/development/Documentation/ImplementersDocumentation/ifc2x3-occurrence-type-mapping-table.md
+      
+      I.e.: Entities identified by the specificaiton are the instances of IfcFlowTerminal associated with IfcAirTerminalType.
+      -->
+      <ids:specification ifcVersion="IFC2X3" name="AirTerminals in IFC2x3 should have a name">
+        <ids:applicability minOccurs="0" maxOccurs="unbounded">
+          <ids:entity>
+            <ids:name>
+              <ids:simpleValue>IFCAIRTERMINAL</ids:simpleValue>
+            </ids:name>
+          </ids:entity>
+        </ids:applicability>
+        <ids:requirements>
+          <ids:attribute cardinality="required">
+            <ids:name>
+              <ids:simpleValue>Name</ids:simpleValue>
+            </ids:name>
+          </ids:attribute>
+        </ids:requirements>
+      </ids:specification>
+    </ids:specifications>
+</ids:ids>

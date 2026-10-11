@@ -1,0 +1,31 @@
+{
+  "name": "@idsbench/check",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:schemas": "node scripts/build-schemas.mjs",
+    "build:ifc-data": "node scripts/build-ifc-data.mjs",
+    "demo:build": "vite build --config demo/vite.config.ts",
+    "demo:run": "node demo/run-playwright.mjs"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "0.9.12",
+    "xmllint-wasm": "5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "playwright": "^1.64.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  },
+  "description": "Checks whether an IDS file is itself valid: official XSD (libxml2 in WebAssembly) plus the rules of the buildingSMART IDS audit tool."
+}
