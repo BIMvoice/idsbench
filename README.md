@@ -1,64 +1,58 @@
 # idsbench
 
-A local, private workbench for IDS (Information Delivery Specifications). The goal is one place to **create, edit, run and validate** IDS files.
+idsbench is a small tool for IDS (Information Delivery Specification) files from buildingSMART. It runs entirely in your browser: there is no server, and your files are not uploaded anywhere. The aim is to take one IDS file from blank to proven, in three tabs: Write, Check and Run.
 
-**What works today:** auditing. Drop in an IDS file and it shows you exactly what is wrong and where, in a clean interface. Creating, editing and running an IDS against an IFC model are planned and not built yet.
+## What works today
 
-Formerly published as `bimvoice-ids-auditor`.
+- **Run**: choose an IDS file and an IFC model, press Run. You get one line saying how many specifications passed, one row per specification (elements it applied to, passed, failed), and for each failing row the first 200 failing elements with IFC class, name, GlobalId and the reason. You can download the result as one JSON file.
+- **Write** and **Check** are tabs only. They say they are not built yet.
 
-It runs entirely on your own machine. Your files never leave your computer, which matters when your IDS files are confidential.
+Run reads IFC files in the STEP format (`.ifc`) for IFC2X3, IFC4 and IFC4X3. It does not read IFCX or zipped IFC files.
 
-> This is a convenience interface on top of the official **buildingSMART [IDS audit tool](https://github.com/buildingSMART/IDS-Audit-tool)** (MIT licensed). All the actual auditing is done by that tool. This project just gives it a friendly, local, private UI.
+## Run it locally
 
-It checks whether an **IDS file itself is valid** against the buildingSMART IDS schema. It does **not** validate IFC models against an IDS (that is a different job, done by tools like IfcTester).
+You need Node.js 20.19 or newer.
 
-## Why use it
-
-- **Local and private.** Online checkers require uploading your IDS to a third party. This does not.
-- **Clear results.** Errors with line number, position, message, and the rule that failed.
-- **Simple.** Drop a file, click audit, read the result.
-
-## Requirements
-
-- Python 3.9+
-- A way to run the buildingSMART ids-tool, one of:
-  - the **ids-tool** command on your PATH, installed via:
-    `dotnet tool install --global ids-tool.CommandLine`
-    (requires the .NET runtime), or
-  - a built `ids-tool.dll`, pointed to with the `IDS_TOOL` environment variable.
-
-## Setup
-
-```bash
-pip install -r requirements.txt
-python app.py
+```
+npm install
+npm run dev
 ```
 
-Then open http://127.0.0.1:5005 and drop in an `.ids` file.
+Then open http://localhost:5173.
 
-If you are pointing at a built dll instead of the global tool:
+## Build
 
-```bash
-IDS_TOOL="/path/to/ids-tool.dll" python app.py
+```
+npm run build
 ```
 
-### macOS one-click launch
+The static site is written to `dist/`. Serve it with any static file server, for example `npm run preview` (http://localhost:4173). The built site makes no network requests of its own.
 
-Double-click `run.command`. It starts the engine and opens the tool in your browser. Close the Terminal window to stop it. (First time: right-click → Open, to get past Gatekeeper.)
+## Privacy
 
-## How it works
+Files are read and checked in your browser, in a Web Worker. Nothing is sent to a server, there is no analytics, and the page loads no fonts or scripts from other sites.
 
-A tiny Flask server serves the page and, on upload, runs the buildingSMART ids-tool audit on the file, parses the output, and returns the results to the browser. Nothing is sent anywhere else.
+## Libraries
 
-## Credits
+| Library | Used for | Licence |
+| --- | --- | --- |
+| `@ifc-lite/parser` | reading the IFC model | MPL-2.0 |
+| `@ifc-lite/ids` | reading the IDS and checking the model against it | MPL-2.0 |
+| `react`, `react-dom` | the interface | MIT |
 
-- Auditing engine: [buildingSMART IDS-Audit-tool](https://github.com/buildingSMART/IDS-Audit-tool) and ids-lib (MIT, © buildingSMART International / Claudio Benghi).
-- Interface and wrapper: BIMvoice.
+These are from the ifc-lite project. The build tools (Vite, TypeScript, Vitest, Playwright) are development dependencies only.
 
-## License
+## Tests
 
-MIT. See [LICENSE](LICENSE).
+```
+npm test                 # unit tests for the result shaping, error messages and the 200 cap
+npm run truth -- <dir>   # runs every pass-/fail- pair of the buildingSMART IDS test cases
+```
 
-## Disclaimer
+For `truth`, clone https://github.com/buildingSMART/IDS and point it at `Documentation/ImplementersDocumentation/TestCases`.
 
-Provided as is, no warranty, no support promised. Always confirm critical results with the official buildingSMART tooling.
+Measured on 307 official `pass-*` and `fail-*` pairs: 298 give the verdict named in the file name. The other 9 are all pairs whose IDS targets IFC2X3 while the supplied model is IFC4. idsbench refuses those with a message that the schemas do not match, instead of returning a verdict. With the IDS schema attribute rewritten to the model's own schema, all 9 match as well. The IDS files marked `invalid-*` are not part of this number: 26 of 27 are still run and give a result rather than an error, because spotting an invalid IDS is the job of the Check tab.
+
+## Licence
+
+See `LICENSE`.
