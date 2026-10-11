@@ -51,7 +51,7 @@ describe('the CSV of failing elements', () => {
     expect(csvCell('a,b')).toBe('"a,b"');
     expect(csvCell('say "hi"')).toBe('"say ""hi"""');
     expect(csvCell('plain')).toBe('plain');
-    expect(csv).toContain('"Walls, ""rated""",Property set ""Pset_WallCommon"" not found.'.replace('Property', '"Property').replace('found.', 'found."') + ',IfcWall,"Wand ""Süd"", außen",id-Wand "Süd", außen'.replace('id-Wand "Süd", außen', '"id-Wand ""Süd"", außen"'));
+    expect(csv).toContain('"Walls, ""rated""",,"Property set ""Pset_WallCommon"" not found.",,IfcWall,"Wand ""Süd"", außen","id-Wand ""Süd"", außen"');
     expect(csv).toContain('Ușă 1');
     expect(csv).toContain('"line\nbreak"');
   });
@@ -71,8 +71,8 @@ describe('the CSV of failing elements', () => {
     expect(rows.length - 1).toBe(failureCount(r));
     expect(failureCount(r)).toBe(4);
     expect(rows.every((x) => x.length === CSV_COLUMNS.length)).toBe(true);
-    expect(rows[1]).toEqual(['Element', 'Walls, "rated"', A, 'IfcWall', 'Wand "Süd", außen', 'id-Wand "Süd", außen', 'Tower, east.ifc', 'req.ids']);
-    expect(rows[2]).toEqual(['Element', 'Walls, "rated"', `${A} ${B}`, 'IfcWall', '', '', 'Tower, east.ifc', 'req.ids']);
+    expect(rows[1]).toEqual(['Element', 'Walls, "rated"', '', A, '', 'IfcWall', 'Wand "Süd", außen', 'id-Wand "Süd", außen', '', 'Tower, east.ifc', 'req.ids']);
+    expect(rows[2]).toEqual(['Element', 'Walls, "rated"', '', `${A} ${B}`, '', 'IfcWall', '', '', '', 'Tower, east.ifc', 'req.ids']);
     expect(rows.map((x) => x[1])).not.toContain('All fine');
   });
   it('is named after the model', () => expect(failuresCsvName('Tower.ifc')).toBe('Tower-failing-elements.csv'));

@@ -28,14 +28,16 @@ describe('the CSV of a result with specifications that fail as a whole', () => {
     const element = rows.slice(1).filter((x) => x[0] === ROW_KINDS.element), whole = rows.slice(1).filter((x) => x[0] === ROW_KINDS.specification);
     expect(element.length + whole.length).toBe(rows.length - 1);
     // Element rows are exactly the failing elements the run counted: one wall named Wilma twice (two specs), and the door that must not be there.
-    expect(element.map((x) => [x[1], x[3]])).toEqual([['Walls are named Waldo', 'IfcWall'], ['At most two walls', 'IfcWall'], ['No doors', 'IfcDoor']]);
+    expect(element.map((x) => [x[1], x[5]])).toEqual([['Walls are named Waldo', 'IfcWall'], ['At most two walls', 'IfcWall'], ['No doors', 'IfcDoor']]);
     expect(element.length).toBe(failureCount(r));
     // Whole-specification rows name the specification and the reason, and no element.
     expect(whole.map((x) => x[1])).toEqual(['A window is there', 'At most two walls']);
     expect(whole.length).toBe(wholeFailureCount(r));
-    expect(whole[0][2]).toContain('needs at least one matching element');
-    expect(whole[1][2]).toContain('allows at most 2 matching elements, and the model has 3');
-    for (const w of whole) expect([w[3], w[4], w[5]]).toEqual(['', '', '']);
+    expect(whole[0][3]).toContain('needs at least one matching element');
+    expect(whole[1][3]).toContain('allows at most 2 matching elements, and the model has 3');
+    // the class, name, GlobalId and place of an element are empty on a whole-specification row, and it says what to do
+    for (const w of whole) expect([w[5], w[6], w[7], w[8]]).toEqual(['', '', '', '']);
+    expect(whole.map((w) => w[4])).toEqual(['Add the elements this specification applies to, or change the specification', 'Change the number of matching elements in the model, or change the specification']);
   });
   it('is the same for a result made in the worker, which keeps the elements in blobs', async () => {
     const held = await runText(idsText(...specs), model);

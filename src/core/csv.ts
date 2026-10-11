@@ -3,7 +3,7 @@ import type { FailingElement, RunResult, SpecRow } from './types';
 
 /** What a row of the file is about: one element, or a whole specification that failed with no single element to blame. */
 export const ROW_KINDS = { element: 'Element', specification: 'Whole specification' } as const;
-export const CSV_COLUMNS = ['Row about', 'Specification', 'Why it failed', 'IFC class', 'Name', 'GlobalId', 'Model', 'IDS file'] as const;
+export const CSV_COLUMNS = ['Row about', 'Specification', 'Requirement', 'Why it failed', 'What to fix', 'IFC class', 'Name', 'GlobalId', 'Storey or space', 'Model', 'IDS file'] as const;
 
 const PLAIN_NUMBER = /^[+-]?(\d+([.,]\d+)?|[.,]\d+)$/;
 
@@ -26,11 +26,11 @@ export function csvCell(value: string): string {
 const rowOf = (cells: string[]) => `${cells.map(csvCell).join(',')}\r\n`;
 export const csvHeader = () => `\ufeff${rowOf([...CSV_COLUMNS])}`;
 /** The row of one failing element. */
-export const elementCsvRow = (specName: string, f: FailingElement, ifcFile: string, idsFile: string) =>
-  rowOf([ROW_KINDS.element, specName, f.reasons.join(' '), f.ifcClass, f.name ?? '', f.globalId ?? '', ifcFile, idsFile]);
+export const elementCsvRow = (specName: string, f: FailingElement, ifcFile: string, idsFile: string, requirement = '') =>
+  rowOf([ROW_KINDS.element, specName, requirement, f.reasons.join(' '), (f.toFix ?? []).filter(Boolean).join('; '), f.ifcClass, f.name ?? '', f.globalId ?? '', f.place ?? '', ifcFile, idsFile]);
 /** The row of a specification that failed as a whole: no element, and the reason it failed. */
-export const wholeCsvRow = (specName: string, why: string, ifcFile: string, idsFile: string) =>
-  rowOf([ROW_KINDS.specification, specName, why, '', '', '', ifcFile, idsFile]);
+export const wholeCsvRow = (specName: string, why: string, ifcFile: string, idsFile: string, requirement = '', toFix = '') =>
+  rowOf([ROW_KINDS.specification, specName, requirement, why, toFix, '', '', '', '', ifcFile, idsFile]);
 
 /** How many failing elements a row holds, whatever of them the row keeps in memory. */
 export const failureTotalOf = (s: Pick<SpecRow, 'failures' | 'failureTotal'>): number => s.failureTotal ?? s.failures.length;
@@ -51,10 +51,10 @@ export function failuresCsvParts(result: RunResult): BlobPart[] {
   const parts: BlobPart[] = [csvHeader()];
   result.specs.forEach((s, i) => {
     const mine: BlobPart[] = [];
-    if (s.wholeFailure) mine.push(wholeCsvRow(s.name, s.wholeFailure, result.ifcFile, result.idsFile));
+    if (s.wholeFailure) mine.push(wholeCsvRow(s.name, s.wholeFailure, result.ifcFile, result.idsFile, s.requirement ?? '', s.wholeFix ?? ''));
     const spilled = result.spilled?.[i];
     if (spilled) mine.push(...spilled.csv);
-    else if (s.failures.length) mine.push(s.failures.map((f) => elementCsvRow(s.name, f, result.ifcFile, result.idsFile)).join(''));
+    else if (s.failures.length) mine.push(s.failures.map((f) => elementCsvRow(s.name, f, result.ifcFile, result.idsFile, s.requirement ?? '')).join(''));
     if (mine.length) parts.push(...mine);
   });
   return parts;

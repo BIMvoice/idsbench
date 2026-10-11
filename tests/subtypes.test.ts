@@ -88,7 +88,7 @@ describe('the action that adds the subtypes as a list', () => {
     const family = familyOf(changed, [schema]);
     expect(family).toEqual({ head: 'IFCWALL', others: ['IFCWALLELEMENTEDCASE', 'IFCWALLSTANDARDCASE'] });
     expect(describeSpecification(changed, { family, className: (u) => schema.classes.get(u)?.name }).text)
-      .toBe('The model must contain at least one wall, including wall elemented case (IfcWallElementedCase) and wall standard case (IfcWallStandardCase).');
+      .toBe('The model must contain at least one wall, including wall elemented case and wall standard case.');
   });
 });
 

@@ -26,6 +26,8 @@ export interface RunInput {
   rangeIds?: number;
   /** Used instead of reading the bytes again when the model is already read (see ModelKeeper). */
   loaded?: LoadedModel;
+  /** Each specification in words, in the order of the IDS file, for the CSV (see core/sentences.ts); null where there is none. */
+  sentences?: (string | null)[] | null;
 }
 
 /** How many entities one range of the check holds at most. A model of no more entities than this is checked as one range. */
@@ -136,13 +138,18 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const modelInfo = { modelId: input.ifcName, schemaVersion: store.schemaVersion, entityCount: store.entityCount };
     const onProgress = input.onTick ? () => input.onTick!() : undefined;
     const options: ShapeOptions = input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {};
-    const accs = doc.specifications.map((s) => new SpecAccumulator<IDSRequirementResult>(s, (r) => translator.describeFailure(r), loaded.schema, options));
+    // The storey or space of a failing element is read from the part of the model being checked (the accessor of its range).
+    const placer: { find: (id: number) => string } = { find: () => '' };
+    const place = (id: number) => placer.find(id);
+    const sentences = input.sentences && input.sentences.length === doc.specifications.length ? input.sentences : null;
+    const accs = doc.specifications.map((s, i) => new SpecAccumulator<IDSRequirementResult>(s, (r) => translator.describeFailure(r), loaded.schema, { ...options, place, ...(sentences?.[i] ? { sentence: sentences[i]! } : {}) }));
     const indexed = doc.specifications.map((s, i) => ({ s, i })).filter(({ s }) => !hasNoApplicability(s));
     // The model is checked one range of express ids at a time, each with its own accessor and its own results, which are
     // let go of before the next range: a model with millions of applicable elements never has all their results (or all
     // the values read from them) in memory at once. A model of ordinary size is one range, as if there were no ranges.
     for (const [lo, hi] of idRanges(store, input.rangeIds ?? RANGE_IDS)) {
       const accessor = hi === Infinity && lo === 0 ? createDataAccessor(store) : inRange(createDataAccessor(store), lo, hi);
+      placer.find = placeFinder(accessor);
       // Elements that pass are not needed for anything but a prohibited specification (every match of it is a failure
       // whatever its requirements say), so the library is asked to drop them from all the others: on a model with
       // millions of elements that is most of the memory of a run. The counts it reports are the same either way.
@@ -181,6 +188,25 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const m = mapError(e, 'validate');
     throw new AppError(m.kind, m.message);
   }
+}
+
+/**
+ * Where the model puts an element: the name of the storey or space that contains it, or of what it is a component of
+ * (a space is a component of its storey). Empty when the model does not say. The name of a container is looked up once.
+ */
+export function placeFinder(accessor: Accessor): (expressId: number) => string {
+  const labels = new Map<number, string>();
+  return (id) => {
+    const parent = accessor.getParent?.(id, 'IfcRelContainedInSpatialStructure') ?? accessor.getParent?.(id, 'IfcRelAggregates');
+    if (!parent) return '';
+    let label = labels.get(parent.expressId);
+    if (label === undefined) {
+      const name = accessor.getEntityName(parent.expressId)?.trim();
+      label = name ? (/space/i.test(parent.entityType) ? `${name} (space)` : name) : '';
+      labels.set(parent.expressId, label);
+    }
+    return label;
+  };
 }
 
 /**

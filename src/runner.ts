@@ -2,6 +2,7 @@ import type { Phase } from './core/validate';
 import { prepareIds, IdsInvalid } from './core/prepare';
 import { AppError, FILE_UNREADABLE, UNEXPECTED } from './core/errors';
 import { checkSize } from './core/limits';
+import { sentencesFor } from './core/sentences';
 import type { AppErrorInfo, RunResult } from './core/types';
 import type { ModelBytes, ModelRef } from './core/session';
 import type { WorkerMessage, WorkerRequest } from './worker';
@@ -180,6 +181,8 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
         return;
       }
       if (cancelled) return;
+      const sentences = await sentencesFor(idsXml);
+      if (cancelled) return;
       try {
         worker ??= start();
         myId = nextId++;
@@ -199,7 +202,7 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
           modelBytes: files.ifc.size,
         };
         heardAt = Date.now();
-        worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true } satisfies WorkerRequest);
+        worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true, sentences } satisfies WorkerRequest);
       } catch (e) {
         console.error(e);
         pending = null;

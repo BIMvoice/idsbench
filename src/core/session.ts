@@ -50,6 +50,8 @@ export interface SessionRequest {
   /** Called every so often while the model is counted, parsed and checked; throwing RunStopped from it stops the run. */
   onTick?: () => void;
   spill?: boolean;
+  /** Each specification in words, for the CSV. */
+  sentences?: (string | null)[] | null;
 }
 
 export async function runSession(keeper: ModelKeeper, req: SessionRequest): Promise<{ result: RunResult; reused: boolean; model: ModelBytes }> {
@@ -83,7 +85,7 @@ export async function runSession(keeper: ModelKeeper, req: SessionRequest): Prom
   try {
     const result = await runValidation({
       ids: req.ids, idsName: req.idsName, ifcBytes: new ArrayBuffer(0), ifcName: req.model.name,
-      loaded, onPhase: req.onPhase, onTick: req.onTick, spill: req.spill,
+      loaded, onPhase: req.onPhase, onTick: req.onTick, spill: req.spill, sentences: req.sentences,
     });
     // The time of this run: with the reading of the model when it was read, without it when the kept copy was used.
     return { result: { ...result, seconds: (performance.now() - t0) / 1000 }, reused, model: of };

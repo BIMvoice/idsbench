@@ -28,7 +28,7 @@ describe('what a specification does not cover in this model', () => {
     const rows = parseCsv(await csvText(failuresCsvParts(r)));
     expect(rows[0]).toEqual(parseCsv(csvHeader())[0]);
     const whole = rows.find((x) => x[0] === 'Whole specification');
-    expect(whole?.[2]).toMatch(/needs at least one matching element, and the model has none\. This specification names IfcWall\./);
+    expect(whole?.[3]).toMatch(/needs at least one matching element, and the model has none\. This specification names IfcWall\./);
   });
 
   it('an optional specification: "Nothing to check" keeps its state and gains the sentence', async () => {

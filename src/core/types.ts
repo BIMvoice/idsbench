@@ -24,6 +24,10 @@ export interface FailingElement {
    * some reason does. Elements that fail the same requirement with different values of their own are one group.
    */
   found?: (string | null)[];
+  /** What to do about each reason, in the same order (an empty string where there is nothing specific to say). Absent when no reason has one. */
+  toFix?: string[];
+  /** The storey or space the model puts the element in. Absent when it does not say. */
+  place?: string;
 }
 
 /** Elements in the model of a class beside the ones a specification names (a subtype, a supertype or a sibling), which it does not cover. */
@@ -62,6 +66,10 @@ export interface SpecRow {
    * and the model has none, or it allows fewer matching elements than the model has. The reason, in a sentence.
    */
   wholeFailure?: string;
+  /** What to do about a failure of the whole specification, for the CSV. */
+  wholeFix?: string;
+  /** The specification in words (its sentence), when the page could work it out. */
+  requirement?: string;
   /** How many failing elements the page does not list. Absent in a row built by hand. */
   notListed?: number;
   /** Set when the model holds elements the specification does not cover because it names their class's supertype, subtype or sibling (see core/coverage.ts). Counts and verdict are not affected by it. */

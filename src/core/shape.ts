@@ -11,6 +11,7 @@ import {
 import { schemaFamily } from './ifcfile';
 import { GroupAccumulator } from './groups';
 import { elementCsvRow } from './csv';
+import { reasonOf, REMOVE_ELEMENT, whatToFix, type RequirementOutcome } from './reasons';
 
 /**
  * The parts of the @ifc-lite/ids report that we read. Declared structurally so
@@ -33,11 +34,12 @@ export interface ReportLike {
     error?: string;
     cardinalityResult?: { passed: boolean; message: string };
     entityResults: Array<{
+      expressId?: number;
       entityType: string;
       entityName?: string;
       globalId?: string;
       passed: boolean;
-      requirementResults: Array<{ status: string; failureReason?: string; actualValue?: string }>;
+      requirementResults: RequirementOutcome[];
     }>;
   }>;
 }
@@ -127,6 +129,10 @@ export interface ShapeOptions {
    * elements would not fit in memory twice. Without it the row holds every failing element.
    */
   spill?: { ifcFile: string; idsFile: string };
+  /** The specification in words, for the CSV (see core/sentences.ts). Absent: the column is left empty. */
+  sentence?: string;
+  /** The storey or space an element is in, by its express id, when the model says. Set by the run for the part of the model being checked. */
+  place?: (expressId: number) => string;
 }
 
 /** Takes failing elements one at a time: counts them exactly, groups them by reason, holds what the page lists, and (if asked) writes the rest to the downloads. */
@@ -142,7 +148,7 @@ class Failures {
   }
   add(f: FailingElement): void {
     if (this.options.spill && this.csv && this.json) {
-      this.csv.add(elementCsvRow(this.name, f, this.options.spill.ifcFile, this.options.spill.idsFile));
+      this.csv.add(elementCsvRow(this.name, f, this.options.spill.ifcFile, this.options.spill.idsFile, this.options.sentence ?? ''));
       this.json.add(`${this.total ? ',' : ''}${JSON.stringify(f)}`);
       if (this.held.length < FAILURE_CAP) this.held.push(f);
     } else {
@@ -207,6 +213,8 @@ export class SpecAccumulator<R extends { status: string }> {
     if (hasNoApplicability(this.spec) || r.error || (r.status !== 'pass' && r.status !== 'fail' && r.status !== 'not_applicable')) return;
     const element = (e: SpecResult['entityResults'][number], reasons: string[], found?: (string | null)[]): FailingElement => {
       const el: FailingElement = { ifcClass: e.entityType, name: e.entityName ?? null, globalId: e.globalId ?? null, reasons };
+      const place = e.expressId !== undefined ? this.options.place?.(e.expressId) : undefined;
+      if (place) el.place = place;
       if (found && found.some((v) => v !== null)) el.found = found;
       return el;
     };
@@ -214,16 +222,19 @@ export class SpecAccumulator<R extends { status: string }> {
       // The standard: "No [matching element] should be found in the model,
       // requirements are ignored". Every match is a failure, whatever the
       // library's per-element requirement results say.
-      for (const e of r.entityResults) this.fails.add(element(e, [MUST_NOT_EXIST]));
+      for (const e of r.entityResults) this.fails.add({ ...element(e, [MUST_NOT_EXIST]), toFix: [REMOVE_ELEMENT] });
       return;
     }
     for (const e of r.entityResults) {
       if (e.passed) continue;
       const failedReqs = e.requirementResults.filter((q) => q.status === 'fail');
-      const reasons = failedReqs.map((q) => sentence(q.failureReason?.trim() || this.describe(q as unknown as R)));
+      const reasons = failedReqs.map((q) => sentence(reasonOf(q) ?? (q.failureReason?.trim() || this.describe(q as unknown as R))));
       // The value the element has, where the reason quotes it: what differs from element to element in an otherwise equal reason.
       const found = failedReqs.map((q, i) => (q.actualValue && reasons[i].includes(`"${q.actualValue}"`) ? q.actualValue : null));
-      this.fails.add(element(e, reasons, found));
+      const el = element(e, reasons, found);
+      const toFix = failedReqs.map((q) => whatToFix(q, e.entityType));
+      if (toFix.some(Boolean)) el.toFix = toFix;
+      this.fails.add(el);
     }
   }
 
@@ -247,6 +258,7 @@ export class SpecAccumulator<R extends { status: string }> {
     let summary: string;
     let note: string | null = null;
     let wholeFailure: string | undefined;
+    let wholeFix: string | undefined;
 
     if (kind === 'prohibited') {
       passed = 0;
@@ -271,7 +283,7 @@ export class SpecAccumulator<R extends { status: string }> {
 
       if (applicable === 0) {
         summary = 'No element in this model matches it.';
-        if (state === 'fail') { note = 'This specification needs at least one matching element, and the model has none.'; wholeFailure = note; }
+        if (state === 'fail') { note = 'This specification needs at least one matching element, and the model has none.'; wholeFailure = note; wholeFix = 'Add the elements this specification applies to, or change the specification'; }
         else note = 'This specification is optional and no element in this model matches it, so there was nothing to check. If you expected matches, look at how the IDS file names the elements.';
       } else {
         summary = `Applied to ${plural(applicable, 'element')}: ${passed.toLocaleString('en')} passed, ${failed.toLocaleString('en')} failed.`;
@@ -283,6 +295,7 @@ export class SpecAccumulator<R extends { status: string }> {
               : `at least ${(min ?? 1).toLocaleString('en')}`;
           note = `This specification allows ${allowed} matching ${allowed.endsWith(' 1') ? 'element' : 'elements'}, and the model has ${applicable.toLocaleString('en')}.`;
           wholeFailure = note;
+          wholeFix = 'Change the number of matching elements in the model, or change the specification';
         }
       }
     }
@@ -290,6 +303,7 @@ export class SpecAccumulator<R extends { status: string }> {
     if (state === 'fail' && fails.total === 0 && !note) {
       note = 'The check reported this specification as failed without naming an element.';
       wholeFailure = note;
+      wholeFix = 'Look at the specification and the model together';
     }
     const { shown, notShown } = fails.groups.shown();
     const spilled = fails.spilled();
@@ -307,7 +321,8 @@ export class SpecAccumulator<R extends { status: string }> {
       failureTotal: fails.total,
       groups: shown,
       notListed: notShown,
-      ...(wholeFailure ? { wholeFailure } : {}),
+      ...(wholeFailure ? { wholeFailure, wholeFix } : {}),
+      ...(this.options.sentence ? { requirement: this.options.sentence } : {}),
     };
     return { row, spilled };
   }

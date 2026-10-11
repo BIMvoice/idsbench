@@ -6,7 +6,7 @@ import type { IDSDocument } from '@ifc-lite/ids';
 import type { AppErrorInfo, RunResult } from './core/types';
 
 export type WorkerRequest =
-  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean }
+  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean; sentences: string[] | null }
   | { type: 'cancel'; id: number }
   /** The page no longer needs the model the worker holds, unless it is the one of file `except`: let go of its memory. */
   | { type: 'forget'; except: number | null };
@@ -52,6 +52,7 @@ async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
       read: () => m.file.arrayBuffer(),
       fresh: m.fresh,
       spill: true,
+      sentences: m.sentences,
       onPhase: (phase) => post({ type: 'phase', id: m.id, phase }),
       onTick: () => { beat(); if (cancelled.has(m.id)) throw new RunStopped(); },
     });

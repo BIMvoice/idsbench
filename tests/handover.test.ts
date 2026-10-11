@@ -22,12 +22,12 @@ describe('a spreadsheet must not read a name from a model as a formula', () => {
   });
   it('quotes a semicolon, which some spreadsheets take for the separator', () => expect(csvCell('a;b')).toBe('"a;b"'));
   it('does so in every column of the downloaded list', () => {
-    const el = (name: string | null, id: string | null): FailingElement => ({ ifcClass: 'IfcWall', name, globalId: id, reasons: ['=why'] });
-    const s: SpecRow = { name: '=cmd', state: 'fail', kind: 'required', applicable: 2, passed: 0, failed: 2, summary: '', note: null, schemaNote: null, failures: [el('=A1', '@id'), el(null, null)] };
+    const el = (name: string | null, id: string | null): FailingElement => ({ ifcClass: 'IfcWall', name, globalId: id, reasons: ['=why'], toFix: ['+fix'], place: '@level' });
+    const s: SpecRow = { name: '=cmd', requirement: '-req', state: 'fail', kind: 'required', applicable: 2, passed: 0, failed: 2, summary: '', note: null, schemaNote: null, failures: [el('=A1', '@id'), el(null, null)] };
     const r: RunResult = { idsFile: '+a.ids', ifcFile: '-m.ifc', schema: 'IFC4', entityCount: 2, specs: [s], counts: { specifications: 1, passed: 0, failed: 1, notChecked: 0, nothingToCheck: 0 }, headline: '', verdict: 'fail', allPassed: false, seconds: 0 };
     const lines = failuresCsvParts(r).join('').split('\r\n');
-    expect(lines[1]).toBe("Element,'=cmd,'=why,IfcWall,'=A1,'@id,'-m.ifc,'+a.ids");
-    expect(lines[2]).toBe("Element,'=cmd,'=why,IfcWall,,,'-m.ifc,'+a.ids");
+    expect(lines[1]).toBe("Element,'=cmd,'-req,'=why,'+fix,IfcWall,'=A1,'@id,'@level,'-m.ifc,'+a.ids");
+    expect(lines[2]).toBe("Element,'=cmd,'-req,'=why,'+fix,IfcWall,,,'@level,'-m.ifc,'+a.ids");
   });
 });
 
