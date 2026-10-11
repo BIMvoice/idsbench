@@ -13,7 +13,10 @@ const PHASE_TEXT: Record<Phase, string> = {
   checking: 'Checking the model against the specifications...',
 };
 
-export function RunTab({ onShowInCheck }: { onShowInCheck: (ids: File) => void }) {
+/** An IDS file handed over from another tab. A new token means a new hand-over, even of a file with the same name. */
+export interface Incoming { file: File; token: number }
+
+export function RunTab({ incoming = null, onShowInCheck }: { incoming?: Incoming | null; onShowInCheck: (ids: File) => void }) {
   const [ids, setIds] = useState<File | null>(null);
   const [ifc, setIfc] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase | null>(null);
@@ -42,6 +45,13 @@ export function RunTab({ onShowInCheck }: { onShowInCheck: (ids: File) => void }
     reset();
     set(f);
   };
+
+  useEffect(() => {
+    if (!incoming) return;
+    reset();
+    setIds(incoming.file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming?.token]);
 
   const run = async () => {
     if (!ids || !ifc || current.current) return;

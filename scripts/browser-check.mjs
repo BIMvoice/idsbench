@@ -162,7 +162,7 @@ try {
   await page.goto(origin + '/');
   check('three tabs present', (await page.getByRole('tab').allTextContents()).join(',') === 'Write,Check,Run');
   await page.getByRole('tab', { name: 'Write' }).click();
-  check('Write says not built yet', (await page.locator('#panel-write').innerText()).includes('Not built yet'));
+  check('Write opens an editor (its own check is scripts/write-check.mjs)', (await page.locator('#panel-write').innerText()).includes('About this IDS'));
   await page.getByRole('tab', { name: 'Check' }).click();
   check('Check tab has its drop zone and no longer says it is not built', (await checkPanel.getByRole('button', { name: 'IDS file (.ids)' }).count()) === 1 && !(await checkPanel.innerText()).includes('Not built yet'));
   await page.getByRole('tab', { name: 'Run' }).click();

@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { CheckTab } from './CheckTab';
-import { RunTab } from './RunTab';
+import { RunTab, type Incoming } from './RunTab';
+import { WriteTab } from './write/WriteTab';
 
 const TABS = [
   { id: 'write', label: 'Write' },
@@ -13,6 +14,8 @@ export function App() {
   const [tab, setTab] = useState<TabId>('run');
   // The IDS file shown in Check. Run hands its own file over when it refuses it.
   const [checkFile, setCheckFile] = useState<File | null>(null);
+  // An IDS handed over from Write: Run takes it as if the file had been chosen.
+  const [incoming, setIncoming] = useState<Incoming | null>(null);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const onKey = (e: KeyboardEvent, i: number) => {
@@ -53,14 +56,13 @@ export function App() {
 
       <main>
         <section role="tabpanel" id="panel-write" aria-labelledby="tab-write" hidden={tab !== 'write'}>
-          <h2>Write</h2>
-          <p>Not built yet. This tab will let you create and edit an IDS file with plain forms.</p>
+          <WriteTab onUseInRun={(file) => { setIncoming((p) => ({ file, token: (p?.token ?? 0) + 1 })); setTab('run'); }} />
         </section>
         <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" hidden={tab !== 'check'}>
           <CheckTab file={checkFile} onFile={setCheckFile} />
         </section>
         <section role="tabpanel" id="panel-run" aria-labelledby="tab-run" hidden={tab !== 'run'}>
-          <RunTab onShowInCheck={(f) => { setCheckFile(f); setTab('check'); refs.current.check?.focus(); }} />
+          <RunTab incoming={incoming} onShowInCheck={(f) => { setCheckFile(f); setTab('check'); refs.current.check?.focus(); }} />
         </section>
       </main>
 

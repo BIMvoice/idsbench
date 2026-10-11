@@ -1,0 +1,171 @@
+// Guard rails, not a validator: the few things the schema forbids that a form can stop as the user types.
+// "error" means the schema forbids it and Download is switched off. "advice" is a rule from the user manual
+// that the schema does not enforce; it is shown but never blocks.
+import { translateXsdRegex } from '@ifc-lite/ids';
+import {
+  IFC_VERSIONS, allowedCardinalities, specChoice,
+  type Facet, type IdsDocument, type Specification, type Value,
+} from './model';
+import { modeOf } from './value';
+
+export interface Issue {
+  /** Where the message is shown: "info.title", "<specUid>.name", "<facetUid>.value". */
+  key: string;
+  /** Where it is in the document, in words, for the summary beside Download. */
+  where: string;
+  message: string;
+  level: 'error' | 'advice';
+}
+
+const EMAIL = /^[^@]+@[^.]+\..+$/s; // the schema's pattern for <author>, anchored as XSD patterns are
+const NUMBER = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+const NUMERIC_BASES = ['xs:double', 'xs:float', 'xs:decimal', 'xs:integer', 'xs:int', 'xs:long'];
+
+export const isEmail = (s: string) => EMAIL.test(s);
+export function isDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+}
+
+/** Null when the text is a usable XSD regular expression, otherwise a plain reason. */
+export function patternProblem(p: string): string | null {
+  if (p === '') return 'Type the pattern.';
+  try {
+    const t = translateXsdRegex(p);
+    new RegExp(t.pattern, 'u');
+    if (!t.supported) return 'This pattern uses a feature that idsbench cannot check. Simplify it.';
+    return null;
+  } catch {
+    return 'This is not a valid pattern. Check the brackets and the special characters.';
+  }
+}
+
+/** Problems with one value, as [message] list. `required` means an empty simple value is not allowed. */
+export function valueProblems(v: Value | null, required: boolean): string[] {
+  if (v === null) return required ? ['Fill this in.'] : [];
+  if (v.kind === 'simple') return required && v.value.trim() === '' ? ['Fill this in.'] : [];
+  const out: string[] = [];
+  if (v.facets.length === 0) return ['Say how to match: add a value, a pattern, a range or a length.'];
+  switch (modeOf(v)) {
+    case 'list': {
+      if (v.facets.length === 0) out.push('Add at least one value to the list.');
+      else if (v.facets.some((f) => f.value.trim() === '')) out.push('A value in the list is empty.');
+      break;
+    }
+    case 'pattern': {
+      const p = patternProblem(v.facets[0].value);
+      if (p) out.push(p);
+      break;
+    }
+    case 'range': {
+      const numeric = v.base === null || NUMERIC_BASES.includes(v.base);
+      const get = (n: string) => v.facets.find((f) => f.name === n);
+      const lo = get('minInclusive') ?? get('minExclusive');
+      const hi = get('maxInclusive') ?? get('maxExclusive');
+      if (!lo && !hi) { out.push('Give a lowest or a highest value.'); break; }
+      if ([lo, hi].some((f) => f && f.value.trim() === '')) { out.push('Fill in the number, or remove that end of the range.'); break; }
+      if (numeric && [lo, hi].some((f) => f && !NUMBER.test(f.value.trim()))) { out.push('A range needs numbers, for example 2.5.'); break; }
+      if (numeric && lo && hi) {
+        const a = Number(lo.value), b = Number(hi.value);
+        const open = lo.name === 'minExclusive' || hi.name === 'maxExclusive';
+        if (a > b) out.push('The lowest value is higher than the highest value.');
+        else if (a === b && open) out.push('No number fits between these two ends.');
+      }
+      break;
+    }
+    case 'length': {
+      const n = (name: string) => v.facets.find((f) => f.name === name)?.value.trim();
+      const vals = ['length', 'minLength', 'maxLength'].map(n);
+      if (vals.every((x) => x === undefined)) { out.push('Give a length.'); break; }
+      if (vals.some((x) => x !== undefined && !/^\d+$/.test(x))) { out.push('A length is a whole number, 0 or more.'); break; }
+      const [ex, mn, mx] = vals.map((x) => (x === undefined ? null : Number(x)));
+      if (mn !== null && mx !== null && mn > mx) out.push('The shortest length is longer than the longest.');
+      if (ex !== null && ((mn !== null && ex < mn) || (mx !== null && ex > mx))) out.push('The exact length does not fit the shortest and longest.');
+      break;
+    }
+    default:
+      break; // 'other' restrictions are kept as they are; the Check tab judges them
+  }
+  return out;
+}
+
+export function checkDocument(doc: IdsDocument): Issue[] {
+  const out: Issue[] = [];
+  const add = (key: string, where: string, message: string, level: Issue['level'] = 'error') => out.push({ key, where, message, level });
+
+  if (doc.info.title.trim() === '') add('info.title', 'About this IDS', 'Give the IDS a title.');
+  if (doc.info.author !== '' && !isEmail(doc.info.author)) {
+    add('info.author', 'About this IDS', 'This does not look like an email address, for example name@company.com.');
+  }
+  if (doc.info.date !== '' && !isDate(doc.info.date)) add('info.date', 'About this IDS', 'Use the form 2026-03-31.');
+  if (doc.specifications.length === 0) add('specs', 'Specifications', 'Add at least one specification.');
+
+  doc.specifications.forEach((s, i) => checkSpec(s, `Specification ${i + 1}`, add));
+  return out;
+}
+
+type Add = (key: string, where: string, message: string, level?: Issue['level']) => void;
+
+function checkSpec(s: Specification, label: string, add: Add) {
+  const where = s.name.trim() ? `${label} "${s.name.trim()}"` : label;
+  if (s.name.trim() === '') add(`${s.uid}.name`, where, 'Give the specification a name.');
+  const unknown = s.ifcVersion.filter((v) => !(IFC_VERSIONS as readonly string[]).includes(v));
+  if (s.ifcVersion.length === 0) add(`${s.uid}.ifcVersion`, where, 'Choose at least one IFC version.');
+  else if (unknown.length) add(`${s.uid}.ifcVersion`, where, `The IFC version ${unknown.join(', ')} is not one IDS 1.0 allows.`);
+  if (s.applicability.length === 0) add(`${s.uid}.applicability`, `${where}, Applies to`, 'Say what this applies to: add at least one item.');
+  if (s.applicability.filter((f) => f.kind === 'entity').length > 1) {
+    add(`${s.uid}.applicability`, `${where}, Applies to`, 'Only one "Type of element" is allowed here. Use a list of types in one item instead.');
+  }
+  if (specChoice(s) === 'prohibited' && s.requirements.length > 0) {
+    add(`${s.uid}.requirements`, `${where}, Must have`, 'Elements that are prohibited are not checked against "Must have", so these items are ignored.', 'advice');
+  }
+  s.applicability.forEach((f, i) => checkFacet(f, false, `${where}, Applies to, item ${i + 1}`, add));
+  s.requirements.forEach((f, i) => checkFacet(f, true, `${where}, Must have, item ${i + 1}`, add));
+}
+
+function checkFacet(f: Facet, requirement: boolean, where: string, add: Add) {
+  const field = (name: string, v: Value | null, required: boolean) => {
+    for (const m of valueProblems(v, required)) add(`${f.uid}.${name}`, where, m);
+  };
+  const caps = (name: string, v: Value | null) => {
+    if (v?.kind === 'simple' && v.value !== '' && v.value !== v.value.toUpperCase()) {
+      add(`${f.uid}.${name}`, where, 'IFC names are written in capitals, like IFCWALL. A name in other letters will match nothing.', 'advice');
+    }
+  };
+  switch (f.kind) {
+    case 'entity':
+      field('name', f.name, true); caps('name', f.name); field('predefinedType', f.predefinedType, false); caps('predefinedType', f.predefinedType);
+      break;
+    case 'partOf':
+      field('entity', f.entity.name, true); caps('entity', f.entity.name);
+      break;
+    case 'attribute':
+      field('name', f.name, true); field('value', f.value, false);
+      break;
+    case 'classification':
+      field('system', f.system, true); field('value', f.value, false);
+      break;
+    case 'material':
+      field('value', f.value, false);
+      break;
+    case 'property':
+      field('propertySet', f.propertySet, true); field('baseName', f.baseName, true); field('value', f.value, false);
+      if (f.dataType !== null && !/^[A-Z]+$/.test(f.dataType)) add(`${f.uid}.dataType`, where, 'A data type is written in capitals, like IFCLABEL.');
+      if (f.value !== null && !f.dataType) {
+        add(`${f.uid}.dataType`, where, 'When you give a value, the manual asks for the data type too (for example IFCLABEL).', 'advice');
+      }
+      break;
+  }
+  if (!requirement || f.kind === 'entity') return;
+  const allowed = allowedCardinalities(f.kind) ?? [];
+  if (!allowed.includes(f.cardinality)) add(`${f.uid}.cardinality`, where, 'This choice is not allowed for this kind of item.');
+  const hasValue = f.kind === 'partOf' ? true : f.kind === 'property' ? f.value !== null || !!f.dataType : f.value !== null;
+  if (f.cardinality === 'optional' && !hasValue) {
+    add(`${f.uid}.cardinality`, where, 'Optional only means something when you also say what the value must be.', 'advice');
+  }
+  if (f.kind === 'property' && f.cardinality === 'prohibited' && (f.value !== null || f.dataType)) {
+    add(`${f.uid}.cardinality`, where, 'To prohibit a property, name it without a value or data type.', 'advice');
+  }
+}

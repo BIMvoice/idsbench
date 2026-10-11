@@ -67,6 +67,7 @@ export type ErrorKind =
   | 'ids-rejected'
   | 'ids-is-ifc'
   | 'ids-namespace'
+  | 'ids-old-version'
   | 'ids-invalid'
   | 'ids-unusable'
   | 'ids-no-specifications'

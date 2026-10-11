@@ -2,30 +2,13 @@ import type { CheckResult, Finding } from './types.ts';
 import { parseTree } from './xml.ts';
 import { validateAgainstXsd } from './xsd.ts';
 import { runRules } from './rules.ts';
+import { versionProblem } from './version.ts';
 
 export type { CheckResult, Finding } from './types.ts';
 
 const NS = 'http://standards.buildingsmart.org/IDS';
-/** The only schema location idsbench accepts. */
-const LOCATION_1_0 = `${NS} ${NS}/1.0/ids.xsd`;
 
-/** The IDS version a schema location names, for example `0.9.7` or `1.1`; undefined when it names none. */
-export function declaredVersion(location: string): string | undefined {
-  const dir = /\/IDS\/(\d+(?:\.\d+)*)\/ids\.xsd/i.exec(location);
-  if (dir) return dir[1];
-  const file = /ids_(\d)(\d)(\d)?\.xsd/i.exec(location); // old drafts: ids_09.xsd
-  return file ? [file[1], file[2], file[3]].filter(Boolean).join('.') : undefined;
-}
-
-/** True when `a` is a later version than `b` (numeric, part by part). */
-function isLater(a: string, b: string): boolean {
-  const x = a.split('.').map(Number), y = b.split('.').map(Number);
-  for (let i = 0; i < Math.max(x.length, y.length); i++) {
-    const d = (x[i] ?? 0) - (y[i] ?? 0);
-    if (d !== 0) return d > 0;
-  }
-  return false;
-}
+export { declaredVersion, versionProblem, LOCATION_1_0 } from './version.ts';
 
 /**
  * Checks an IDS file (as text) against the official IDS schema and the additional rules of the buildingSMART
@@ -62,20 +45,10 @@ export async function checkIds(input: string): Promise<CheckResult> {
   }
   const location = root.attrs['schemaLocation'] ?? '';
   const where = { line: root.line || undefined, column: root.column || undefined, path: 'ids' };
-  if (location !== LOCATION_1_0) {
-    const named = declaredVersion(location);
-    let message: string;
-    if (named && named !== '1.0') {
-      message = `This file is IDS ${named}. idsbench works with IDS 1.0 only. ${
-        isLater(named, '1.0') ? 'Save the file as IDS 1.0' : 'Update the file to version 1.0'
-      } and check it again.`;
-    } else if (location) {
-      message = `The schema location '${location}' is not the IDS 1.0 location; use xsi:schemaLocation="${LOCATION_1_0}".`;
-    } else {
-      message = `The <ids> element has no xsi:schemaLocation, so the IDS version is unknown; add xsi:schemaLocation="${LOCATION_1_0}".`;
-    }
-    findings.push({ severity: 'error', code: 'ids-version-unsupported', message, ...where });
-    return finish(named);
+  const problem = versionProblem(location);
+  if (problem) {
+    findings.push({ severity: 'error', code: 'ids-version-unsupported', message: problem.message, ...where });
+    return finish(problem.named);
   }
   const version = '1.0';
 
