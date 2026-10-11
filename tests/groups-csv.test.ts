@@ -82,8 +82,13 @@ describe('the page report', () => {
   const check = { kind: 'report' as const, headline: 'h', valid: true, errors: 0, warnings: 0, version: '1.0', findings: [] };
   it('is valid JSON without a run', () => {
     const j = JSON.parse(pageReportParts('a.ids', false, check, null).join(''));
-    expect(j).toEqual({ idsFile: 'a.ids', edited: false, ids: null, model: null, check: { valid: true, idsVersion: '1.0', errors: 0, warnings: 0, findings: [] }, run: null });
+    expect(j).toEqual({ idsFile: 'a.ids', edited: false, writingAgainLeavesOut: [], ids: null, model: null, check: { valid: true, idsVersion: '1.0', errors: 0, warnings: 0, findings: [] }, run: null });
     expect(pageReportName('a.ids', null)).toBe('a-check-report.json');
+  });
+  it('lists, part by part, what writing the changed parts again leaves out of the opened file', () => {
+    const leaves = [{ part: 2 as const, name: 'Walls', items: ['2 comments', 'the attribute fixed on a list value'] }, { part: 'info' as const, name: 'About this IDS', items: ['1 comment'] }];
+    const j = JSON.parse(pageReportParts('a.ids', true, check, null, null, null, leaves).join(''));
+    expect(j.writingAgainLeavesOut).toEqual(leaves);
   });
   it('is valid JSON with a run and holds every failing element', () => {
     const r = result([spec('S', failures), spec('T', [])]);

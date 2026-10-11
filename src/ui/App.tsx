@@ -83,7 +83,7 @@ export function App() {
     const edited = !page.asOpened && page.dirty;
     const ids = { name: idsName, bytes: blob.size, sha256: await sha256Of(blob) };
     const ran = result && model ? { name: model.name, bytes: model.size, sha256: await sha256Of(model) } : null;
-    guarded('The report', () => saveFile(pageReportParts(idsName, edited, report, result, ids, ran), pageReportName(idsName, result), 'application/json'));
+    guarded('The report', () => saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : []), pageReportName(idsName, result), 'application/json'));
   };
   const downloadCsv = () => {
     if (result) guarded('The list', () => saveFile(failuresCsvParts(result), failuresCsvName(result.ifcFile), 'text/csv;charset=utf-8'));

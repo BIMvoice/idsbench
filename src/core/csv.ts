@@ -60,6 +60,22 @@ export function failuresCsvParts(result: RunResult): BlobPart[] {
   return parts;
 }
 
+/** A CSV text as rows of cells (quoted cells may hold commas, quotes and line breaks); the byte order mark is skipped. */
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], cell = '', quoted = false;
+  const b = text.replace(/^\ufeff/, '');
+  for (let i = 0; i < b.length; i++) {
+    const c = b[i];
+    if (quoted) { if (c === '"' && b[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') quoted = false; else cell += c; }
+    else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\r' && b[i + 1] === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; i++; }
+    else cell += c;
+  }
+  return rows;
+}
+
 export function failuresCsvName(ifcName: string): string {
   return `${ifcName.replace(/\.ifc$/i, '') || 'model'}-failing-elements.csv`;
 }

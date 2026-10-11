@@ -10,7 +10,8 @@
 // The cut is made on the text and then proved against the XML reader before it is used (see keepSource): if the proof
 // fails, there is no Kept, and the caller writes the whole document with writeIds as before.
 import { IDS_NS, type IdsDocument, type Info, type Specification } from './model';
-import { readIdsText, type XmlEnv } from './read';
+import { browserEnv, readIdsText, type XmlEnv } from './read';
+import { lostBetween, lostBetweenDocuments, rootStartTag, wrap, type LostItem } from './lost';
 import { infoText, specificationText, writeIds, type Style } from './write';
 
 const XS_NS = 'http://www.w3.org/2001/XMLSchema';
@@ -162,25 +163,72 @@ export interface Written {
   infoCommentsLost: boolean;
   /** True when nothing of the opened text was kept: the whole document was written in idsbench's own layout. */
   whole: boolean;
+  /** For each part written anew: what its rewrite leaves out of the opened file (comments included). Parts that lose nothing are not listed. */
+  lost: LostPart[];
 }
 
 const HAS_COMMENT = /<!--|<\?/;
 
+/** A part of the file that is written again, and what that leaves out of it. */
+export interface LostPart {
+  /** 'info' for the About this IDS section, else the specification's place in the file (from 1). */
+  part: 'info' | number;
+  name: string;
+  items: LostItem[];
+}
+
+const lostOfSpec = new WeakMap<KeptSpec, LostItem[]>();
+/** What writing this specification again leaves out: its XML as the file has it against the XML written for the same content. */
+function specLoss(k: Kept, from: KeptSpec, env: XmlEnv): LostItem[] {
+  let items = lostOfSpec.get(from);
+  if (!items) {
+    const root = rootStartTag(k.before);
+    const original = { ...JSON.parse(from.key), uid: from.uid } as Specification;
+    items = root ? lostBetween(wrap(root, from.body), wrap(root, lines(specificationText(original, k.style), k.newline)), env) : [];
+    lostOfSpec.set(from, items);
+  }
+  return items;
+}
+const lostOfInfo = new WeakMap<Kept, LostItem[]>();
+function infoLoss(k: Kept, env: XmlEnv): LostItem[] {
+  let items = lostOfInfo.get(k);
+  if (!items) {
+    const root = rootStartTag(k.before);
+    const [title, copyright, version, description, author, date, purpose, milestone] = JSON.parse(k.infoKey) as string[];
+    const original: Info = { title, copyright, version, description, author, date, purpose, milestone };
+    items = root ? lostBetween(wrap(root, k.info), wrap(root, lines(infoText(original, k.style), k.newline)), env) : [];
+    lostOfInfo.set(k, items);
+  }
+  return items;
+}
+
 /** The document as text: the opened file's own characters wherever the document still says what the file said. */
-export function writeKept(k: Kept, doc: IdsDocument): Written {
-  if (doc.rewrite === 'all') return { text: writeIds(doc), commentsLost: [], infoCommentsLost: false, whole: true };
+export function writeKept(k: Kept, doc: IdsDocument, xml?: XmlEnv): Written {
+  // Without an XML reader (Node, when none is given) what is left out cannot be worked out, and is not claimed to be nothing: `lost` is then empty and the comments are still found.
+  const env = xml ?? (typeof DOMParser !== 'undefined' ? browserEnv : null);
+  if (doc.rewrite === 'all') return { text: writeIds(doc), commentsLost: [], infoCommentsLost: false, whole: true, lost: [] };
   const byUid = new Map(k.specs.map((s) => [s.uid, s]));
   const plainLead = k.specs.find((s) => s.lead.trim() === '')?.lead ?? `${k.newline}${k.style.unit.repeat(2)}`;
   const commentsLost: string[] = [];
-  const parts = doc.specifications.map((s) => {
+  const lost: LostPart[] = [];
+  const parts = doc.specifications.map((s, i) => {
     const from = byUid.get(s.uid);
     if (!from) return { lead: plainLead, body: s };
     if (from.key === contentKey(s) && !s.rewrite) return { lead: from.lead, body: from.body };
     if (HAS_COMMENT.test(from.body)) commentsLost.push(s.name || from.name);
+    const items = env ? specLoss(k, from, env) : [];
+    if (items.length) lost.push({ part: i + 1, name: s.name || from.name, items });
     return { lead: from.lead, body: s };
   });
   const infoChanged = doc.rewrite === 'info' || infoKeyOf(doc.info) !== k.infoKey;
-  return { text: assemble(k, doc.info, parts, infoChanged), commentsLost, infoCommentsLost: infoChanged && HAS_COMMENT.test(k.info), whole: false };
+  const infoItems = infoChanged && env ? infoLoss(k, env) : [];
+  if (infoItems.length) lost.unshift({ part: 'info', name: 'About this IDS', items: infoItems });
+  return { text: assemble(k, doc.info, parts, infoChanged), commentsLost, infoCommentsLost: infoChanged && HAS_COMMENT.test(k.info), whole: false, lost };
+}
+
+/** What writing the whole opened text again (writeIds) leaves out of it, comments before the root element included. */
+export function wholeLoss(text: string, doc: IdsDocument, env: XmlEnv = browserEnv): LostItem[] {
+  return lostBetweenDocuments(text, writeIds(doc), env);
 }
 
 /** What a whole rewrite of an opened text (writeIds) leaves out that a reader of the file would miss: its comments. */

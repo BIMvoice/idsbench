@@ -21,10 +21,12 @@ export async function sha256Of(blob: Blob): Promise<string | null> {
  * `ids` and `model` say exactly which bytes were judged, so that a report cannot be taken for the report of another
  * file with the same name: `ids` is the text that was checked (and run), `model` the model file, null without one.
  */
-export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null): BlobPart[] {
+export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null, leftOut: { part: 'info' | 'file' | number; name: string; items: string[] }[] = []): BlobPart[] {
   const head = JSON.stringify({
     idsFile,
     edited,
+    /** What Download leaves out of the opened file when it writes a changed part again, part by part (empty when it leaves nothing out). */
+    writingAgainLeavesOut: leftOut,
     ids,
     model,
     check: { valid: check.valid, idsVersion: check.version, errors: check.errors, warnings: check.warnings, findings: check.findings },

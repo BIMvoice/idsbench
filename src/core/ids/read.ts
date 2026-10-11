@@ -8,7 +8,7 @@ import {
 
 /** The one way a file enters the editor: text in, a model out, or an AppError whose message is fit to show. */
 export interface XmlEnv { parse: (xml: string) => Document; serialize: (node: Node) => string }
-const browserEnv: XmlEnv = { parse: browserParse, serialize: (n) => new XMLSerializer().serializeToString(n) };
+export const browserEnv: XmlEnv = { parse: browserParse, serialize: (n) => new XMLSerializer().serializeToString(n) };
 
 export function readIdsText(text: string, env: XmlEnv = browserEnv): IdsDocument {
   const t = text.replace(/^﻿/, '');

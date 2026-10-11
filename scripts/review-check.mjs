@@ -178,7 +178,7 @@ try {
   await nameField.fill('Walls are named Wilma, all of them');
   await page.locator('#ids-status .unsaved').waitFor();
   const note = await page.locator('#save-note').innerText();
-  check('a change to a specification that holds a comment says, before Download, that this comment is not kept and that the rest of the file is', /^The comments inside "Walls are named Wilma, all of them" are not kept, because that part was changed and is written again\. The rest of the file is saved as it was opened\.$/.test(note), note);
+  check('a change to a specification that holds a comment says, before Download, that writing it again leaves out that comment and that the rest of the file is kept', /^Writing specification 2 \("Walls are named Wilma, all of them"\) again will leave out: 1 comment\. The rest of the file is saved as it was opened\.$/.test(note), note);
   await validStamp.waitFor({ timeout: 20000 });
   const edited = await download('Download .ids', 'review-edited.ids');
   const from = original.indexOf('    <specification name="Walls are named Wilma"'), to = original.indexOf('    <!-- kept: above specification 3 -->');

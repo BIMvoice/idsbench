@@ -4,7 +4,7 @@
 // Usage: npx vite-node scripts/handover.ts <TestCases dir>
 import fs from 'node:fs';
 import path from 'node:path';
-import { CSV_COLUMNS, ROW_KINDS, failureCount, failuresCsvParts, wholeFailureCount } from '../src/core/csv';
+import { CSV_COLUMNS, ROW_KINDS, failureCount, failuresCsvParts, parseCsv, wholeFailureCount } from '../src/core/csv';
 import { reportParts } from '../src/core/format';
 import { groupFailures } from '../src/core/groups';
 import { prepareIds } from '../src/core/prepare';
@@ -15,22 +15,6 @@ if (!root) throw new Error('usage: handover.ts <TestCases dir>');
 const original = { log: console.log, warn: console.warn, error: console.error, info: console.info };
 const mute = () => { console.log = console.warn = console.error = console.info = () => {}; };
 const unmute = () => { Object.assign(console, original); };
-
-/** A CSV text as rows of cells (quoted cells may hold commas, quotes and line breaks). */
-export function csvRows(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [], cell = '', quoted = false;
-  const b = text.replace(/^﻿/, '');
-  for (let i = 0; i < b.length; i++) {
-    const c = b[i];
-    if (quoted) { if (c === '"' && b[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') quoted = false; else cell += c; }
-    else if (c === '"') quoted = true;
-    else if (c === ',') { row.push(cell); cell = ''; }
-    else if (c === '\r' && b[i + 1] === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; i++; }
-    else cell += c;
-  }
-  return rows;
-}
 
 const files: string[] = [];
 const walk = (d: string) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else if (/^(pass|fail)-.*\.ids$/.test(f.name)) files.push(p); } };
@@ -52,7 +36,7 @@ for (const idsPath of files) {
   unmute();
   pairs++;
   if (r.verdict === 'fail') failPairs++;
-  const rows = csvRows(await new Blob(failuresCsvParts(r)).text());
+  const rows = parseCsv(await new Blob(failuresCsvParts(r)).text());
   const where = path.relative(root, idsPath);
   if (rows[0].join(',') !== CSV_COLUMNS.join(',')) wrong.push(`${where}: header`);
   if (rows.some((x) => x.length !== CSV_COLUMNS.length)) wrong.push(`${where}: a row with another number of cells`);

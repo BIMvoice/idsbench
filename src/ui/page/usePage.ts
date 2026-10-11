@@ -12,7 +12,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Finding } from '@idsbench/check';
 import { chooseDropped, type DroppedKind } from '../../core/align';
 import { checkText, readForCheck, type CheckView } from '../../core/checkview';
-import { keepSource, rewriteLosesComments, sameContent, writeKept, type Kept } from '../../core/ids/keep';
+import { keepSource, sameContent, wholeLoss, writeKept, type Kept, type LostPart } from '../../core/ids/keep';
+import { leftOutSentence, sayLost, type LeftOut, type LostItem } from '../../core/ids/lost';
 import { AppError, UNEXPECTED } from '../../core/errors';
 import { EXAMPLE_IDS, EXAMPLE_IDS_NAME, EXAMPLE_IFC, EXAMPLE_IFC_NAME } from '../../core/example';
 import { checkDocument, type Issue } from '../../core/ids/check';
@@ -107,7 +108,7 @@ export function usePage() {
   const [saveProblem, setSaveProblem] = useState<string | null>(null);
 
   const kept = source?.kept ?? null;
-  const written = useMemo(() => (doc ? (kept ? writeKept(kept, doc) : { text: writeIds(doc), commentsLost: [], infoCommentsLost: false, whole: true }) : null), [doc, kept]);
+  const written = useMemo(() => (doc ? (kept ? writeKept(kept, doc) : { text: writeIds(doc), commentsLost: [], infoCommentsLost: false, whole: true, lost: [] }) : null), [doc, kept]);
   const xml = written?.text ?? null;
   const dirty = xml !== null && xml !== savedXml;
   /** True while the page shows a file exactly as it was opened. */
@@ -383,16 +384,29 @@ export function usePage() {
   /** The bytes of the IDS as it is checked and run now: the opened file itself, or the document as Download would save it. */
   const idsBlob = (): Blob | null => (text === null ? null : asOpened && source ? source.file : new Blob([source?.bom ? BOM + text : text]));
 
+  /** What writing the whole file again would leave out, when Download has to write it in full: found once per opened file. */
+  const wholeLost: LostItem[] = useMemo(() => {
+    if (!dirty || !source || !doc || (kept && !written?.whole)) return [];
+    try { return wholeLoss(source.text, readIdsText(source.text)); } catch { return []; }
+  }, [dirty, source, kept, written?.whole]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** What Download leaves out of the opened file, part by part: the same list is in the note and in the report. */
+  const leftOut: LeftOut[] = useMemo(() => {
+    if (!dirty || !source || !written) return [];
+    if (!kept || written.whole) return wholeLost.length ? [{ part: 'file', name: source.name, items: wholeLost.map((i) => i.phrase) }] : [];
+    return written.lost.map((l: LostPart) => ({ part: l.part, name: l.name, items: l.items.map((i) => i.phrase) }));
+  }, [dirty, source, written, kept, wholeLost]);
+
   /** What Download will not keep of the opened file, in words; null when it keeps everything. */
   const saveNote: string | null = !dirty || !source || !written ? null
-    : !kept || written.whole ? `Download writes this file again in full, in idsbench's own layout${rewriteLosesComments(source.text) ? ', and the comments in it are not kept' : ''}. What it says stays the same.`
-    : written.commentsLost.length > 0 || written.infoCommentsLost
-      ? `The comments inside ${[...(written.infoCommentsLost ? ['"About this IDS"'] : []), ...written.commentsLost.map((n) => `"${n}"`)].join(', ')} are not kept, because that part was changed and is written again. The rest of the file is saved as it was opened.`
+    : !kept || written.whole ? `Download writes this file again in full, in idsbench's own layout.${leftOut.length ? ` Writing it again will leave out: ${sayLost(wholeLost)}.` : ''} What it says stays the same.`
+    : leftOut.length > 0
+      ? `${leftOut.map(leftOutSentence).join(' ')} The rest of the file is saved as it was opened.`
       : null;
 
   return {
     doc, source, unreadable, name, dirty, asOpened, blank, text, xml, model, refusal, opening,
-    notice, clearNotice: () => setNotice(null), draftKept, saveNote,
+    notice, clearNotice: () => setNotice(null), draftKept, saveNote, leftOut,
     check, report, valid, checking: text !== null && !blank && check === null,
     run, running, phase, runnable,
     placed, targets, issues, guardErrors, lines,
