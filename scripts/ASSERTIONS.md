@@ -12,7 +12,7 @@ The tabbed app had two browser scripts: `scripts/browser-check.mjs` with 121 ass
 | write-check (51) | 44 | 4 | 3 | 51 |
 | both | 124 | 35 | 13 | 172 |
 
-The scripts now hold 149 assertions (browser-check) and 66 (write-check), 215 in all. 66 of them are new: they are not named in the tables below and are listed at the end.
+The scripts now hold 150 assertions (browser-check) and 66 (write-check), 216 in all. 67 of them are new: they are not named in the tables below and are listed at the end. A third script, `scripts/review-check.mjs`, holds 55 more; they are listed last.
 
 Several old assertions can point at one new one (two tabs asserted the same thing about the same file), which is why the numbers of kept and replaced do not add up to the number of assertions that carry them.
 
@@ -200,7 +200,7 @@ Several old assertions can point at one new one (two tabs asserted the same thin
 
 ## New assertions
 
-In `scripts/browser-check.mjs` (48):
+In `scripts/browser-check.mjs` (49):
 
 - one page: no tabs
 - empty page says what to do next in one line
@@ -245,7 +245,8 @@ In `scripts/browser-check.mjs` (48):
 - deleting a specification with a result on screen: no dialog, the row goes, the result is made again for the seven left, and Undo is offered
 - Undo puts the deleted specification back where it was
 - opening another IDS file over unsaved changes asks first
-- ...and the engine's own suggestion is offered as a one-press fix
+- a name one letter away from a real one: the engine's suggestion is in the sentence, and no button applies the guess
+- ...and the engine's own suggestion is offered as a one-press fix (now asserted for a class written in other letters, IfcWall for IFCWALL; it was asserted for IFCWALLL, which is a guess and is no longer one press)
 - after the fix the file is valid, Download .ids works, and the saved file is one the engine accepts
 - scale: the group says the full count, not the number listed
 - scale: the CSV holds every failing element, not only the 200 on the page
@@ -271,3 +272,67 @@ In `scripts/write-check.mjs` (18):
 - Enter opens the list of patterns with focus on the first
 - Tab reaches "An empty specification"
 - the pick-list is worked with the keyboard alone: type, Enter
+
+Three assertions of `scripts/browser-check.mjs` changed what they expect, because the page changed:
+
+- "a one-press fix is offered on the line, beside Fix" and "the fix can be undone": the button says how many items it removes ("Remove the 1 "Must have" item").
+- "once it is edited the position is in the file as it will be saved, and the record says so": only the changed specification is written anew, so the finding is on line 4 of the saved text, not on a line of a file rewritten in full. The assertion now also reads the marked line of the excerpt and checks it is the line the position names.
+- "an unedited file is run from the opened file itself": the page reads the opened file as bytes (to honour its encoding), so whole reads as bytes are counted with whole reads as text.
+
+## scripts/review-check.mjs (55, all new)
+
+- each of the 319 valid official IDS files, opened and not changed, is downloaded byte for byte as it was opened
+- a change to a specification that holds a comment says, before Download, that this comment is not kept and that the rest of the file is
+- one change to one specification: every character before and after that specification is the opened file's own
+- ...the comments at the top, above each specification and in the untouched ones are still there, and the engine accepts the file
+- after the download the page shows the saved file: no unsaved changes, no note
+- a change typed back: the page shows the opened file again, with no unsaved mark and no note
+- ...and Download gives the opened file byte for byte
+- a file with a byte order mark and CRLF line ends keeps both after a change, in the changed specification too
+- an attribute and an element the standard does not know: the fix offered is to write that specification again
+- ...one press makes the file valid, it can be undone, and the saved file is one the engine accepts
+- a file written in ISO-8859-1 is read in that encoding: its letters are on the page, the run compares them with the model's, and the page says a change is saved as UTF-8
+- ...not changed, it is downloaded as its own bytes
+- ...changed, it is saved as UTF-8 and says so in its first line, with every letter intact
+- a file that says UTF-8 and is not: refused with the reason, never opened with letters replaced
+- Undo is withdrawn once something is typed after the one-press change, so it cannot take that typing with it
+- three specifications, two walls named Waldo: Pass, Fail, Pass, each row with the state of its own specification
+- moving a specification: the result follows the specification, not the place
+- ...and the saved file holds the specifications in the new order, each with the comment written above it, and nothing rewritten
+- deleting the specification whose failing elements are open: its result goes with it and the two left keep theirs
+- while typing, the row being edited shows no result and the stamp is not a verdict of the older text
+- quick typing in several fields: the result that appears is of the last text (the first specification now fails)
+- replacing the model during a run: the result that appears is of the second model, named in the record
+- replacing the IDS file during a run: only the result of the second file appears
+- closing and loading the example during a run: the result is the example's, under the example's names
+- a large model (36 MB when measured), the IDS edited while it is being read: the one result that appears is of the edited text and that model
+- the large model replaced by a small one during its run: the small model's result appears and is not overwritten when the large one would have finished
+- an edit that makes the IDS file not valid with a model loaded: no Pass or Fail stays on the page, every row waits, and nothing is run
+- ...and made valid again: the model is run again by itself, without being chosen again
+- reloading in the middle of a change with a model loaded: the change is back, and the page says the model has to be chosen again, by name
+- storage holds the draft and nothing else
+- ...and the file downloaded after the reload still holds everything outside the changed specification as it was opened, comments and all
+- choosing the model again after the reload gives its result
+- a stored draft that is cut off: the page loads, says the changes could not be restored, and works
+- a stored draft that is of another shape (a specification without its lists): the page loads, says the changes could not be restored, and works
+- a stored draft that is with a value that is not a value: the page loads, says the changes could not be restored, and works
+- a draft stored by the build before this one (without the opened text) is restored
+- New and Close over unsaved changes each ask first, and answering no keeps the work
+- both files dropped at once, the model first or the IDS file first: the same result
+- two IDS files dropped at once: the first is opened and the page says by name that the other was not
+- an IDS file and two models dropped at once: the first model is checked and the second is named as not taken
+- the same file chosen twice: no question, no change, still not marked unsaved
+- a 0-byte file is refused with the reason and the document on the page stays
+- a 300 MB file given as the IDS file is refused in words without being read, and the document on the page stays
+- the report states which IDS file and which model it describes: name, size in bytes and SHA-256 of each, equal to those of the files on disk
+- ...and for a changed document the hash in the report is the hash of the file Download then saves
+- CSV: a name that a spreadsheet would run as a formula (=, +, -, @) is written with an apostrophe in front; other names, long ones and letters outside ASCII are as in the model; an element with no name and no GlobalId has empty cells
+- six walls that fail one requirement, each with a name of its own, are one group with the reason said once and each wall's own value in its row; the wall with no name is a group of its own; the counts add up to the seven that failed
+- a required specification that matches nothing: Fail, and the page does not say "Nothing failed"
+- J1 by keyboard alone: open the IDS file, choose the model, download the failing elements
+- J2 by keyboard alone: open a file that is not valid, apply the fix, download a file the engine accepts
+- J2 by keyboard alone, no one-press fix: Fix puts the keyboard in the class field, typing "wall" and Enter corrects it, and the download is valid
+- J3 by keyboard alone: New, a title, two specifications from patterns, download a file the engine accepts
+- at no moment of this script did the page show a result of another text, of another model, or a row with another specification's state
+- no request to anywhere but the local server
+- no uncaught page errors
