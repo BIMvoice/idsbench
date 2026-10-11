@@ -28,7 +28,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && npm test -w @idsbench/check",
-    "truth": "vite-node scripts/truth.ts"
+    "truth": "vite-node scripts/truth.ts",
+    "check:browser": "node scripts/check-browser.mjs"
   },
   "workspaces": [
     "packages/*"

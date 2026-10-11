@@ -499,6 +499,86 @@ try {
   console.log(`LARGE IDS (2000 specifications, ${fs.statSync(bigSpecs).size} bytes): ${bigSeconds.toFixed(2)} s from choosing the file to the headline; longest freeze of the page ${blockedMs.toFixed(0)} ms; "Checking the IDS file..." seen while it ran: ${sawWorking}`);
   check('large IDS (2,000 specifications): valid, and the page stayed responsive (no freeze over 500 ms)', (await checkPanel.locator('.headline').innerText()) === 'This IDS file is valid.' && blockedMs < 500, `${bigSeconds.toFixed(2)} s, longest freeze ${blockedMs.toFixed(0)} ms`);
 
+  // ---- the three tabs together: Write -> Run, Write -> Check, Run -> Check, in one session ------------------------
+  const wr = page.locator('#panel-write');
+  const wrFile = wr.locator('input[type=file]');
+  const wrName = () => wr.locator('#write-status .file-name').innerText();
+  const wrStatus = () => wr.locator('#write-status').innerText();
+  const tabOn = async (name) => (await page.getByRole('tab', { name }).getAttribute('aria-selected')) === 'true';
+  const deliveredWithin = async (ms) => { const p = page.waitForEvent('download', { timeout: ms }).then(() => true, () => false); return p; };
+  await page.goto(origin + '/');
+  await page.getByRole('tab', { name: 'Write' }).click();
+  await wrFile.setInputFiles(goodIds);
+  await wr.locator('#write-status .file-name', { hasText: 'walls-named-waldo.ids' }).waitFor();
+  await wr.getByLabel('Title').fill('Edited in Write');
+  check('integration: an opened file edited in Write is unsaved', (await wrStatus()).includes('unsaved changes'));
+  await wr.getByRole('button', { name: 'Use this IDS in Run' }).click();
+  await page.getByRole('tab', { name: 'Run', selected: true }).waitFor({ timeout: 60000 });
+  check('integration: Write -> Use this IDS in Run switches to Run with the file in the IDS box', (await run.locator('.drop-detail').first().innerText()).includes('walls-named-waldo.ids'));
+  await run.locator('input[type=file]').nth(1).setInputFiles(goodIfc);
+  await runButton.click();
+  await settled();
+  check('integration: the file from Write passes Run\'s Check gate and gives a result', (await run.locator('.headline').innerText()) === 'The one specification passed.' && (await run.locator('.results').locator('xpath=preceding-sibling::p[1]').innerText()) === 'The IDS file was checked first and is valid.');
+  // A dropped file replaces the handed one: nothing of the first run may remain in Run, and Write is untouched.
+  await setFiles(otherIds, null);
+  check('integration: a dropped IDS replaces the handed one and clears its result at once', (await run.locator('.headline, .spec, .error').count()) === 0 && (await run.locator('.drop-detail').first().innerText()).includes('walls-named-wilma.ids') && !(await run.locator('.drop-detail').first().innerText()).includes('walls-named-waldo'));
+  await runButton.click();
+  await settled();
+  check('integration: the run after the replacement is for the dropped file only', /^0 of 1/.test(await run.locator('.headline').innerText()) && (await pageText()).includes('IDS file: walls-named-wilma.ids') && !(await pageText()).includes('walls-named-waldo'));
+  check('integration: Check holds nothing from this (Run only hands a file over when it refuses it)', (await checkPanel.locator('.headline, .finding').count()) === 0 && !(await checkPanel.innerText()).includes('walls-named'));
+  await page.getByRole('tab', { name: 'Write' }).click();
+  check('integration: switching tabs keeps the Write draft, name and unsaved mark', (await wr.getByLabel('Title').inputValue()) === 'Edited in Write' && (await wrName()) === 'walls-named-waldo.ids' && (await wrStatus()).includes('unsaved changes'));
+  await wr.getByRole('button', { name: 'Use this IDS in Run' }).click();
+  await page.getByRole('tab', { name: 'Run', selected: true }).waitFor({ timeout: 60000 });
+  check('integration: handing the same file over again replaces the dropped one and leaves no result', (await run.locator('.drop-detail').first().innerText()).includes('walls-named-waldo.ids') && (await run.locator('.headline, .spec, .error').count()) === 0);
+  // Storage: Write's draft and nothing else.
+  await new Promise((r) => setTimeout(r, 500));
+  const store = await page.evaluate(async () => ({ session: Object.keys(sessionStorage), local: localStorage.length, idb: (await indexedDB.databases()).length, caches: (await caches.keys()).length, cookie: document.cookie }));
+  check('integration: storage holds only Write\'s sessionStorage draft', JSON.stringify(store.session) === '["idsbench.write.draft"]' && store.local === 0 && store.idb === 0 && store.caches === 0 && store.cookie === '', JSON.stringify(store));
+  // The engine has the last word on what Write hands out: an unknown class needs the IFC tables, which the form does not have.
+  const unknownClass = write('unknown-class.ids', idsText(spec('Unknown class', app(1, 'unbounded', 'IFCWALLL'))));
+  await page.getByRole('tab', { name: 'Write' }).click();
+  page.once('dialog', (d) => d.accept());
+  await wrFile.setInputFiles(unknownClass);
+  await wr.locator('#write-status .file-name', { hasText: 'unknown-class.ids' }).waitFor();
+  check('integration: the form lets an unknown IFC class through (it has no IFC tables)', !(await wr.getByRole('button', { name: 'Download .ids' }).isDisabled()));
+  const gotFile = deliveredWithin(4000);
+  await wr.getByRole('button', { name: 'Download .ids' }).click();
+  const gateText = await wr.locator('.error').innerText();
+  check('integration: Download is refused by the engine, with its sentence, and no file is saved', !(await gotFile) && /^The Check engine found 1 problem in this IDS, so it was not saved or used\. .*IFCWALLL/.test(gateText), gateText);
+  await wr.getByRole('button', { name: 'Use this IDS in Run' }).click();
+  await wr.locator('.error').waitFor();
+  check('integration: Use this IDS in Run is refused the same way and stays on Write', (await tabOn('Write')) && (await run.locator('.drop-detail').first().innerText()).includes('walls-named-waldo.ids'));
+  await wr.getByRole('button', { name: 'Show them in Check' }).click();
+  await chkSettled();
+  check('integration: Write -> Show them in Check shows that file and the same problem', (await tabOn('Check')) && (await checkPanel.locator('.drop-detail').innerText()).includes('unknown-class.ids') && (await checkPanel.locator('.headline').innerText()) === 'This IDS file has 1 problem.' && (await checkPanel.locator('.finding-message').first().innerText()).includes('IFCWALLL'));
+  // One rule for "is this an IDS 1.0 file": Write's Open, Check and Run say the same sentence.
+  const oldDraft = path.join(out, 'draft.ids');
+  await openCheck();
+  await chkFile.setInputFiles(oldDraft);
+  await chkSettled();
+  const checkSaid = await checkPanel.locator('.finding-message').first().innerText();
+  await page.getByRole('tab', { name: 'Write' }).click();
+  await wrFile.setInputFiles(oldDraft);
+  await wr.locator('.error').waitFor();
+  const writeSaid = await wr.locator('.error').innerText();
+  check('integration: Write\'s Open and Check give the identical sentence for an IDS 0.9.7 file', writeSaid === checkSaid && /IDS 0\.9\.7\. idsbench works with IDS 1\.0 only/.test(writeSaid), `${writeSaid} || ${checkSaid}`);
+  // No engine and no parser before they are needed.
+  const firstPaint = [];
+  const fresh = await ctx.newPage();
+  fresh.on('request', (r) => firstPaint.push(new URL(r.url()).pathname));
+  await fresh.goto(origin + '/');
+  await fresh.getByRole('tab', { name: 'Write' }).click();
+  await fresh.locator('#panel-write h2').waitFor();
+  await new Promise((r) => setTimeout(r, 800));
+  const heavy = firstPaint.filter((p) => /xmllint|\/src-|schema-ifc|\/worker-|laz-perf/.test(p));
+  console.log(`FIRST PAINT with the Write tab open: ${firstPaint.length} requests: ${firstPaint.join(' ')}`);
+  check('integration: opening the Write tab at first paint loads neither the Check engine, nor the IFC parser (worker), nor the IFC tables', heavy.length === 0, heavy.join(' '));
+  await fresh.close();
+  await page.getByRole('tab', { name: 'Write' }).click();
+  page.once('dialog', (d) => d.accept());
+  await wr.getByRole('button', { name: 'New' }).click();
+
   // ---- scale ------------------------------------------------------------------
   await page.goto(origin + '/');
   await setFiles(bigIds, bigIfc);

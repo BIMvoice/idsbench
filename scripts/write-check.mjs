@@ -211,7 +211,7 @@ try {
   page.once('dialog', (d) => d.accept());
   await write.locator('input[type=file]').setInputFiles(draft);
   await write.locator('.error').waitFor();
-  check('opening an IDS 0.9.7 file is refused with one plain sentence', (await write.locator('.error').innerText()) === 'This file is written for IDS 0.9.7. idsbench works with IDS 1.0 only, so it was not opened.');
+  check('opening an IDS 0.9.7 file is refused with one plain sentence', (await write.locator('.error').innerText()) === 'This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.', 'the sentence is the Check engine\'s own');
   check('and the document in the editor is untouched', (await write.locator('#write-status .file-name').innerText()) === 'IDS_demo_BIM-basis-ILS.ids');
 
   // ---- phone width ----------------------------------------------------------
