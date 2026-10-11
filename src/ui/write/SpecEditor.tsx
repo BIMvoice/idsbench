@@ -56,6 +56,7 @@ export function SpecEditor({ spec: s, issues, onChange }: Props) {
             <span><strong>{c.label}</strong> <span className="hint">{c.about}</span></span>
           </label>
         ))}
+        {err('occurs') && <span className="msg error-msg">{err('occurs')}</span>}
         {choice === 'custom' && (
           <label className="radio"><input type="radio" name={`${s.uid}-occurs`} checked readOnly />
             <span><strong>Custom</strong> <span className="hint">Between {s.minOccurs} and {s.maxOccurs} matching elements, as in the opened file. Choose one of the above to replace it.</span></span>
@@ -65,7 +66,7 @@ export function SpecEditor({ spec: s, issues, onChange }: Props) {
 
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={facetIssues} groupError={err('applicability')}
         onChange={(f) => onChange({ ...s, applicability: sortApplicability(f) })} specName={s.name} />
-      <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={facetIssues} groupError={null} groupAdvice={adv('requirements')}
+      <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={facetIssues} groupError={err('requirements')} groupAdvice={adv('requirements')}
         onChange={(f) => onChange({ ...s, requirements: f })} specName={s.name} />
 
       <details className="more">

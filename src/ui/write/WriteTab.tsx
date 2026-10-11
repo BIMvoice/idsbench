@@ -6,6 +6,7 @@ import { blankDocument, newSpecification, specChoice, INFO_OPTIONAL, type IdsDoc
 import { readIdsText } from '../../core/ids/read';
 import { writeIds } from '../../core/ids/write';
 import { AppError } from '../../core/errors';
+import { checkText, whereText } from '../../core/checkview';
 
 const DRAFT_KEY = 'idsbench.write.draft';
 interface Draft { doc: IdsDocument; fileName: string | null; savedXml: string }
@@ -35,9 +36,13 @@ const INFO_HINTS: Partial<Record<(typeof INFO_OPTIONAL)[number], string>> = {
 
 const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-interface Props { onUseInRun: (file: File) => void }
+interface Props {
+  onUseInRun: (file: File) => void;
+  /** Hand the file to the Check tab, to read the problems the engine found there. */
+  onShowInCheck?: (file: File) => void;
+}
 
-export function WriteTab({ onUseInRun }: Props) {
+export function WriteTab({ onUseInRun, onShowInCheck }: Props) {
   const [restored] = useState(loadDraft);
   const [doc, setDoc] = useState<IdsDocument>(() => restored?.doc ?? blankDocument());
   const [fileName, setFileName] = useState<string | null>(() => restored?.fileName ?? null);
@@ -45,6 +50,9 @@ export function WriteTab({ onUseInRun }: Props) {
   const [openUid, setOpenUid] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  // What the Check engine said about the exact text, when it found errors the form cannot see (it needs the IFC tables).
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const [focusSpec, setFocusSpec] = useState<string | null>(null);
   useEffect(() => {
@@ -55,6 +63,7 @@ export function WriteTab({ onUseInRun }: Props) {
 
   const xml = useMemo(() => writeIds(doc), [doc]);
   const dirty = xml !== savedXml;
+  useEffect(() => { setRefusal(null); }, [xml]);
   const issues = useMemo(() => checkDocument(doc), [doc]);
   const errors = issues.filter((i) => i.level === 'error');
   const blocked = errors.length > 0 ? `Download is off until this is fixed: ${errors[0].where}: ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}` : null;
@@ -107,17 +116,49 @@ export function WriteTab({ onUseInRun }: Props) {
   };
 
   const downloadName = fileName ?? `${slug(doc.info.title) || 'untitled'}.ids`;
-  const download = () => {
-    if (blocked) return;
-    const url = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }));
+  /**
+   * The Check engine has the last word on the exact text, so a file Write hands out is never one Check rejects.
+   * The form's own rules catch most things at once; this catches what needs the IFC tables (an unknown class,
+   * a property that is not in the standard set). The engine is loaded here, on first use, not at first paint.
+   */
+  const verify = async (text: string): Promise<boolean> => {
+    setVerifying(true);
+    setRefusal(null);
+    try {
+      const view = await checkText(text);
+      if (view.kind === 'sentence') { setRefusal(view.text); return false; }
+      if (view.errors > 0) {
+        const first = view.findings.find((f) => f.severity === 'error');
+        const at = first ? whereText(first) : null;
+        setRefusal(`The Check engine found ${view.errors} ${view.errors === 1 ? 'problem' : 'problems'} in this IDS, so it was not saved or used. ${first ? first.message : ''}${at ? ` (${at})` : ''}`);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error(e);
+      setRefusal('The IDS could not be checked just now, so it was not saved or used. Try again.');
+      return false;
+    } finally {
+      setVerifying(false);
+    }
+  };
+  const download = async () => {
+    if (blocked || verifying) return;
+    const text = xml;
+    if (!(await verify(text))) return;
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/xml' }));
     const a = document.createElement('a');
     a.href = url; a.download = downloadName;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setFileName(downloadName);
-    setSavedXml(xml);
+    setSavedXml(text);
   };
-  const useInRun = () => { if (!blocked) onUseInRun(new File([xml], downloadName, { type: 'application/xml' })); };
+  const useInRun = async () => {
+    if (blocked || verifying) return;
+    const text = xml;
+    if (await verify(text)) onUseInRun(new File([text], downloadName, { type: 'application/xml' }));
+  };
 
   return (
     <>
@@ -129,8 +170,8 @@ export function WriteTab({ onUseInRun }: Props) {
         <button type="button" className="btn" onClick={() => picker.current?.click()}>Open…</button>
         <input ref={picker} type="file" accept=".ids,.xml" className="file-input" tabIndex={-1} aria-label="Choose an IDS file to open"
           onChange={(e) => { void open(e.target.files?.[0]); e.target.value = ''; }} />
-        <button type="button" className="btn primary" disabled={!!blocked} aria-describedby="write-reason" onClick={download}>Download .ids</button>
-        <button type="button" className="btn" disabled={!!blocked} aria-describedby="write-reason" onClick={useInRun}>Use this IDS in Run</button>
+        <button type="button" className="btn primary" disabled={!!blocked || verifying} aria-describedby="write-reason" onClick={() => void download()}>Download .ids</button>
+        <button type="button" className="btn" disabled={!!blocked || verifying} aria-describedby="write-reason" onClick={() => void useInRun()}>Use this IDS in Run</button>
       </div>
       <p className="meta" id="write-status">
         <span className="file-name">{fileName ?? 'Untitled.ids'}</span>
@@ -138,6 +179,12 @@ export function WriteTab({ onUseInRun }: Props) {
       </p>
       <p className="meta" id="write-reason" role="status">{blocked}</p>
       {problem && <p className="error" role="alert">{problem}</p>}
+      {refusal && (
+        <div role="alert">
+          <p className="error">{refusal}</p>
+          {onShowInCheck && <p className="refusal-action"><button type="button" className="btn" onClick={() => onShowInCheck(new File([xml], downloadName, { type: 'application/xml' }))}>Show them in Check</button></p>}
+        </div>
+      )}
 
       <section aria-labelledby="write-about">
         <h3 id="write-about">About this IDS</h3>

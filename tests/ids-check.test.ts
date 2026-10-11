@@ -35,7 +35,7 @@ describe('guard rails', () => {
     expect(patternProblem('(')).not.toBeNull();
     expect(patternProblem('')).not.toBeNull();
     expect(patternProblem('DT[0-9]{2}')).toBeNull();
-    expect(keys(doc(spec({ requirements: [property('P', 'N', { value: fromPattern('(', 'xs:string') } as never)] })))).toEqual(['value']);
+    expect(keys(doc(spec({ requirements: [property('P', 'N', { dataType: 'IFCLABEL', value: fromPattern('(', 'xs:string') } as never)] })))).toEqual(['value']);
   });
   it('a lower bound above the upper bound', () => {
     const r = (lo: string, hi: string, ex = false) => valueProblems(fromRange({ lower: { value: lo, exclusive: ex }, upper: { value: hi, exclusive: ex } }, 'xs:double'), false);
@@ -75,20 +75,36 @@ describe('guard rails', () => {
   });
 });
 
-describe('advice (manual rules the schema does not enforce) never blocks', () => {
+// These four used to be advice. The Check engine reports each as an ERROR, so a file with one would be downloaded
+// and then rejected by Check: they now block Download and "Use this IDS in Run" like the schema's own rules.
+describe('manual rules the Check engine reports as errors now block', () => {
   it('a value without a data type', () => {
     const d = doc(spec({ requirements: [property('P', 'N', { value: simple('v') } as never)] }));
+    expect(keys(d)).toEqual(['dataType']);
+  });
+  it('optional without a value (property: without a data type)', () => {
+    expect(keys(doc(spec({ requirements: [property('P', 'N', { cardinality: 'optional' } as never)] })))).toEqual(['cardinality']);
+    expect(keys(doc(spec({ requirements: [property('P', 'N', { cardinality: 'optional', dataType: 'IFCLABEL' } as never)] })))).toEqual([]);
+  });
+  it('IFC class names not in capitals', () => {
+    expect(keys(doc(spec({ applicability: [{ ...entity('IfcWall') } as Facet] })))).toEqual(['name']);
+  });
+  it('requirements on a prohibited specification, and none on an optional one', () => {
+    expect(keys(doc(spec({ ...occursFor('prohibited'), requirements: [property('P', 'N')] })))).toEqual(['requirements']);
+    expect(keys(doc(spec({ ...occursFor('optional'), requirements: [] })))).toEqual(['requirements']);
+  });
+  it('a property prohibited with a data type', () => {
+    expect(keys(doc(spec({ requirements: [property('P', 'N', { cardinality: 'prohibited', dataType: 'IFCLABEL' } as never)] })))).toEqual(['cardinality']);
+  });
+  it('a number of matching elements IDS 1.0 does not allow', () => {
+    expect(keys(doc(spec({ minOccurs: '2', maxOccurs: '3' })))).toEqual(['occurs']);
+  });
+});
+
+describe('advice (the engine does not report it) never blocks', () => {
+  it('a predefined type not in capitals', () => {
+    const d = doc(spec({ applicability: [{ ...entity('IFCWALL'), predefinedType: simple('shear') } as Facet] }));
     expect(keys(d)).toEqual([]);
-    expect(keys(d, 'advice')).toEqual(['dataType']);
-  });
-  it('optional without a value', () => {
-    const d = doc(spec({ requirements: [property('P', 'N', { cardinality: 'optional' } as never)] }));
-    expect(keys(d, 'advice')).toEqual(['cardinality']);
-  });
-  it('lower-case IFC class names', () => {
-    expect(keys(doc(spec({ applicability: [{ ...entity('IfcWall') } as Facet] })), 'advice')).toEqual(['name']);
-  });
-  it('requirements on a prohibited specification', () => {
-    expect(keys(doc(spec({ ...occursFor('prohibited'), requirements: [property('P', 'N')] })), 'advice')).toEqual(['requirements']);
+    expect(keys(d, 'advice')).toEqual(['predefinedType']);
   });
 });

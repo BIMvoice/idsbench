@@ -1,6 +1,9 @@
-// Guard rails, not a validator: the few things the schema forbids that a form can stop as the user types.
-// "error" means the schema forbids it and Download is switched off. "advice" is a rule from the user manual
-// that the schema does not enforce; it is shown but never blocks.
+// Guard rails, not a validator: the things a form can stop as the user types without knowing the IFC tables.
+// "error" means the schema or the Check engine reports it as an error and Download is switched off, so the
+// writer never hands Check a file Check would reject (tests/writer-accepted-by-check.test.ts pins each rule
+// against the engine). "advice" is a rule from the user manual that the engine does not report; it is shown
+// but never blocks. What needs the IFC tables (is this class real, is this property in that standard set)
+// is left to the Check engine, which Download and "Use this IDS in Run" run on the exact text first.
 import { translateXsdRegex } from '@ifc-lite/ids';
 import {
   IFC_VERSIONS, allowedCardinalities, specChoice,
@@ -118,8 +121,15 @@ function checkSpec(s: Specification, label: string, add: Add) {
   if (s.applicability.filter((f) => f.kind === 'entity').length > 1) {
     add(`${s.uid}.applicability`, `${where}, Applies to`, 'Only one "Type of element" is allowed here. Use a list of types in one item instead.');
   }
-  if (specChoice(s) === 'prohibited' && s.requirements.length > 0) {
-    add(`${s.uid}.requirements`, `${where}, Must have`, 'Elements that are prohibited are not checked against "Must have", so these items are ignored.', 'advice');
+  const choice = specChoice(s);
+  if (choice === 'custom') {
+    add(`${s.uid}.occurs`, where, 'IDS 1.0 allows only required, optional or prohibited here. Choose one of them.');
+  }
+  if (choice === 'prohibited' && s.requirements.length > 0) {
+    add(`${s.uid}.requirements`, `${where}, Must have`, 'A prohibited specification cannot have "Must have" items. Remove them, or choose another option above.');
+  }
+  if (choice === 'optional' && s.requirements.length === 0) {
+    add(`${s.uid}.requirements`, `${where}, Must have`, 'An optional specification needs at least one "Must have" item. Add one, or make the specification required.');
   }
   s.applicability.forEach((f, i) => checkFacet(f, false, `${where}, Applies to, item ${i + 1}`, add));
   s.requirements.forEach((f, i) => checkFacet(f, true, `${where}, Must have, item ${i + 1}`, add));
@@ -129,17 +139,18 @@ function checkFacet(f: Facet, requirement: boolean, where: string, add: Add) {
   const field = (name: string, v: Value | null, required: boolean) => {
     for (const m of valueProblems(v, required)) add(`${f.uid}.${name}`, where, m);
   };
-  const caps = (name: string, v: Value | null) => {
+  // A class name must be in capitals; Check reports any other spelling as an error (the predefined type it accepts as typed).
+  const caps = (name: string, v: Value | null, blocking: boolean) => {
     if (v?.kind === 'simple' && v.value !== '' && v.value !== v.value.toUpperCase()) {
-      add(`${f.uid}.${name}`, where, 'IFC names are written in capitals, like IFCWALL. A name in other letters will match nothing.', 'advice');
+      add(`${f.uid}.${name}`, where, 'IFC names are written in capitals, like IFCWALL. A name in other letters will match nothing.', blocking ? 'error' : 'advice');
     }
   };
   switch (f.kind) {
     case 'entity':
-      field('name', f.name, true); caps('name', f.name); field('predefinedType', f.predefinedType, false); caps('predefinedType', f.predefinedType);
+      field('name', f.name, true); caps('name', f.name, true); field('predefinedType', f.predefinedType, false); caps('predefinedType', f.predefinedType, false);
       break;
     case 'partOf':
-      field('entity', f.entity.name, true); caps('entity', f.entity.name);
+      field('entity', f.entity.name, true); caps('entity', f.entity.name, true);
       break;
     case 'attribute':
       field('name', f.name, true); field('value', f.value, false);
@@ -153,19 +164,28 @@ function checkFacet(f: Facet, requirement: boolean, where: string, add: Add) {
     case 'property':
       field('propertySet', f.propertySet, true); field('baseName', f.baseName, true); field('value', f.value, false);
       if (f.dataType !== null && !/^[A-Z]+$/.test(f.dataType)) add(`${f.uid}.dataType`, where, 'A data type is written in capitals, like IFCLABEL.');
-      if (f.value !== null && !f.dataType) {
-        add(`${f.uid}.dataType`, where, 'When you give a value, the manual asks for the data type too (for example IFCLABEL).', 'advice');
+      if (hasText(f.value) && !f.dataType) {
+        add(`${f.uid}.dataType`, where, 'When you give a value, give the data type too (for example IFCLABEL).');
       }
       break;
   }
   if (!requirement || f.kind === 'entity') return;
   const allowed = allowedCardinalities(f.kind) ?? [];
   if (!allowed.includes(f.cardinality)) add(`${f.uid}.cardinality`, where, 'This choice is not allowed for this kind of item.');
-  const hasValue = f.kind === 'partOf' ? true : f.kind === 'property' ? f.value !== null || !!f.dataType : f.value !== null;
-  if (f.cardinality === 'optional' && !hasValue) {
-    add(`${f.uid}.cardinality`, where, 'Optional only means something when you also say what the value must be.', 'advice');
+  // Check: an optional property needs a data type; an optional attribute, classification or material needs a value.
+  if (f.cardinality === 'optional') {
+    if (f.kind === 'property' && !f.dataType) {
+      add(`${f.uid}.cardinality`, where, 'Optional only means something when you also give the data type, so there is something to check.');
+    } else if ((f.kind === 'attribute' || f.kind === 'classification' || f.kind === 'material') && !hasText(f.value)) {
+      add(`${f.uid}.cardinality`, where, 'Optional only means something when you also say what the value must be.');
+    }
   }
-  if (f.kind === 'property' && f.cardinality === 'prohibited' && (f.value !== null || f.dataType)) {
-    add(`${f.uid}.cardinality`, where, 'To prohibit a property, name it without a value or data type.', 'advice');
+  if (f.kind === 'property' && f.cardinality === 'prohibited' && f.dataType) {
+    add(`${f.uid}.cardinality`, where, 'To prohibit a property, name it without a data type. Remove the data type or make the property required.');
   }
+}
+
+/** True when a value is given and is not just an empty simple value. */
+function hasText(v: Value | null): boolean {
+  return v !== null && !(v.kind === 'simple' && v.value === '');
 }

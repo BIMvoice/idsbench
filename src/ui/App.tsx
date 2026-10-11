@@ -56,7 +56,10 @@ export function App() {
 
       <main>
         <section role="tabpanel" id="panel-write" aria-labelledby="tab-write" hidden={tab !== 'write'}>
-          <WriteTab onUseInRun={(file) => { setIncoming((p) => ({ file, token: (p?.token ?? 0) + 1 })); setTab('run'); }} />
+          <WriteTab
+            onUseInRun={(file) => { setIncoming((p) => ({ file, token: (p?.token ?? 0) + 1 })); setTab('run'); }}
+            onShowInCheck={(f) => { setCheckFile(f); setTab('check'); refs.current.check?.focus(); }}
+          />
         </section>
         <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" hidden={tab !== 'check'}>
           <CheckTab file={checkFile} onFile={setCheckFile} />
