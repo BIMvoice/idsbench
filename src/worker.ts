@@ -1,5 +1,5 @@
 import { runValidation, type Phase } from './core/validate';
-import { AppError, mapError } from './core/errors';
+import { mapError } from './core/errors';
 import type { IDSDocument } from '@ifc-lite/ids';
 import type { AppErrorInfo, RunResult } from './core/types';
 
@@ -17,6 +17,6 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
     post({ type: 'done', result });
   } catch (e) {
     console.error(e);
-    post({ type: 'error', error: e instanceof AppError ? { kind: e.kind, message: e.message } : mapError(e, 'validate') });
+    post({ type: 'error', error: mapError(e, 'validate') });
   }
 };

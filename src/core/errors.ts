@@ -13,16 +13,23 @@ export class AppError extends Error {
 export type Stage = 'ids' | 'ifc' | 'validate';
 
 const NOT_XML =
-  'The IDS file is not valid XML, so it could not be read. Check that you chose an .ids file and that it is not cut off.';
+  'This file could not be read as an IDS file. It is damaged or cut off, or it is not an IDS file at all. Check that you chose the right file, or export it again.';
 const IDS_REJECTED =
-  'The IDS file was read as XML but is not a usable IDS. It may be missing required parts, or use a structure IDS does not allow.';
+  'This file could not be used as an IDS file. It may be a different kind of file, or an IDS file with parts missing. Check that you chose the right file, or export it again.';
 const IFC_UNREADABLE =
-  'The IFC model could not be read. Only IFC files in the STEP format (.ifc) are supported, and the file must not be empty or cut off.';
-const UNEXPECTED =
-  'Something went wrong while checking. The details are in the browser console.';
+  'The IFC model could not be read. The file may be damaged. Export it again from the modelling software and try once more.';
+export const UNEXPECTED =
+  'Something went wrong and the check did not finish, so there is no result. Try again. If it happens again with the same files, idsbench cannot check them yet.';
+export const OUT_OF_MEMORY =
+  'The model is too large to check here: the browser ran out of memory. Close other tabs and programs and try again, or use a computer with more memory.';
+export const FILE_UNREADABLE =
+  'One of the files could not be opened from your computer. It may have been moved, renamed or deleted, or it may be too large. Choose it again.';
 
 /** Word patterns the XML parser uses for a document that is not XML at all. */
 const XML_BROKEN = /(missing root|not well|unclosed|unexpected end|xml.*(error|fatal)|fatal.?error|invalid character|not valid xml|doctype|premature)/i;
+
+/** What browsers say when an allocation fails. */
+const MEMORY = /(out of memory|allocation failed|invalid (array|string|typed array) length|array buffer allocation|memory access out of bounds)/i;
 
 /**
  * Turn anything thrown into a plain-language message. Never includes a stack
@@ -30,12 +37,13 @@ const XML_BROKEN = /(missing root|not well|unclosed|unexpected end|xml.*(error|f
  */
 export function mapError(err: unknown, stage: Stage): AppErrorInfo {
   if (err instanceof AppError) return { kind: err.kind, message: err.message };
-  const text = err instanceof Error ? `${err.message} ${(err as { details?: string }).details ?? ''}` : String(err);
+  const text = err instanceof Error ? `${err.name} ${err.message} ${(err as { details?: string }).details ?? ''}` : String(err);
   if (stage === 'ids') {
     return XML_BROKEN.test(text)
       ? { kind: 'ids-not-xml', message: NOT_XML }
       : { kind: 'ids-rejected', message: IDS_REJECTED };
   }
+  if (MEMORY.test(text)) return { kind: 'out-of-memory', message: OUT_OF_MEMORY };
   if (stage === 'ifc') return { kind: 'ifc-unreadable', message: IFC_UNREADABLE };
   return { kind: 'unexpected', message: UNEXPECTED };
 }

@@ -1,15 +1,17 @@
 import type { RunResult, SpecRow, SpecState } from '../core/types';
-import { plural } from '../core/shape';
+import { listed } from '../core/shape';
 
 const STATE_TEXT: Record<SpecState, string> = {
   pass: 'Pass',
   fail: 'Fail',
-  nothing: 'Applied to nothing',
+  nothing: 'Nothing to check',
+  unchecked: 'Not checked',
 };
-const STATE_MARK: Record<SpecState, string> = { pass: '✓', fail: '✗', nothing: '–' };
+const STATE_MARK: Record<SpecState, string> = { pass: '✓', fail: '✗', nothing: '–', unchecked: '?' };
 
 function Spec({ spec }: { spec: SpecRow }) {
-  const expandable = spec.failures.length > 0 || !!spec.note;
+  const { shown, notShown } = listed(spec.failures);
+  const expandable = shown.length > 0;
   const summary = (
     <>
       <span className={`state ${spec.state}`}>
@@ -17,44 +19,48 @@ function Spec({ spec }: { spec: SpecRow }) {
       </span>
       <span className="spec-name">{spec.name}</span>
       <span className="spec-counts">
-        applied to {plural(spec.applicable, 'element')}, {spec.passed} passed, {spec.failed} failed{expandable ? '. Open for details.' : ''}
+        {spec.summary}{expandable ? ' Open to see the elements.' : ''}
       </span>
     </>
   );
+  const notes = (
+    <>
+      {spec.note && <p className="note">{spec.note}</p>}
+      {spec.schemaNote && <p className="note schema-note">{spec.schemaNote}</p>}
+    </>
+  );
 
-  if (spec.failures.length === 0 && !spec.note) {
-    return <li className="spec"><div className="spec-head static">{summary}</div></li>;
+  if (!expandable) {
+    return <li className="spec"><div className="spec-head static">{summary}</div>{notes}</li>;
   }
   return (
     <li className="spec">
       <details>
         <summary className="spec-head">{summary}</summary>
-        {spec.note && <p className="note">{spec.note}</p>}
-        {spec.failures.length > 0 && (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>IFC class</th><th>Name</th><th>GlobalId</th><th>Why it failed</th></tr>
-              </thead>
-              <tbody>
-                {spec.failures.map((f, i) => (
-                  <tr key={i}>
-                    <td>{f.ifcClass}</td>
-                    <td>{f.name ?? '(no name)'}</td>
-                    <td className="mono">{f.globalId ?? '(none)'}</td>
-                    <td>{f.reasons.length ? f.reasons.join(' ') : '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {spec.failuresNotShown > 0 && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>IFC class</th><th>Name</th><th>GlobalId</th><th>Why it failed</th></tr>
+            </thead>
+            <tbody>
+              {shown.map((f, i) => (
+                <tr key={i}>
+                  <td>{f.ifcClass}</td>
+                  <td>{f.name ?? '(no name)'}</td>
+                  <td className="mono">{f.globalId ?? '(none)'}</td>
+                  <td>{f.reasons.length ? f.reasons.join(' ') : '(no reason given)'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {notShown > 0 && (
           <p className="note">
-            And {spec.failuresNotShown} more failing {spec.failuresNotShown === 1 ? 'element' : 'elements'} not shown. The first {spec.failures.length} are listed.
+            The first {shown.length} failing elements are listed here. {notShown.toLocaleString('en')} more {notShown === 1 ? 'is' : 'are'} not shown on this page. The downloaded report lists all {spec.failures.length.toLocaleString('en')}.
           </p>
         )}
       </details>
+      {notes}
     </li>
   );
 }
@@ -62,12 +68,10 @@ function Spec({ spec }: { spec: SpecRow }) {
 export function Results({ result }: { result: RunResult }) {
   return (
     <section className="results" aria-label="Result">
-      <p className={`headline ${result.allPassed ? 'pass' : 'fail'}`} tabIndex={-1}>
-        {result.headline}
-      </p>
       <p className="meta">
-        {result.ifcFile}, {result.schema}, {result.entityCount.toLocaleString()} entities. Checked in {result.seconds.toFixed(1)} s.
+        IDS file: {result.idsFile}. Model: {result.ifcFile}, {result.schema}, {result.entityCount.toLocaleString('en')} entities. Checked in {result.seconds.toFixed(1)} s.
       </p>
+      <p className="meta notice">{result.notice}</p>
       <ul className="specs">
         {result.specs.map((s, i) => <Spec key={i} spec={s} />)}
       </ul>

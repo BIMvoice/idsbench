@@ -69,11 +69,14 @@ h2 { margin: 0 0 8px; font-size: 26px; color: var(--head); letter-spacing: -0.4p
 .working { margin: 0; color: var(--muted); }
 .error { margin: 0; padding: 12px 16px; border-radius: 6px; background: var(--fail-bg); color: var(--fail); border: 1px solid var(--fail); }
 
-.results { margin-top: 24px; }
+.results { margin-top: 8px; }
 .headline { margin: 0; padding: 16px 20px; border-radius: 8px; font-size: 20px; font-weight: 700; color: var(--head); border-left: 6px solid; }
 .headline.pass { background: var(--pass-bg); border-color: var(--pass); }
 .headline.fail { background: var(--fail-bg); border-color: var(--fail); }
+.headline.incomplete { background: var(--none-bg); border-color: var(--none); }
+.status .headline { margin-top: 12px; }
 .meta { margin: 8px 0 16px; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.meta.notice { margin-top: -8px; }
 .specs { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .spec + .spec { border-top: 1px solid var(--line); }
 .spec-head { display: grid; grid-template-columns: 11rem 1fr; gap: 2px 16px; align-items: baseline; padding: 12px 16px; }
@@ -84,7 +87,8 @@ summary.spec-head:hover { background: var(--accent-soft); }
 .state { font-weight: 700; font-size: 14px; padding: 2px 10px; border-radius: 999px; justify-self: start; white-space: nowrap; }
 .state.pass { background: var(--pass-bg); color: var(--pass); }
 .state.fail { background: var(--fail-bg); color: var(--fail); }
-.state.nothing { background: var(--none-bg); color: var(--none); }
+.state.nothing, .state.unchecked { background: var(--none-bg); color: var(--none); }
+.state.unchecked { outline: 1px dashed var(--none); }
 .note { margin: 0; padding: 8px 16px 12px; color: var(--muted); font-size: 14px; }
 .table-wrap { overflow-x: auto; padding: 0 16px 8px; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }

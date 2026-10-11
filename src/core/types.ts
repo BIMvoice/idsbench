@@ -1,4 +1,15 @@
-export type SpecState = 'pass' | 'fail' | 'nothing';
+/**
+ * pass: checked, and the model meets the specification.
+ * fail: checked, and the model does not meet it.
+ * nothing: an optional specification that matched no element. The standard counts this as a pass.
+ * unchecked: no verdict could be reached for this specification.
+ */
+export type SpecState = 'pass' | 'fail' | 'nothing' | 'unchecked';
+
+/** How the applicability's minOccurs / maxOccurs read: at least one match, any number, or none allowed. */
+export type SpecKind = 'required' | 'optional' | 'prohibited';
+
+export type Verdict = 'pass' | 'fail' | 'incomplete';
 
 export interface FailingElement {
   ifcClass: string;
@@ -11,16 +22,19 @@ export interface FailingElement {
 export interface SpecRow {
   name: string;
   state: SpecState;
+  kind: SpecKind;
   /** How many elements the specification applied to. */
   applicable: number;
   passed: number;
   failed: number;
-  /** Why the specification as a whole failed, when that is not about one element. */
+  /** One sentence giving the counts above in words. */
+  summary: string;
+  /** Why the specification as a whole failed or was not checked, when that is not about one element. */
   note: string | null;
-  /** At most FAILURE_CAP failing elements. */
+  /** Set when the model's IFC version is not one the specification lists. */
+  schemaNote: string | null;
+  /** Every failing element. The page lists the first FAILURE_CAP; the downloaded report holds all of them. */
   failures: FailingElement[];
-  /** Failing elements beyond the cap. */
-  failuresNotShown: number;
 }
 
 export interface RunResult {
@@ -33,20 +47,43 @@ export interface RunResult {
     specifications: number;
     passed: number;
     failed: number;
-    appliedToNothing: number;
+    notChecked: number;
+    /** Included in `passed`: optional specifications that matched nothing. */
+    nothingToCheck: number;
   };
   headline: string;
+  verdict: Verdict;
+  /** True only when every specification was checked and none failed. */
   allPassed: boolean;
+  /** What this result does not cover. */
+  notice: string;
   seconds: number;
 }
 
+/** How many failing elements one specification lists on the page. */
 export const FAILURE_CAP = 200;
 
+export const IDS_NOT_VERIFIED =
+  'Run checks the model against the IDS file as it is written. It does not check that the IDS file itself is valid.';
+
 export type ErrorKind =
+  | 'ids-empty'
   | 'ids-not-xml'
   | 'ids-rejected'
+  | 'ids-is-ifc'
+  | 'ids-namespace'
+  | 'ids-old-version'
+  | 'ids-no-specifications'
+  | 'ifc-empty'
+  | 'ifc-is-zip'
+  | 'ifc-is-xml'
+  | 'ifc-is-ids'
+  | 'ifc-not-step'
+  | 'ifc-cut-off'
+  | 'ifc-schema'
   | 'ifc-unreadable'
-  | 'schema-mismatch'
+  | 'file-unreadable'
+  | 'out-of-memory'
   | 'unexpected';
 
 export interface AppErrorInfo {

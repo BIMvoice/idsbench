@@ -52,7 +52,7 @@ export function DropZone({ label, accept, file, onFile }: Props) {
         type="file"
         accept={accept}
         tabIndex={-1}
-        aria-label={label}
+        aria-hidden="true"
         className="file-input"
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => {

@@ -3,7 +3,9 @@ import { parseIDS, validateIDS, createTranslationService } from '@ifc-lite/ids';
 import type { IDSRequirementResult, IDSDocument } from '@ifc-lite/ids';
 import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { AppError, mapError } from './errors';
-import { shapeReport } from './shape';
+import { checkIdsDocument, precheckIdsText } from './idsfile';
+import { inspectIfc } from './ifcfile';
+import { hasNoApplicability, shapeReport, type ReportLike } from './shape';
 import type { RunResult } from './types';
 
 export type Phase = 'reading-ids' | 'reading-ifc' | 'checking';
@@ -17,28 +19,19 @@ export interface RunInput {
   onPhase?: (phase: Phase) => void;
 }
 
-/** "IFC4X3_ADD2" and "IFC4X3" are the same family for the purpose of matching. */
-function family(v: string): string {
-  const u = v.toUpperCase();
-  return u.startsWith('IFC4X3') ? 'IFC4X3' : u;
-}
-
-const STEP_MAGIC = /ISO-10303-21/;
-
-function looksLikeStep(bytes: ArrayBuffer): boolean {
-  const head = new TextDecoder('latin1').decode(new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 2048)));
-  return STEP_MAGIC.test(head);
-}
-
 /** Parse IDS XML text. Needs DOMParser (main thread or Node), not a Web Worker. */
 export function readIds(idsXml: string): IDSDocument {
+  precheckIdsText(idsXml);
+  let doc: IDSDocument;
   try {
-    return parseIDS(idsXml);
+    doc = parseIDS(idsXml);
   } catch (e) {
     console.error('IDS parse failed', e);
     const m = mapError(e, 'ids');
     throw new AppError(m.kind, m.message);
   }
+  checkIdsDocument(idsXml, doc);
+  return doc;
 }
 
 /**
@@ -50,50 +43,53 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
   const t0 = performance.now();
   const doc = input.ids;
   input.onPhase?.('reading-ifc');
+  const header = inspectIfc(input.ifcBytes);
   let store;
   try {
-    if (!looksLikeStep(input.ifcBytes)) throw new Error('not a STEP file (no ISO-10303-21 header)');
     store = await new IfcParser().parseColumnar(input.ifcBytes);
-    if (!store || store.entityCount === 0) throw new Error('no entities found');
   } catch (e) {
     console.error('IFC parse failed', e);
     const m = mapError(e, 'ifc');
     throw new AppError(m.kind, m.message);
   }
-
-  const modelFamily = family(String(store.schemaVersion));
-  const targets = doc.specifications.map((s) => s.ifcVersions.map(family));
-  if (doc.specifications.length > 0 && targets.every((t) => !t.includes(modelFamily))) {
-    const wanted = [...new Set(targets.flat())].join(', ') || 'no schema';
-    throw new AppError(
-      'schema-mismatch',
-      `This IDS targets ${wanted}, but the model is ${store.schemaVersion}. Open a model of a matching IFC schema, or change which schema the IDS targets.`,
-    );
+  if (!store || store.entityCount === 0) {
+    throw new AppError('ifc-empty', 'The IFC file has a header but no model data in it, so there is nothing to check. Export the model again.');
   }
 
+  // The ifcVersion a specification lists is not a condition for checking it.
+  // The official test case is named "Specification version is purely metadata
+  // and does not impact pass or fail result", so every specification is
+  // evaluated whatever the model's schema; shapeReport adds a note where the
+  // two differ.
   input.onPhase?.('checking');
   try {
     const translator = createTranslationService('en');
+    // A specification with nothing in its applicability would be applied by
+    // the library to every record in the file. It is left out of the run and
+    // reported as not checked.
+    const runnable = doc.specifications.filter((s) => !hasNoApplicability(s));
     const report = await validateIDS(
-      doc,
+      { ...doc, specifications: runnable },
       createDataAccessor(store),
       { modelId: input.ifcName, schemaVersion: store.schemaVersion, entityCount: store.entityCount },
       { translator },
     );
-    // A specification that targets another schema than the model cannot pass.
-    report.specificationResults.forEach((r, i) => {
-      if (targets[i] && !targets[i].includes(modelFamily) && r.status !== 'fail') {
-        r.status = 'fail';
-        r.error = `This specification targets ${targets[i].join(', ')}, but the model is ${store.schemaVersion}.`;
-      }
-    });
+    if (report.specificationResults.length !== runnable.length) {
+      throw new Error('the report does not hold one result per specification');
+    }
+    let next = 0;
+    const specificationResults: ReportLike['specificationResults'] = doc.specifications.map((s) =>
+      hasNoApplicability(s)
+        ? { specification: s, status: 'not_applicable', applicableCount: 0, passedCount: 0, failedCount: 0, entityResults: [] }
+        : report.specificationResults[next++],
+    );
     return shapeReport<IDSRequirementResult>(
-      report,
+      { specificationResults },
       (r) => translator.describeFailure(r),
       {
         idsFile: input.idsName,
         ifcFile: input.ifcName,
-        schema: String(store.schemaVersion),
+        schema: header.schema,
         entityCount: store.entityCount,
         seconds: (performance.now() - t0) / 1000,
       },
