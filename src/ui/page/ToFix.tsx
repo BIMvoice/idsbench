@@ -42,6 +42,22 @@ function useFixes(page: Page): { fixes: Map<Finding, Fix[]>; ready: boolean } {
   return found && found.report === report ? { fixes: found.fixes, ready: true } : { fixes: new Map(), ready: false };
 }
 
+/** "Details" under a line of the list: the engine's own sentence, where it is and its code, and the lines of the file around it. Its content is made when it is opened. */
+function FixDetails({ finding: f, words, xml }: { finding: Finding; words: ReturnType<typeof plainFinding>; xml: string }) {
+  const [open, setOpen] = useState(false);
+  const around = open && f.line ? excerpt(xml, f.line, f.column) : null;
+  return (
+    <details className="fix-details" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>Details</summary>
+      {open && <>
+        {words.translated && <p className="technical">What the check engine says: {words.technical}</p>}
+        <p className="technical">{[whereText(f), f.code].filter(Boolean).join(' · ')}</p>
+        {around && <pre className="excerpt" tabIndex={0} aria-label={`The file around ${whereText(f)}`}>{around.join('\n')}</pre>}
+      </>}
+    </details>
+  );
+}
+
 /** Under the stamp: what there is to fix in the IDS file, one line each, and the way to the place or the fix itself. */
 export function ToFix({ page }: { page: Page }) {
   const { report, targets, doc, extraGuard } = page;
@@ -52,21 +68,22 @@ export function ToFix({ page }: { page: Page }) {
     for (const f of report?.findings ?? []) groups.set(`${f.severity}|${f.code}|${f.message}`, [...(groups.get(`${f.severity}|${f.code}|${f.message}`) ?? []), f]);
     return [...groups.values()];
   }, [report]);
-  if ((!report || lines.length === 0) && extraGuard.length === 0) return null;
+  // Nothing is listed before the engine has answered: the list and its count are one thing.
+  if (!report || (lines.length === 0 && extraGuard.length === 0)) return null;
   // One count, one list: the engine's findings and the form's own problems the engine does not word the same way.
-  const n = (report?.findings.length ?? 0) + extraGuard.length;
-  const errors = (report?.errors ?? 0) > 0 || extraGuard.length > 0;
+  const n = report.findings.length + extraGuard.length;
+  const errors = report.errors > 0 || extraGuard.length > 0;
   return (
     <section className="to-fix" aria-label="To fix" data-fixes={ready || !doc ? 'ready' : 'looking'}>
       <h3>{errors ? `${n} ${n === 1 ? 'thing' : 'things'} to fix in this IDS file` : `${n} ${n === 1 ? 'thing' : 'things'} to look at in this IDS file`}</h3>
-      {!doc && <p className="note-plain">This file cannot be changed here{page.unreadable && !report?.findings.some((f) => f.message === page.unreadable) ? `: ${page.unreadable}` : '.'} Correct it in the tool that made it, then open it again.</p>}
+      {!doc && <p className="note-plain">This file cannot be changed here{page.unreadable && !report.findings.some((f) => f.message === page.unreadable) ? `: ${page.unreadable}` : '.'} Correct it in the tool that made it, then open it again.</p>}
       <ol className="fix-list">
         {extraGuard.map((g) => (
           <li key={g.key} className="fix-line">
             <span className="sev error">Problem</span>
-            <span className="fix-text">{g.message}<span className="hint"> {g.where}.</span></span>
+            <span className="fix-text" id={`fix-${g.key}`}>{g.message}<span className="hint"> {g.where}.</span></span>
             <span className="row-actions">
-              <button type="button" className="btn small" aria-label={`Fix: ${g.message}`} onClick={() => page.goToIssue(g.key)}>Fix</button>
+              <button type="button" className="btn small" aria-describedby={`fix-${g.key}`} onClick={() => page.goToIssue(g.key)}>Fix</button>
             </span>
           </li>
         ))}
@@ -76,18 +93,12 @@ export function ToFix({ page }: { page: Page }) {
           const reachable = doc && t && t.kind !== 'file';
           const where = t && t.kind !== 'file' && doc ? (t.kind === 'info' ? 'About this IDS' : `Specification ${t.spec + 1}`) : null;
           const words = plainFinding(f);
-          const around = f.line ? excerpt(xml, f.line, f.column) : null;
           return (
             <li key={i} className="fix-line">
               <span className={`sev ${f.severity}`}>{f.severity === 'error' ? 'Problem' : 'Warning'}</span>
               <span className="fix-text">
                 {words.plain}{group.length > 1 ? ` (${group.length} places)` : ''}{where ? <span className="hint"> {where}.</span> : null}
-                <details className="fix-details">
-                  <summary>Details</summary>
-                  {words.translated && <p className="technical">What the check engine says: {words.technical}</p>}
-                  <p className="technical">{[whereText(f), f.code].filter(Boolean).join(' · ')}</p>
-                  {around && <pre className="excerpt" tabIndex={0} aria-label={`The file around ${whereText(f)}`}>{around.join('\n')}</pre>}
-                </details>
+                <FixDetails finding={f} words={words} xml={xml} />
               </span>
               <span className="row-actions">
                 {(fixes.get(f) ?? []).map((fix) => (

@@ -53,16 +53,28 @@ try {
   await page.getByLabel('Title').fill('Exact classes');
   await addSpec('Elements must have a property');
   await page.locator('input[type=file]').nth(1).setInputFiles(model);
+  const counts = () => spec(0).locator('.spec-counts').innerText();
+  // New: "every wall" applies to the class and its subtypes, in the three versions, and the sentence says so.
+  await spec(0).locator('.spec-words', { hasText: 'including' }).waitFor({ timeout: 20000 });
+  check('a new "every wall" lists IfcWall and the subtype every version has, and the sentence says so', /^Every wall, including wall standard case, must have the property FireRating/.test(await spec(0).locator('.spec-words').innerText()) && (await spec(0).getByRole('checkbox', { name: /^Include the subtypes: wall standard case/ }).isChecked()), await spec(0).locator('.spec-words').innerText());
+  await page.getByRole('button', { name: /^Done editing/ }).first().click();
+  await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 20000 });
+  check('and the run applies to the wall and the standard-case wall', (await counts()).startsWith('Applied to 2 elements'), await counts());
+  // One clear control narrows it to the exact class; the rest of this section is about the exact class, for IFC4 only.
+  await spec(0).getByRole('button', { name: /^Edit / }).click();
+  await spec(0).getByRole('checkbox', { name: /^Include the subtypes/ }).click();
+  await spec(0).locator('details.more').last().locator('summary').click();
+  await spec(0).getByLabel('IFC2X3', { exact: true }).uncheck();
+  await spec(0).getByLabel('IFC4X3_ADD2', { exact: true }).uncheck();
   const note = spec(0).locator('.subtype-note');
   await note.waitFor({ timeout: 20000 });
   check('a specification for IfcWall says in one calm line that it is IfcWall only', (await note.innerText()).startsWith('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase.'), await note.innerText());
   await page.getByRole('button', { name: /^Done editing/ }).first().click();
   await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 20000 });
-  const counts = () => spec(0).locator('.spec-counts').innerText();
   check('the run agrees: it applied to the 1 IfcWall and not to the IfcWallStandardCase', (await counts()).startsWith('Applied to 1 element'), await counts());
   await page.getByRole('button', { name: 'Also apply it to the 2 subtypes' }).click();
   await page.locator('.title-block[data-kind="run"] .record', { hasText: 'unsaved changes' }).waitFor({ timeout: 20000 });
-  check('the action adds the subtypes as a list: the line is gone and the sentence names them', (await spec(0).locator('.subtype-note').count()) === 0 && /wall or IFCWALLELEMENTEDCASE or IFCWALLSTANDARDCASE|wall or IFCWALLSTANDARDCASE/.test(await spec(0).locator('.spec-words').innerText()), await spec(0).locator('.spec-words').innerText());
+  check('the action adds the subtypes as a list: the line is gone and the sentence names them', (await spec(0).locator('.subtype-note').count()) === 0 && /wall, including wall elemented case and wall standard case|wall, including wall standard case/.test(await spec(0).locator('.spec-words').innerText()), await spec(0).locator('.spec-words').innerText());
   check('and the run now applies to both walls', (await counts()).startsWith('Applied to 2 elements'), await counts());
   check('the page offers to undo it', (await page.locator('.undo').innerText()).includes('Undo'));
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -87,20 +99,20 @@ try {
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('button', { name: 'New' }).click();
   await page.getByLabel('Title').fill('Abstract class');
-  await addSpec('Elements must be named a certain way');
+  await addSpec('Elements must have a name');
   await page.locator('input[type=file]').nth(1).setInputFiles(model);
   // An abstract class: nothing in a model is one, so the specification applies to nothing until its subtypes stand in its place.
+  // (IfcBuildingElement is not a class of IFC4X3, so this specification is for IFC4 only.)
+  await spec(0).locator('details.more').last().locator('summary').click();
+  await spec(0).getByLabel('IFC2X3', { exact: true }).uncheck();
+  await spec(0).getByLabel('IFC4X3_ADD2', { exact: true }).uncheck();
   const classBox = spec(0).locator('.facet-list[aria-label="Applies to"] input[role=combobox]').first();
   await classBox.fill('IFCBUILDINGELEMENT');
-  await classBox.press('Escape');
-  await spec(0).locator('.subtype-note', { hasText: 'abstract class' }).waitFor({ timeout: 20000 });
+  await classBox.press('Tab');
+  // A new specification does not keep an abstract class: nothing in a model is one, so the concrete subtypes stand in its place at once.
   await page.getByRole('button', { name: /^Done editing/ }).first().click();
   await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 20000 });
-  const abstractText = await spec(0).locator('.subtype-note').innerText();
-  check('a specification for an abstract class says that it applies to nothing as written, and the run agrees', abstractText.startsWith('IfcBuildingElement is an abstract class: a model never holds an element that is IfcBuildingElement itself, only its subtypes, so this specification applies to nothing as it is written.') && (await counts()) === 'No element in this model matches it.', `${abstractText} | ${await counts()}`);
-  await spec(0).getByRole('button', { name: /^Apply it to the \d+ subtypes instead$/ }).click();
-  await page.waitForFunction(() => /Applied to 2 elements/.test(document.querySelector('.page-specs > li.spec .spec-counts')?.textContent ?? ''), null, { timeout: 20000 });
-  check('its action puts the concrete subtypes in its place: the line is gone, the file is valid, and the run applies to the wall and the standard-case wall', (await spec(0).locator('.subtype-note').count()) === 0 && (await counts()).startsWith('Applied to 2 elements') && (await dlBtn.isEnabled()), await counts());
+  check('an abstract class chosen in a new specification is replaced by its concrete subtypes, and the run applies to the wall and the standard-case wall', (await spec(0).locator('.subtype-note', { hasText: 'abstract class' }).count()) === 0 && (await counts()).startsWith('Applied to 2 elements') && (await dlBtn.isEnabled()), await counts());
 
   // ---- a property set named Pset_ that the standard does not define ---------------------------
   await page.getByRole('button', { name: 'Close' }).click();
@@ -110,7 +122,7 @@ try {
   const prop = spec(0).locator('li.facet').nth(1);
   const setBox = prop.getByRole('combobox', { name: 'Property set', exact: true });
   await setBox.fill('Pset_MyOwnSet');
-  await setBox.press('Escape');
+  await setBox.press('Enter');
   await page.locator('.verdict .verdict-word', { hasText: /Valid|Not valid/ }).first().waitFor({ timeout: 20000 });
   const msg = await prop.locator('.msg').allInnerTexts();
   check('a Pset_ name that the standard does not define is flagged beside the field', msg.some((m) => /Pset_|standard/i.test(m)), msg.join(' | '));

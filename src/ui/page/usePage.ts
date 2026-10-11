@@ -216,8 +216,10 @@ export function usePage() {
   /** The form's own problems that the engine does not already say in the same words: they join the list of things to fix, so that the count in the header and the list agree. */
   const extraGuard = useMemo(() => {
     const said = new Set((report?.findings ?? []).map((f) => plainFinding(f).plain));
-    return guardErrors.filter((g) => !said.has(g.message));
-  }, [guardErrors, report]);
+    // The engine's finding is about the same field as the form's problem: one line, not two.
+    const fields = new Set([...targets].flatMap(([, t]) => (t.kind === 'field' || t.kind === 'info' ? [t.key] : [])));
+    return guardErrors.filter((g) => !said.has(g.message) && !fields.has(g.key));
+  }, [guardErrors, report, targets]);
 
   // ---- actions ----
   const discardOk = useCallback(() => !dirty || window.confirm('You have unsaved changes. Discard them?'), [dirty]);

@@ -394,8 +394,10 @@ try {
   check('opening a valid IDS file after one that was not valid clears the problems and runs the waiting model', (await headline.innerText()) === 'The one specification passed.' && (await page.locator('.to-fix, .finding, .error').count()) === 0 && (await page.locator('.meta.notice').innerText()) === 'The IDS file was checked first and is valid.');
   await load(oldDraft, null);
   await checkSettled();
-  const draftSaid = await page.locator('.fix-line .fix-text').innerText();
-  check('an IDS 0.9.7 file: one sentence, the engine\'s own, and it cannot be edited here', /^This file is IDS 0\.9\.7\. idsbench works with IDS 1\.0 only\. Update the file to version 1\.0 and check it again\./.test(draftSaid) && (await page.getByRole('button', { name: /^(Fix|Edit)/ }).count()) === 0 && /cannot be changed here/.test(await page.locator('.to-fix').innerText()), draftSaid);
+  const draftSaid = (await page.locator('.fix-line .fix-text').innerText()).split('\nDetails')[0];
+  await page.locator('.fix-line .fix-details > summary').click();
+  const draftEngine = await page.locator('.fix-line .technical').first().innerText();
+  check('an IDS 0.9.7 file: one plain sentence, the engine\'s own behind Details, and it cannot be edited here', /^This file is IDS 0\.9\.7, an older draft\. idsbench works with IDS 1\.0 only: update the file to version 1\.0 in the tool that made it\.$/.test(draftSaid) && draftEngine === 'What the check engine says: This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.' && (await page.getByRole('button', { name: /^(Fix|Edit)/ }).count()) === 0 && /cannot be changed here/.test(await page.locator('.to-fix').innerText()), draftSaid);
   // A file in the wrong box is recognised by what it holds.
   await load(null, null);
   await ifcInput.setInputFiles(goodIds);
@@ -448,8 +450,8 @@ try {
   const csv = await download('Download failing elements', 'failing.csv');
   const csvBytes = fs.readFileSync(csv.path);
   const csvLines = csv.text.replace(/^﻿/, '').split('\r\n');
-  check('Download failing elements: a CSV named after the model, UTF-8 with a byte order mark, CRLF, one row per failing element, each marked as an element row', csv.file === 'mixed walls-failing-elements.csv' && csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf && csvLines[0] === 'Row about,Specification,Why it failed,IFC class,Name,GlobalId,Model,IDS file' && csvLines.length === 4 + 2 && csvLines[5] === '', `${csv.file}: ${csvLines.length - 2} rows`);
-  check('CSV: commas and quotes are quoted, letters outside ASCII are kept', csvLines[2].includes(',"Wand ""Süd"", außen",0000000000000000000002,mixed walls.ifc,two-requirements.ids') && csvLines[2].startsWith('Element,"Walls, ""named"" and described",') && csvLines[3].includes('"Ușă, perete"'), csvLines[2]);
+  check('Download failing elements: a CSV named after the model, UTF-8 with a byte order mark, CRLF, one row per failing element, each marked as an element row', csv.file === 'mixed walls-failing-elements.csv' && csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf && csvLines[0] === 'Row about,Specification,Requirement,Why it failed,What to fix,IFC class,Name,GlobalId,Storey or space,Model,IDS file' && csvLines.length === 4 + 2 && csvLines[5] === '', `${csv.file}: ${csvLines.length - 2} rows`);
+  check('CSV: commas and quotes are quoted, letters outside ASCII are kept', csvLines[2].includes(',"Wand ""Süd"", außen",0000000000000000000002,,mixed walls.ifc,two-requirements.ids') && csvLines[2].startsWith('Element,"Walls, ""named"" and described",') && csvLines[3].includes('"Ușă, perete"'), csvLines[2]);
 
   // ---- the worker -------------------------------------------------------------
   // A second pair after a first: the old result goes the moment a file changes.
@@ -523,10 +525,11 @@ try {
   const r0 = findingRows.first();
   const r0text = await r0.innerText();
   const f0 = ref.findings[0];
-  check('first row: message, position and short code', r0text.includes(f0.message) && r0text.includes(f0.column ? `line ${f0.line}, column ${f0.column}` : `line ${f0.line}`) && (await r0.locator('code').innerText()) === f0.code, r0text.replace(/\n/g, ' | '));
+  check('first row: the plain sentence, position and short code, with Details', r0text.includes('A specification that says elements must not exist cannot also list what they must have.') && r0text.includes('Details') && r0text.includes(f0.column ? `line ${f0.line}, column ${f0.column}` : `line ${f0.line}`) && (await r0.locator('code').innerText()) === f0.code, r0text.replace(/\n/g, ' | '));
   check('rows start closed', (await page.locator('.excerpt').count()) === 0);
   await r0.locator('summary').click();
   const ex = await r0.locator('.excerpt').innerText();
+  check('opened, the row shows the engine\'s own sentence beside the plain one', (await r0.locator('.technical').innerText()) === `What the check engine says: ${f0.message}`);
   const sourceLines = fs.readFileSync(officialInvalid, 'utf8').split(/\r\n|\n|\r/);
   const marked = ex.split('\n').find((l) => l.startsWith('>'));
   check('excerpt marks the engine\'s line and shows that line of the file', marked !== undefined && marked.includes(sourceLines[f0.line - 1].trim()) && marked.includes(`${f0.line} |`), marked);
@@ -564,7 +567,7 @@ try {
   const waitingText = await headline.innerText();
   await resetRuns();
   check('a model with an IDS file that is not valid: the model waits, one sentence says the file comes first, nothing is run', waitingText === `This IDS file has ${noun(refErrors)}. The model is checked as soon as the file is valid.` && (await noRun()) && (await specs.first().locator('.state').innerText()) === 'Waiting' && (await runsStarted()) === 0, waitingText);
-  check('...with its findings on the same page, one row per engine finding, and the list of things to fix', (await findingRows.count()) === ref.findings.length && (await findingRows.first().innerText()).includes(ref.findings[0].message) && (await page.locator('.to-fix h3').innerText()) === `${ref.findings.length} thing to fix in this IDS file`);
+  check('...with its findings on the same page, one row per engine finding, and the list of things to fix', (await findingRows.count()) === ref.findings.length && (await findingRows.first().innerText()).includes('A specification that says elements must not exist cannot also list what they must have.') && (await page.locator('.to-fix h3').innerText()) === `${ref.findings.length} thing to fix in this IDS file`);
   await page.screenshot({ path: path.join(shots, 'model-waiting.png'), fullPage: true });
   const oneFix = page.getByRole('button', { name: 'Remove the 1 "Must have" item' });
   await oneFix.waitFor({ timeout: 20000 });
@@ -586,7 +589,7 @@ try {
   check('not valid: the one primary action is Edit on the specification with the problem', (await page.locator('.btn.primary').count()) === 1 && (await page.locator('.btn.primary').getAttribute('aria-label')) === 'Edit Rabbits are named');
   await page.getByRole('button', { name: /^Fix:/ }).click();
   const landed = await page.evaluate(() => { const e = document.activeElement; return { role: e.getAttribute('role'), label: e.labels?.[0]?.textContent, value: e.value, spec: e.closest('.spec')?.querySelector('.spec-name')?.textContent, invalid: e.getAttribute('aria-invalid'), said: document.getElementById(e.getAttribute('aria-describedby') ?? '')?.textContent ?? e.closest('.value-field')?.querySelector('.error-msg')?.textContent }; });
-  check('Fix opens that specification and puts the keyboard in the field concerned, marked with the problem\'s sentence', landed.role === 'combobox' && landed.label === 'IFC class' && landed.value === 'IFCRABBIT' && landed.spec === 'Rabbits are named' && /The entity name 'IFCRABBIT' is not valid in IFC4/.test(landed.said ?? ''), JSON.stringify(landed));
+  check('Fix opens that specification and puts the keyboard in the field concerned, marked with the problem\'s sentence', landed.role === 'combobox' && landed.label === 'IFC class' && landed.value === 'IFCRABBIT' && landed.spec === 'Rabbits are named' && /IFCRABBIT is not an IFC class in IFC4/.test(landed.said ?? ''), JSON.stringify(landed));
   await page.keyboard.type('wall');
   await page.locator('[role=option]').first().waitFor();
   const firstOption = await page.locator('[role=option]').first().innerText();
@@ -721,7 +724,7 @@ try {
   check('an unknown IFC class: the engine\'s finding is on the page at its specification, and Download .ids is off with the engine\'s sentence', (await word()) === 'Not valid' && (await specs.first().locator('.finding-message').innerText()).includes('IFCWALLL') && (await page.getByRole('button', { name: 'Download .ids' }).isDisabled()) && /^Download is off until the IDS file is valid: .*IFCWALLL/.test(gate), gate);
   // A name one letter away from a real one is the engine's guess (IFCPILE for IFCPIPE): it is in the sentence, and it is not made one press.
   await page.locator('.to-fix[data-fixes="ready"]').waitFor({ timeout: 20000 });
-  check('a name one letter away from a real one: the engine\'s suggestion is in the sentence, and no button applies the guess', (await page.locator('.fix-line .fix-text').innerText()).includes("Did you mean 'IFCWALL'?") && (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Fix');
+  check('a name one letter away from a real one: the engine\'s suggestion is in the sentence, and no button applies the guess', (await page.locator('.fix-line .fix-text').innerText()).includes('Did you mean IFCWALL?') && (await page.locator('.fix-line .row-actions').innerText()).replace(/\s+/g, ' ') === 'Fix');
   const otherLetters = write('other-letters.ids', idsText(spec('Unknown class', app(1, 'unbounded', 'IfcWall'))));
   await load(otherLetters, null);
   await checkSettled();
@@ -754,9 +757,9 @@ try {
   const ids = new Set(repBig.json.run.specs[0].failures.map((f) => f.globalId));
   console.log(`SCALE report: ${repBig.bytes} bytes, written in ${((Date.now() - t1) / 1000).toFixed(1)} s`);
   check('scale: the downloaded report holds every failing element', repBig.json.run.specs[0].failures.length === WALLS && ids.size === WALLS && repBig.json.run.specs[0].failed === WALLS, `${repBig.json.run.specs[0].failures.length} of ${WALLS}`);
-  check('scale: reasons are readable', /^Property set "Pset_WallCommon" not found/.test(repBig.json.run.specs[0].failures[0].reasons.join(' ')), repBig.json.run.specs[0].failures[0].reasons.join(' '));
+  check('scale: reasons are readable', /^The property "FireRating" is missing: the property set "Pset_WallCommon" is not on this element/.test(repBig.json.run.specs[0].failures[0].reasons.join(' ')), repBig.json.run.specs[0].failures[0].reasons.join(' '));
   const csvBig = await download('Download failing elements', 'failing-big.csv');
-  check('scale: the CSV holds every failing element, not only the 200 on the page', csvBig.text.split('\r\n').length === WALLS + 2 && new Set(csvBig.text.split('\r\n').slice(1, -1).map((l) => l.split(',').at(-3))).size === WALLS, `${csvBig.text.split('\r\n').length - 2} rows, ${csvBig.bytes} bytes`);
+  check('scale: the CSV holds every failing element, not only the 200 on the page', csvBig.text.split('\r\n').length === WALLS + 2 && new Set(csvBig.text.split('\r\n').slice(1, -1).map((l) => l.split(',').at(-4))).size === WALLS, `${csvBig.text.split('\r\n').length - 2} rows, ${csvBig.bytes} bytes`);
 
   // ---- offline and privacy ----------------------------------------------------
   const stored = await page.evaluate(async () => ({

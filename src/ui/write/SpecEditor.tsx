@@ -11,7 +11,7 @@ import { plainName } from '../../core/picks';
 import type { Lists } from '../../core/picks';
 import { type Issue } from '../../core/ids/check';
 import {
-  IFC_VERSIONS, newFacet, occursFor, sortApplicability, specChoice,
+  IFC_VERSIONS, newFacet, occursFor, simple, sortApplicability, specChoice,
   type Cardinality, type Facet, type FacetKind, type Specification,
 } from '../../core/ids/model';
 
@@ -43,7 +43,8 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
   const naming = useMemo(() => ({ className: classNameIn(schemas ?? []) }), [schemas]);
   const several = s.ifcVersion.length > 1;
   const entity = s.applicability.find((f) => f.kind === 'entity');
-  const appliesTo = entity?.kind === 'entity' && entity.name.kind === 'simple' ? entity.name.value : '';
+  // The class the lists follow: the one the specification names, or the head of a list that is one class and its subtypes.
+  const appliesTo = entity?.kind === 'entity' && entity.name.kind === 'simple' ? entity.name.value : (schemas ? familyOf(s, schemas)?.head ?? '' : '');
   const hidden = ['ifcVersion'].map((k) => `${s.uid}.${k}`);
   const [moreOpen, setMoreOpen] = useState(false);
   const more = moreOpen || !!err('ifcVersion') || (focusKey !== null && hidden.includes(focusKey.key));
@@ -76,12 +77,14 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemas, s.applicability, s.ifcVersion, s.exact, s.made]);
   const subtypeNames = family ? family.others.map((u) => plainName(naming.className(u) ?? u).toLowerCase()) : [];
-  const narrow = family ? (
-    <label className="check subtype-choice">
-      <input type="checkbox" checked onChange={() => change({ ...narrowToHead(s, family), exact: true })} />{' '}
-      Include the subtypes: {subtypeNames.length <= 3 ? subtypeNames.join(', ') : `${subtypeNames.length} classes`}
-    </label>
-  ) : null;
+  const withClass = (upper: string): Specification => ({ ...s, applicability: s.applicability.map((f) => (f.kind === 'entity' ? { ...f, name: simple(upper) } : f)) });
+  const familyProps = family ? {
+    head: family.head,
+    subtypes: subtypeNames,
+    // Another class chosen: its own subtypes come with it, as they did for the first.
+    onHead: (upper: string) => change(schemas ? withDefaultSubtypes(withClass(upper), schemas) : withClass(upper)),
+    onExact: () => change({ ...narrowToHead(s, family), exact: true }),
+  } : null;
   const what = pluralSubject(s, naming) ?? 'matching element';
 
   return (
@@ -89,7 +92,7 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
       <TextField label="Name" dataKey={`${s.uid}.name`} required value={s.name} error={err('name')} onChange={(v) => onChange({ ...s, name: v, autoName: undefined })} />
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={issues} groupError={err('applicability')} groupAdvice={adv('applicability')}
         dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={(f) => change({ ...s, applicability: sortApplicability(f) })} onLimitVersions={setVersions}
-        extra={<>{narrow}{subtypes ? <SubtypeLine note={subtypes} onAdd={onAddSubtypes} /> : null}</>} />
+        extra={subtypes ? <SubtypeLine note={subtypes} onAdd={onAddSubtypes} /> : undefined} family={familyProps} />
       <FacetList title="Must have" help="What each of those elements must have." kind="requirements" facets={s.requirements} issues={issues} groupError={err('requirements')} groupAdvice={adv('requirements')}
         dataKey={`${s.uid}.requirements`} lists={lists} several={several} appliesTo={appliesTo} onChange={(f) => change({ ...s, requirements: f })} onLimitVersions={setVersions}
         extra={(
@@ -140,9 +143,10 @@ interface ListProps {
   /** More under the list, inside its group. */
   extra?: ReactNode;
   onLimitVersions?: (versions: string[]) => void;
+  family?: import('./FacetRow').Props['family'];
 }
 
-function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice, onChange, dataKey, lists, several, appliesTo, extra, onLimitVersions }: ListProps) {
+function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice, onChange, dataKey, lists, several, appliesTo, extra, onLimitVersions, family }: ListProps) {
   const [adding, setAdding] = useState(false);
   // Where keyboard focus goes after a change that removes the button that had it.
   const [focusNext, setFocusNext] = useState<string | null>(null);
@@ -187,7 +191,7 @@ function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice,
                 <button type="button" className="btn small quiet" onClick={() => { onChange(facets.filter((x) => x !== f)); setFocusNext('add'); }} aria-label={`Remove ${FACET_INFO[f.kind].name} item ${i + 1} from ${title}`}>Remove</button>
               </span>
             </div>
-            <FacetFields facet={f} requirement={requirement} issues={issues} lists={lists} several={several} appliesTo={appliesTo} onLimitVersions={onLimitVersions} onChange={(n) => onChange(facets.map((x) => (x === f ? n : x)))} />
+            <FacetFields facet={f} requirement={requirement} issues={issues} lists={lists} several={several} appliesTo={appliesTo} onLimitVersions={onLimitVersions} family={f.kind === 'entity' ? family : null} onChange={(n) => onChange(facets.map((x) => (x === f ? n : x)))} />
           </li>
         ))}
       </ol>

@@ -30,7 +30,7 @@ const NOT_IN_ALL = 'Not a name every IFC version ticked for this specification d
 const NONE: Option[] = [];
 const text = (v: Value | null | undefined) => (v && v.kind === 'simple' ? v.value : '');
 
-interface Props {
+export interface Props {
   facet: Facet;
   requirement: boolean;
   issues: Issue[];
@@ -41,6 +41,8 @@ interface Props {
   several: boolean;
   /** The IFC class this specification applies to, when it names exactly one: it narrows the lists. */
   appliesTo: string;
+  /** Set on the "Type of element" item when its classes are one class and its subtypes: the class is shown as that class, with the choice to include the subtypes. */
+  family?: { head: string; subtypes: string[]; onHead: (upper: string) => void; onExact: () => void } | null;
   /** Apply the specification to these IFC versions only (the person pressed the button beside a name that only they define). */
   onLimitVersions?: (versions: string[]) => void;
 }
@@ -52,7 +54,7 @@ export function noSuchProperty(pset: string, name: string, standard: Option[]): 
   return `${pset} has no property called ${name}. Standard ones are: ${shown}${rest > 0 ? ` and ${rest} more` : ''}. Use a custom property set for your own properties.`;
 }
 
-export function FacetFields({ facet: f, requirement, issues, onChange, lists, several, appliesTo, onLimitVersions }: Props) {
+export function FacetFields({ facet: f, requirement, issues, onChange, lists, several, appliesTo, onLimitVersions, family }: Props) {
   const notListed = several ? NOT_IN_ALL : NOT_STANDARD;
   const err = (k: string) => issues.find((i) => i.key === `${f.uid}.${k}` && i.level === 'error')?.message ?? null;
   const adv = (k: string) => issues.find((i) => i.key === `${f.uid}.${k}` && i.level === 'advice')?.message ?? null;
@@ -80,7 +82,15 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
   return (
     <div className="facet-fields">
       {f.kind === 'entity' && <>
-        {vf('IFC class', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: classes, customNote: notListed })}
+        {family
+          ? vf('IFC class', 'name', simple(family.head), false, (v) => (v?.kind === 'simple' ? family.onHead(v.value) : set({ name: v ?? simple() })), { options: classes, customNote: notListed })
+          : vf('IFC class', 'name', f.name, false, (v) => set({ name: v ?? simple() }), { options: classes, customNote: notListed })}
+        {family && (
+          <label className="check subtype-choice">
+            <input type="checkbox" checked onChange={() => family.onExact()} />{' '}
+            Include the subtypes: {family.subtypes.length <= 3 ? family.subtypes.join(', ') : `${family.subtypes.length} classes`}
+          </label>
+        )}
         {vf('Predefined type', 'predefinedType', f.predefinedType, true, (v) => set({ predefinedType: v }), { options: predefined })}
       </>}
       {f.kind === 'attribute' && <>

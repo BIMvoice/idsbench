@@ -129,7 +129,7 @@ function checkSpec(s: Specification, label: string, add: Add) {
     add(`${s.uid}.occurs`, where, 'IDS 1.0 allows only required, optional or prohibited here. Choose one of them.');
   }
   if (choice === 'prohibited' && s.requirements.length > 0) {
-    add(`${s.uid}.requirements`, `${where}, Must have`, 'A prohibited specification cannot have "Must have" items. Remove them, or choose another option above.');
+    add(`${s.uid}.requirements`, `${where}, Must have`, 'A specification that says elements must not exist cannot also list what they must have. Remove the "Must have" items, or choose another option.');
   }
   if (choice === 'optional' && s.requirements.length === 0) {
     add(`${s.uid}.requirements`, `${where}, Must have`, 'An optional specification needs at least one "Must have" item. Add one, or make the specification required.');

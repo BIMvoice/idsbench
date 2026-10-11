@@ -482,8 +482,8 @@ try {
   const csv = (await download('Download failing elements', 'nasty.csv')).text;
   const rowsOf = (text) => { const rows = []; let row = [], cell = '', q = false; const b = text.replace(/^﻿/, ''); for (let i = 0; i < b.length; i++) { const c = b[i]; if (q) { if (c === '"' && b[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; } else if (c === '"') q = true; else if (c === ',') { row.push(cell); cell = ''; } else if (c === '\r' && b[i + 1] === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; i++; } else cell += c; } return rows; };
   const csvRows = rowsOf(csv);
-  const names = csvRows.slice(1).map((r) => r[4]);
-  check('CSV: a name that a spreadsheet would run as a formula (=, +, -, @) is written with an apostrophe in front; other names, long ones and letters outside ASCII are as in the model; an element with no name and no GlobalId has empty cells', csvRows.length === 8 && names[0] === `'${nasty[0]}` && names[1] === `'${nasty[1]}` && names[2] === `'${nasty[2]}` && names[3] === `'${nasty[3]}` && names[4] === nasty[4] && names[5] === nasty[5] && names[6] === '' && csvRows[7][5] === '' && csvRows.every((r) => r.length === 8) && csvRows.slice(1).every((r) => r[0] === 'Element'), JSON.stringify(names.map((n) => n.slice(0, 30))));
+  const names = csvRows.slice(1).map((r) => r[6]);
+  check('CSV: a name that a spreadsheet would run as a formula (=, +, -, @) is written with an apostrophe in front; other names, long ones and letters outside ASCII are as in the model; an element with no name and no GlobalId has empty cells', csvRows.length === 8 && names[0] === `'${nasty[0]}` && names[1] === `'${nasty[1]}` && names[2] === `'${nasty[2]}` && names[3] === `'${nasty[3]}` && names[4] === nasty[4] && names[5] === nasty[5] && names[6] === '' && csvRows[7][7] === '' && csvRows.every((r) => r.length === 11) && csvRows.slice(1).every((r) => r[0] === 'Element'), JSON.stringify(names.map((n) => n.slice(0, 30))));
 
   // ---- E17: one reason is read once, whatever value each element has of its own -------------------
   await specs.first().locator('details.fails summary').click();
@@ -502,7 +502,7 @@ try {
   // The list for the people who model is not silent about it: a row of its own, marked in the first column, with no element in it.
   const wholeCsv = (await download('Download failing elements', 'whole.csv')).text;
   const wholeRows = rowsOf(wholeCsv);
-  check('...and the CSV holds that specification as a row marked "Whole specification", with the reason and no element', wholeRows.length === 2 && wholeRows[1][0] === 'Whole specification' && wholeRows[1][1] === 'There is a door' && /needs at least one matching element, and the model has none/.test(wholeRows[1][2]) && wholeRows[1][3] === '' && wholeRows[1][4] === '' && wholeRows[1][5] === '', JSON.stringify(wholeRows[1]));
+  check('...and the CSV holds that specification as a row marked "Whole specification", with the reason and no element', wholeRows.length === 2 && wholeRows[1][0] === 'Whole specification' && wholeRows[1][1] === 'There is a door' && /needs at least one matching element, and the model has none/.test(wholeRows[1][3]) && wholeRows[1][5] === '' && wholeRows[1][6] === '' && wholeRows[1][7] === '' && wholeRows[1][2] === 'Every door must have the attribute Name set to "x". The model must contain at least one door.' && wholeRows[1][4] !== '', JSON.stringify(wholeRows[1]));
 
   // ---- G: the three journeys without a mouse -----------------------------------------------------
   const kctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, acceptDownloads: true });

@@ -95,13 +95,17 @@ try {
     await box.fill(typed);
     const first = scope.locator('[role=option]').first();
     await first.waitFor({ timeout: 20000 });
-    const text = await first.innerText();
+    // A name people look for by what it means carries its plain meaning on a second line: the pick is the first line.
+    const text = (await first.innerText()).split('\n')[0];
     await box.press('Enter');
     return text;
   };
   const addSpec = async (how) => {
     await page.getByRole('button', { name: 'Add a specification' }).click();
+    const before = await page.locator('.page-specs > li.spec').count();
     await page.getByRole('group', { name: 'Start a specification from' }).getByRole('button', { name: how }).click();
+    // A starting shape looks up the IFC tables for its subtypes before it opens.
+    await page.waitForFunction((n) => document.querySelectorAll('.page-specs > li.spec').length > n, before, { timeout: 20000 });
   };
 
   // ---- a new, empty IDS ---------------------------------------------------------
@@ -129,7 +133,7 @@ try {
 
   await page.getByRole('button', { name: 'Add a specification' }).click();
   const offers = await page.getByRole('group', { name: 'Start a specification from' }).locator('button').allInnerTexts();
-  check('a specification starts from a pattern: five common shapes, or an empty one', offers.join('|') === 'Elements must have a property|Elements must have a classification|Elements must have a material|Elements must be named a certain way|Elements must not exist in the model|An empty specification|Cancel', offers.join('|'));
+  check('a specification starts from a pattern: five common shapes, or an empty one', offers.join('|') === 'Elements must have a property|Elements must have a classification|Elements must have a material|Elements must have a name|Elements must not exist in the model|An empty specification|Cancel', offers.join('|'));
   await page.getByRole('button', { name: 'An empty specification' }).click();
   const s1 = spec(0);
   check('a new specification opens in place with its Name field focused', await page.evaluate(() => document.activeElement?.closest('.spec-body') !== null && document.activeElement.tagName === 'INPUT' && document.activeElement.labels[0].textContent === 'Name'));
@@ -166,7 +170,7 @@ try {
 
   // The sentence is the face of the specification, and follows the form
   const words1 = await s1.locator('.spec-words').innerText();
-  check('"In words" line for the specification', words1 === 'Every wall must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR" and the attribute Name with a value matching the pattern "Wal.*". The model must contain at least one wall.', words1);
+  check('"In words" line for the specification', words1 === 'Every wall, including wall standard case, must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR" and the attribute Name with a value matching the pattern "Wal.*".', words1);
   const screenWords = await s1.locator('.spec-body').innerText();
   check('plain words on screen: no "facet", "applicability", "cardinality", "restriction" or "how to match" in the form', !/facet|applicability|cardinality|restriction|how to match/i.test(screenWords), screenWords.match(/.{0,120}(facet|applicability|cardinality|restriction|how to match).{0,80}/is)?.[0] ?? '');
   check('the form shows what the common case needs; the rest is behind More options', (await s1.locator('.spec-body > details.more').evaluate((d) => !d.open)) && (await s1.locator('.spec-body > details.more > summary').innerText()) === 'More options' && !(await s1.getByLabel('Identifier').isVisible()));
@@ -175,7 +179,7 @@ try {
   await addSpec('Elements must have a classification');
   const s2 = spec(1);
   check('opening a new specification closes the other (accordion)', (await page.locator('.spec-body').count()) === 1);
-  check('a pattern arrives complete: it reads as a sentence and has nothing to fix', (await s2.locator('.spec-words').innerText()) === 'Every door must have a classification in Uniclass 2015. The model must contain at least one door.' && (await s2.locator('.error-msg').count()) === 0);
+  check('a pattern arrives complete: it reads as a sentence and has nothing to fix', (await s2.locator('.spec-words').innerText()) === 'Every door must have a classification in Uniclass 2015.' && (await s2.locator('.error-msg').count()) === 0);
   await s2.getByLabel('Name', { exact: true }).fill('Walls are classified');
   await pick(s2, 'IFC class', 'wall');
   const must2 = s2.getByRole('region', { name: 'Must have' });
@@ -251,7 +255,7 @@ try {
   fs.writeFileSync(draft, fs.readFileSync(path.join(out, 'wall-checks.ids'), 'utf8').replace('IDS/1.0/ids.xsd', 'IDS/0.9.7/ids.xsd'));
   await page.locator('input[type=file]').first().setInputFiles(draft);
   await page.locator('.fix-line').waitFor({ timeout: 30000 });
-  check('an IDS 0.9.7 file is Not valid with one plain sentence, the engine\'s own', (await page.locator('.verdict-word').innerText()) === 'Not valid' && (await page.locator('.fix-line .fix-text').innerText()) === 'This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.', await page.locator('.fix-line .fix-text').innerText());
+  check('an IDS 0.9.7 file is Not valid with one plain sentence, the engine\'s own', (await page.locator('.verdict-word').innerText()) === 'Not valid' && (await page.locator('.fix-line .fix-text').innerText()).split('\nDetails')[0] === 'This file is IDS 0.9.7, an older draft. idsbench works with IDS 1.0 only: update the file to version 1.0 in the tool that made it.' && (await page.locator('.fix-line .technical').first().textContent()).includes('This file is IDS 0.9.7. idsbench works with IDS 1.0 only. Update the file to version 1.0 and check it again.'), await page.locator('.fix-line .fix-text').innerText());
   check('and it is not opened in the forms: no Edit, no Fix, and the page says to correct it in the tool that made it', (await page.getByRole('button', { name: /^(Edit|Fix)/ }).count()) === 0 && /This file cannot be changed here\. Correct it in the tool that made it, then open it again\./.test(await page.locator('.to-fix').innerText()));
 
   // ---- changing one thing in an opened file: fire rating to acoustic rating ---------------------
@@ -262,7 +266,7 @@ try {
   console.log(`OPEN SPECIFICATION at 1280 x 800: the open row is ${fitsOnScreen.height} px tall (viewport ${fitsOnScreen.viewport} px)`);
   const acoustic = await pick(spec(0).getByRole('region', { name: 'Must have' }).locator('li.facet').nth(0), 'Property', 'acoustic');
   await spec(0).locator('.spec-words', { hasText: 'AcousticRating' }).waitFor();
-  check('changing "fire rating" to "acoustic rating" is one pick: no name is typed in its technical form', acoustic === 'Acoustic rating (AcousticRating)' && (await spec(0).locator('.spec-words').innerText()).startsWith('Every wall must have the property AcousticRating in Pset_WallCommon'), acoustic);
+  check('changing "fire rating" to "acoustic rating" is one pick: no name is typed in its technical form', acoustic === 'Acoustic rating (AcousticRating)' && (await spec(0).locator('.spec-words').innerText()).startsWith('Every wall, including wall standard case, must have the property AcousticRating in Pset_WallCommon'), acoustic);
 
   // ---- phone width ----------------------------------------------------------
   const phoneCtx = await newContext({ width: 390, height: 844 });
@@ -315,6 +319,10 @@ try {
   await kb.locator('[role=option]').first().waitFor({ timeout: 20000 });
   await kb.keyboard.press('Enter');
   check('the pick-list is worked with the keyboard alone: type, Enter', (await kb.evaluate(() => document.activeElement.value)) === 'Wall (IfcWall)');
+  // A new specification does not fail a model for having none of its elements; "Walls exist" says the opposite, and the choice is in plain view.
+  check('Tab reaches the choice "If the model has no wall" (on "That is fine"), in plain view and not under More options', await tabTo(/^input\|That is fine/));
+  await kb.keyboard.press('ArrowDown');
+  check('"That is a failure" chosen with the arrow key: the sentence now says the model must contain a wall', (await kb.locator('.spec-words').innerText()).includes('The model must contain at least one wall'));
   check('Tab reaches Download .ids, now on', await tabTo(/^button\|\|Download \.ids/));
   const [dl] = await Promise.all([kb.waitForEvent('download'), kb.keyboard.press('Enter')]);
   const f3 = path.join(out, 'keyboard-only.ids');

@@ -82,7 +82,8 @@ export function App() {
   /** A specification the page makes: it applies to the class and its subtypes in every version ticked, and its name is worked out from what it says. */
   const startSpec = async (made: Specification) => {
     let s = made;
-    try {
+    // Nothing to look up while no class is named: the form opens at once.
+    if (made.applicability.length > 0) try {
       const tables = await loadSchemas(versionsFor(made.ifcVersion));
       s = syncName(withDefaultSubtypes(made, tables), { className: classNameIn(tables) });
     } catch (e) { console.error(e); }
