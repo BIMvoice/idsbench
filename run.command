@@ -1,5 +1,5 @@
 #!/bin/bash
-# Double-click to launch the BIMvoice IDS Auditor (macOS).
+# Double-click to launch idsbench (macOS).
 # Starts the local engine and opens it in your browser. Close this window to stop.
 cd "$(dirname "$0")" || exit 1
 
@@ -8,7 +8,7 @@ if curl -s http://127.0.0.1:5005 >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "Starting BIMvoice IDS Auditor..."
+echo "Starting idsbench..."
 echo "Keep this window open while you use the tool. Close it to stop."
 ( sleep 2; open "http://127.0.0.1:5005" ) &
 

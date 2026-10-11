@@ -1,6 +1,10 @@
-# BIMvoice IDS Auditor
+# idsbench
 
-A small, local web tool that **audits IDS files** (Information Delivery Specifications) and shows you exactly what is wrong and where, in a clean interface.
+A local, private workbench for IDS (Information Delivery Specifications). The goal is one place to **create, edit, run and validate** IDS files.
+
+**What works today:** auditing. Drop in an IDS file and it shows you exactly what is wrong and where, in a clean interface. Creating, editing and running an IDS against an IFC model are planned and not built yet.
+
+Formerly published as `bimvoice-ids-auditor`.
 
 It runs entirely on your own machine. Your files never leave your computer, which matters when your IDS files are confidential.
 
