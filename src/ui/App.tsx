@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import { RunTab } from './RunTab';
+import { RunTab, type Incoming } from './RunTab';
+import { WriteTab } from './write/WriteTab';
 
 const TABS = [
   { id: 'write', label: 'Write' },
@@ -10,6 +11,8 @@ type TabId = (typeof TABS)[number]['id'];
 
 export function App() {
   const [tab, setTab] = useState<TabId>('run');
+  // An IDS handed over from Write: Run takes it as if the file had been chosen.
+  const [incoming, setIncoming] = useState<Incoming | null>(null);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const onKey = (e: KeyboardEvent, i: number) => {
@@ -50,15 +53,14 @@ export function App() {
 
       <main>
         <section role="tabpanel" id="panel-write" aria-labelledby="tab-write" hidden={tab !== 'write'}>
-          <h2>Write</h2>
-          <p>Not built yet. This tab will let you create and edit an IDS file with plain forms.</p>
+          <WriteTab onUseInRun={(file) => { setIncoming((p) => ({ file, token: (p?.token ?? 0) + 1 })); setTab('run'); }} />
         </section>
         <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" hidden={tab !== 'check'}>
           <h2>Check</h2>
           <p>Not built yet. This tab will tell you whether an IDS file is itself valid.</p>
         </section>
         <section role="tabpanel" id="panel-run" aria-labelledby="tab-run" hidden={tab !== 'run'}>
-          <RunTab />
+          <RunTab incoming={incoming} />
         </section>
       </main>
 

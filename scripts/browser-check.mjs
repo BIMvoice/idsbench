@@ -130,18 +130,20 @@ try {
   // The IFC parser starts a helper worker of its own from a blob: URL; only the app's worker is counted.
   page.on('worker', (w) => { if (w.url().includes('/assets/worker-')) workersStarted++; });
 
-  const runButton = page.locator('button.primary');
+  // The Write tab is in the page too (hidden), with buttons and file inputs of its own: Run's checks look inside the Run panel.
+  const run = page.locator('#panel-run');
+  const runButton = run.locator('button.primary');
   const setFiles = async (idsFile, ifcFile) => {
-    if (idsFile) await page.locator('input[type=file]').nth(0).setInputFiles(idsFile);
-    if (ifcFile) await page.locator('input[type=file]').nth(1).setInputFiles(ifcFile);
+    if (idsFile) await run.locator('input[type=file]').nth(0).setInputFiles(idsFile);
+    if (ifcFile) await run.locator('input[type=file]').nth(1).setInputFiles(ifcFile);
   };
   const load = async (idsFile, ifcFile) => {
     await page.goto(origin + '/');
     await setFiles(idsFile, ifcFile);
     await runButton.click();
   };
-  const settled = () => page.locator('.headline, .error').first().waitFor({ timeout: 120000 });
-  const pageText = () => page.locator('main').innerText();
+  const settled = () => run.locator('.headline, .error').first().waitFor({ timeout: 120000 });
+  const pageText = () => run.innerText();
   const downloadReport = async (name) => {
     const dl = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download report' }).click();
@@ -155,24 +157,24 @@ try {
   await page.goto(origin + '/');
   check('three tabs present', (await page.getByRole('tab').allTextContents()).join(',') === 'Write,Check,Run');
   await page.getByRole('tab', { name: 'Write' }).click();
-  check('Write says not built yet', (await page.locator('#panel-write').innerText()).includes('Not built yet'));
+  check('Write opens an editor (its own check is scripts/write-check.mjs)', (await page.locator('#panel-write').innerText()).includes('About this IDS'));
   await page.getByRole('tab', { name: 'Check' }).click();
   check('Check says not built yet', (await page.locator('#panel-check').innerText()).includes('Not built yet'));
   await page.getByRole('tab', { name: 'Run' }).click();
   check('Run disabled with no files', await runButton.isDisabled());
-  check('a live region for announcements exists before any run, and is empty', (await page.locator('[aria-live=polite]').count()) === 1 && (await page.locator('[aria-live=polite]').innerText()).trim() === '');
+  check('a live region for announcements exists before any run, and is empty', (await run.locator('[aria-live=polite]').count()) === 1 && (await run.locator('[aria-live=polite]').innerText()).trim() === '');
 
   // ---- official pass pair -----------------------------------------------------
   const pass = 'pass-a_minimal_ids_can_check_a_minimal_ifc_2_2';
   await load(path.join(cases, pass + '.ids'), path.join(cases, pass + '.ifc'));
   await settled();
-  const h1 = await page.locator('.headline').innerText();
+  const h1 = await run.locator('.headline').innerText();
   check('pass pair headline', h1 === 'The one specification passed.', h1);
-  check('pass pair row state Pass', (await page.locator('.spec .state').first().innerText()).includes('Pass'));
-  check('file names and sizes shown in the boxes', (await page.locator('.drop-detail').first().innerText()).includes(pass + '.ids'));
-  check('result names both files', (await page.locator('.meta').first().innerText()).includes(pass + '.ids') && (await page.locator('.meta').first().innerText()).includes(pass + '.ifc'));
-  check('result says Run does not verify the IDS file itself', (await page.locator('.notice').innerText()).includes('It does not check that the IDS file itself is valid.'));
-  check('headline sits inside the live region', (await page.locator('[aria-live=polite] .headline').count()) === 1);
+  check('pass pair row state Pass', (await run.locator('.spec .state').first().innerText()).includes('Pass'));
+  check('file names and sizes shown in the boxes', (await run.locator('.drop-detail').first().innerText()).includes(pass + '.ids'));
+  check('result names both files', (await run.locator('.meta').first().innerText()).includes(pass + '.ids') && (await run.locator('.meta').first().innerText()).includes(pass + '.ifc'));
+  check('result says Run does not verify the IDS file itself', (await run.locator('.notice').innerText()).includes('It does not check that the IDS file itself is valid.'));
+  check('headline sits inside the live region', (await run.locator('[aria-live=polite] .headline').count()) === 1);
   const rep1 = await downloadReport('report-pass.json');
   check('report download is JSON with specs', Array.isArray(rep1.json.specs) && rep1.json.specs.length === 1 && rep1.json.verdict === 'pass', rep1.file);
 
@@ -180,38 +182,38 @@ try {
   const fail = 'fail-a_minimal_ids_can_check_a_minimal_ifc_1_2';
   await load(path.join(cases, fail + '.ids'), path.join(cases, fail + '.ifc'));
   await settled();
-  const h2 = await page.locator('.headline').innerText();
+  const h2 = await run.locator('.headline').innerText();
   check('fail pair headline', /^0 of 1 specification passed\./.test(h2), h2);
-  check('fail pair row state Fail', (await page.locator('.spec .state').first().innerText()).includes('Fail'));
-  await page.locator('summary.spec-head').first().click();
-  const rows = await page.locator('.spec tbody tr').count();
-  check('failing element listed', rows >= 1, `${rows} row(s): ${await page.locator('.spec tbody tr').first().innerText()}`);
+  check('fail pair row state Fail', (await run.locator('.spec .state').first().innerText()).includes('Fail'));
+  await run.locator('summary.spec-head').first().click();
+  const rows = await run.locator('.spec tbody tr').count();
+  check('failing element listed', rows >= 1, `${rows} row(s): ${await run.locator('.spec tbody tr').first().innerText()}`);
 
   // ---- ifcVersion: checked anyway, with a note --------------------------------
   const meta = 'pass-specification_version_is_purely_metadata_and_does_not_impact_pass_or_fail_result';
   await load(path.join(cases, meta + '.ids'), path.join(cases, meta + '.ifc'));
   await settled();
-  check('IFC2X3 specification on an IFC4 model is checked and passes', (await page.locator('.headline').innerText()) === 'The one specification passed.' && (await page.locator('.error').count()) === 0);
-  const sn = await page.locator('.spec .schema-note').innerText().catch(() => '');
+  check('IFC2X3 specification on an IFC4 model is checked and passes', (await run.locator('.headline').innerText()) === 'The one specification passed.' && (await run.locator('.error').count()) === 0);
+  const sn = await run.locator('.spec .schema-note').innerText().catch(() => '');
   check('the row says the model version is not one the specification lists', /The model is IFC4, but this specification lists IFC2X3\. It was checked anyway/.test(sn), sn);
   const req22 = 'fail-required_specifications_need_at_least_one_applicable_entity_2_2';
   await load(path.join(cases, req22 + '.ids'), path.join(cases, req22 + '.ifc'));
   await settled();
-  check('IFC2X3 specification that fails on an IFC4 model fails for its own reason', /^0 of 1/.test(await page.locator('.headline').innerText()) && /needs at least one matching element/.test(await pageText()));
+  check('IFC2X3 specification that fails on an IFC4 model fails for its own reason', /^0 of 1/.test(await run.locator('.headline').innerText()) && /needs at least one matching element/.test(await pageText()));
 
   // ---- every state on one page ------------------------------------------------
   await load(statesIds, goodIfc);
   await settled();
-  const states = await page.locator('.spec').evaluateAll((els) => els.map((e) => ({
+  const states = await run.locator('.spec').evaluateAll((els) => els.map((e) => ({
     name: e.querySelector('.spec-name').textContent, state: e.querySelector('.state').textContent.trim(), counts: e.querySelector('.spec-counts').textContent, notes: [...e.querySelectorAll(':scope > .note')].map((n) => n.textContent).join(' '),
   })));
   const st = Object.fromEntries(states.map((s) => [s.name, s]));
   console.log('STATE TABLE (as shown on the page)');
   for (const s of states) console.log(`   ${s.name} | ${s.state} | ${s.counts} | ${s.notes}`);
-  const hs = await page.locator('.headline').innerText();
+  const hs = await run.locator('.headline').innerText();
   console.log(`   headline: ${hs}`);
   check('states headline counts passed, failed and unchecked separately', hs === '4 of 8 specifications passed. 3 failed. 1 could not be checked. 1 optional specification matched nothing in this model, so there was nothing to check there.', hs);
-  check('states headline is styled as a failure', (await page.locator('.headline').getAttribute('class')).includes('fail'));
+  check('states headline is styled as a failure', (await run.locator('.headline').getAttribute('class')).includes('fail'));
   check('required and met shows Pass', st['Required, met'].state.includes('Pass') && st['Required, met'].counts.startsWith('Applied to 2 elements: 2 passed, 0 failed.'));
   check('required and broken shows Fail with counts', st['Required, broken'].state.includes('Fail') && st['Required, broken'].counts.startsWith('Applied to 2 elements: 0 passed, 2 failed.'));
   check('required with nothing matching shows Fail and why', st['Required, nothing matches'].state.includes('Fail') && /needs at least one matching element/.test(st['Required, nothing matches'].notes));
@@ -221,7 +223,7 @@ try {
   check('no applicability shows Not checked and what to do', st['No applicability'].state.includes('Not checked') && /Add an applicability/.test(st['No applicability'].notes));
   check('IFC2X3 specification shows Pass with the version note', st['Written for IFC2X3'].state.includes('Pass') && /lists IFC2X3/.test(st['Written for IFC2X3'].notes));
   check('every state has a word and a mark, not colour alone', states.every((s) => /^[✓✗–?] (Pass|Fail|Nothing to check|Not checked)$/.test(s.state)), states.map((s) => s.state).join(' / '));
-  const prohibitedRow = page.locator('.spec', { hasText: 'Prohibited, found' });
+  const prohibitedRow = run.locator('.spec', { hasText: 'Prohibited, found' });
   await prohibitedRow.locator('summary').click();
   check('prohibited and found lists the elements that must not be there', (await prohibitedRow.locator('tbody tr').count()) === 2 && /must not be in the model/.test(await prohibitedRow.locator('tbody tr').first().innerText()));
   check('no jargon in the states page', !JARGON.test(await pageText()), (await pageText()).match(JARGON)?.[0] ?? '');
@@ -229,21 +231,21 @@ try {
 
   await load(uncheckedIds, goodIfc);
   await settled();
-  const hu = await page.locator('.headline').innerText();
-  check('one pass and one unchecked is not "all passed"', hu === '1 of 2 specifications passed. 1 could not be checked.' && (await page.locator('.headline').getAttribute('class')).includes('incomplete'), hu);
+  const hu = await run.locator('.headline').innerText();
+  check('one pass and one unchecked is not "all passed"', hu === '1 of 2 specifications passed. 1 could not be checked.' && (await run.locator('.headline').getAttribute('class')).includes('incomplete'), hu);
 
   // ---- inputs that lie --------------------------------------------------------
   for (const [label, idsFile, ifcFile, pattern] of refusals) {
     await load(idsFile, ifcFile);
     await settled();
-    const msg = await page.locator('.error').innerText().catch(() => '');
-    const noVerdict = (await page.locator('.headline').count()) === 0 && (await page.locator('.spec').count()) === 0;
+    const msg = await run.locator('.error').innerText().catch(() => '');
+    const noVerdict = (await run.locator('.headline').count()) === 0 && (await run.locator('.spec').count()) === 0;
     check(`${label}: plain sentence, no verdict`, pattern.test(msg) && noVerdict && !JARGON.test(msg) && !/0 of 0/.test(await pageText()), msg || '(no message; a result was shown)');
   }
   const bom = write('bom.ifc', Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(twoWalls)]));
   await load(goodIds, bom);
   await settled();
-  check('IFC with a UTF-8 byte order mark is checked', (await page.locator('.headline').innerText().catch(() => '')) === 'The one specification passed.');
+  check('IFC with a UTF-8 byte order mark is checked', (await run.locator('.headline').innerText().catch(() => '')) === 'The one specification passed.');
   const oneLine = write('one-line.ifc', ifcText('IFC4', Array.from({ length: 3000 }, (_, i) => wall(i + 1)).join('')).replace(/\n/g, ''));
   await load(goodIds, oneLine);
   await settled();
@@ -253,13 +255,13 @@ try {
   // A second pair after a first: the old result goes the moment a file changes.
   await load(goodIds, goodIfc);
   await settled();
-  check('first pair passes', (await page.locator('.headline').innerText()) === 'The one specification passed.');
+  check('first pair passes', (await run.locator('.headline').innerText()) === 'The one specification passed.');
   await setFiles(otherIds, null);
-  check('choosing another file removes the previous result at once', (await page.locator('.headline').count()) === 0 && (await page.locator('.spec').count()) === 0 && (await page.getByRole('button', { name: 'Download report' }).count()) === 0);
+  check('choosing another file removes the previous result at once', (await run.locator('.headline').count()) === 0 && (await run.locator('.spec').count()) === 0 && (await page.getByRole('button', { name: 'Download report' }).count()) === 0);
   await runButton.click();
   await settled();
   const second = await pageText();
-  check('second pair shows its own result under its own names', /^0 of 1/.test(await page.locator('.headline').innerText()) && second.includes('Walls are named Wilma') && second.includes('IDS file: walls-named-wilma.ids') && !second.includes('Walls are named Waldo'));
+  check('second pair shows its own result under its own names', /^0 of 1/.test(await run.locator('.headline').innerText()) && second.includes('Walls are named Wilma') && second.includes('IDS file: walls-named-wilma.ids') && !second.includes('Walls are named Waldo'));
 
   // Changing a file while a run is in progress: the run must not deliver.
   await page.goto(origin + '/');
@@ -268,16 +270,16 @@ try {
   workerDelay = 3000;
   await runButton.dblclick();
   check('Run is disabled while a check is in progress', await runButton.isDisabled() && (await runButton.innerText()) === 'Working...');
-  await page.locator('.working').waitFor({ timeout: 10000 });
+  await run.locator('.working').waitFor({ timeout: 10000 });
   await setFiles(goodIds, null);
-  check('changing a file during a run stops it: no progress text, Run available again', (await page.locator('.working').count()) === 0 && !(await runButton.isDisabled()));
+  check('changing a file during a run stops it: no progress text, Run available again', (await run.locator('.working').count()) === 0 && !(await runButton.isDisabled()));
   workerDelay = 0;
   await page.waitForTimeout(8000);
-  check('the stopped run never shows a result under the new file name', (await page.locator('.headline').count()) === 0 && (await page.locator('.spec').count()) === 0);
+  check('the stopped run never shows a result under the new file name', (await run.locator('.headline').count()) === 0 && (await run.locator('.spec').count()) === 0);
   await setFiles(null, goodIfc);
   await runButton.click();
   await settled();
-  check('a run after a stopped run gives the new pair its own result', (await page.locator('.headline').innerText()) === 'The one specification passed.' && (await pageText()).includes('Model: two-walls.ifc'));
+  check('a run after a stopped run gives the new pair its own result', (await run.locator('.headline').innerText()) === 'The one specification passed.' && (await pageText()).includes('Model: two-walls.ifc'));
 
   // Run clicked twice in quick succession.
   await page.goto(origin + '/');
@@ -286,18 +288,18 @@ try {
   await runButton.dblclick();
   await settled();
   await page.waitForTimeout(500);
-  check('clicking Run twice starts one check, not two', workersStarted === 1 && (await page.locator('.headline').count()) === 1, `workers started: ${workersStarted}`);
+  check('clicking Run twice starts one check, not two', workersStarted === 1 && (await run.locator('.headline').count()) === 1, `workers started: ${workersStarted}`);
 
   // The worker fails to start or crashes.
   breakWorker = true;
   await load(goodIds, goodIfc);
   await settled();
-  const crash = await page.locator('.error').innerText().catch(() => '');
-  check('a crashed worker gives a plain sentence and no result', /did not finish, so there is no result/.test(crash) && !JARGON.test(crash) && (await page.locator('.headline').count()) === 0 && !(await runButton.isDisabled()), crash);
+  const crash = await run.locator('.error').innerText().catch(() => '');
+  check('a crashed worker gives a plain sentence and no result', /did not finish, so there is no result/.test(crash) && !JARGON.test(crash) && (await run.locator('.headline').count()) === 0 && !(await runButton.isDisabled()), crash);
   breakWorker = false;
   await runButton.click();
-  await page.locator('.headline').waitFor({ timeout: 60000 });
-  check('Run works again after a crash', (await page.locator('.headline').innerText()) === 'The one specification passed.' && (await page.locator('.error').count()) === 0);
+  await run.locator('.headline').waitFor({ timeout: 60000 });
+  check('Run works again after a crash', (await run.locator('.headline').innerText()) === 'The one specification passed.' && (await run.locator('.error').count()) === 0);
   const expectedPageErrors = pageErrors.splice(0).filter((e) => !/simulated crash at start/.test(e));
 
   // ---- keyboard only ----------------------------------------------------------
@@ -318,7 +320,7 @@ try {
   await page.keyboard.press('Tab');
   const f4 = await focused();
   check('Tab order: tabs, IDS box, IFC box, Run', f1 === 'tab:Run' && f2 === 'button:IDS file (.ids)' && f3 === 'button:IFC model (.ifc)' && f4 === 'button:Run', [f1, f2, f3, f4].join(' > '));
-  check('both boxes take a file with Enter or Space', (await page.locator('.drop-detail').nth(0).innerText()).includes('states.ids') && (await page.locator('.drop-detail').nth(1).innerText()).includes('two-walls.ifc'));
+  check('both boxes take a file with Enter or Space', (await run.locator('.drop-detail').nth(0).innerText()).includes('states.ids') && (await run.locator('.drop-detail').nth(1).innerText()).includes('two-walls.ifc'));
   await page.keyboard.press('Enter');
   await settled();
   await page.keyboard.press('Tab');
@@ -345,12 +347,12 @@ try {
     await settled();
     seconds = (Date.now() - t0) / 1000;
   });
-  const hb = await page.locator('.headline').innerText().catch(() => '');
+  const hb = await run.locator('.headline').innerText().catch(() => '');
   console.log(`SCALE ${WALLS} walls, ${fs.statSync(bigIfc).size} bytes: ${seconds.toFixed(1)} s from Run to result; browser memory (all Chromium processes, resident) ${mem.before.toFixed(0)} MB before, ${mem.peak.toFixed(0)} MB peak`);
   check('scale: every wall fails one specification', /^0 of 1 specification passed\./.test(hb) && (await pageText()).includes(`Applied to ${WALLS.toLocaleString('en')} elements: 0 passed, ${WALLS.toLocaleString('en')} failed.`), hb);
-  await page.locator('summary.spec-head').first().click();
-  check('scale: the page lists 200 rows', (await page.locator('.spec tbody tr').count()) === 200);
-  const more = await page.locator('details .note').last().innerText();
+  await run.locator('summary.spec-head').first().click();
+  check('scale: the page lists 200 rows', (await run.locator('.spec tbody tr').count()) === 200);
+  const more = await run.locator('details .note').last().innerText();
   check('scale: the page says how many are not shown and where they are', more === `The first 200 failing elements are listed here. ${(WALLS - 200).toLocaleString('en')} more are not shown on this page. The downloaded report lists all ${WALLS.toLocaleString('en')}.`, more);
   const t1 = Date.now();
   const repBig = await downloadReport('report-big.json');

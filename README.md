@@ -5,7 +5,8 @@ idsbench is a small tool for IDS (Information Delivery Specification) files from
 ## What works today
 
 - **Run**: choose an IDS file and an IFC model, press Run. You get one line saying how many specifications passed, failed or could not be checked, and one row per specification. Each failing row lists the first 200 failing elements with IFC class, name, GlobalId and the reason. You can download the result as one JSON file; it holds every failing element, not only the 200 on the page.
-- **Write** and **Check** are tabs only. They say they are not built yet.
+- **Write**: create or open an IDS 1.0 file with plain forms, and download it. The form covers the document information, specifications (IFC versions, required / optional / prohibited), and the six facet kinds in "Applies to" and "Must have", with values that are exact, a list, a pattern, a number range or a text length. Each specification has a one-sentence reading of itself. Items the schema forbids are stopped as you type, and Download stays off with the reason shown. "Use this IDS in Run" hands the file to the Run tab without saving it. Write opens IDS 1.0 files only and refuses any other version. Your draft is kept in `sessionStorage` (this browser tab, gone when it closes), the page asks before you leave with unsaved changes, and nothing is uploaded.
+- **Check** is a tab only. It says it is not built yet.
 
 Run reads IFC files in the STEP format (`.ifc`) for IFC2X3, IFC4 and IFC4X3. It does not read IFCX, ifcXML or zipped IFC files, and it reads IDS 1.0 only. A file it cannot use is refused with a sentence that says why: a model that is cut off, zipped or of another IFC version, an IDS draft (0.9.x), an IDS with no specifications, or the two files put in each other's box.
 
@@ -43,14 +44,14 @@ The static site is written to `dist/`. Serve it with any static file server, for
 
 ## Privacy
 
-Files are read and checked in your browser, in a Web Worker. Nothing is sent to a server, there is no analytics, and the page loads no fonts or scripts from other sites.
+Files are read and checked in your browser, in a Web Worker. The Write tab keeps an unsaved draft in `sessionStorage` only (cleared when the tab closes); Run stores no file contents. Nothing is sent to a server, there is no analytics, and the page loads no fonts or scripts from other sites.
 
 ## Libraries
 
 | Library | Used for | Licence |
 | --- | --- | --- |
 | `@ifc-lite/parser` | reading the IFC model | MPL-2.0 |
-| `@ifc-lite/ids` | reading the IDS and checking the model against it | MPL-2.0 |
+| `@ifc-lite/ids` | reading the IDS and checking the model against it (it cannot write IDS; the Write tab has its own writer) | MPL-2.0 |
 | `react`, `react-dom` | the interface | MIT |
 
 These are from the ifc-lite project. The build tools (Vite, TypeScript, Vitest, Playwright) are development dependencies only.
@@ -61,6 +62,9 @@ These are from the ifc-lite project. The build tools (Vite, TypeScript, Vitest, 
 npm test                 # unit tests: result states, error messages, file checks, and runs through the real libraries
 npm run truth -- <dir>   # runs every pass-/fail- pair of the buildingSMART IDS test cases
 npm run build && node scripts/browser-check.mjs <dir>   # drives the built site in headless Chromium with the network blocked
+npm run build && node scripts/write-check.mjs <IDS clone> <ids.xsd with local imports>   # the Write tab in headless Chromium
+npx vite-node scripts/roundtrip.ts <dir> <ids.xsd with local imports> <out dir>   # read, write back and compare every IDS 1.0 file under a directory
+node scripts/local-xsd.mjs <official ids.xsd> <dir with xml.xsd and XMLSchema.xsd> <out>   # makes the schema xmllint can read without the network
 ```
 
 For `truth` and the browser check, clone https://github.com/buildingSMART/IDS and point them at `Documentation/ImplementersDocumentation/TestCases`. The inputs are used as they are; nothing is rewritten and no file is special-cased.
