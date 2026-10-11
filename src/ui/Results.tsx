@@ -7,16 +7,13 @@ const STATE_TEXT: Record<SpecState, string> = {
   nothing: 'Nothing to check',
   unchecked: 'Not checked',
 };
-const STATE_MARK: Record<SpecState, string> = { pass: '✓', fail: '✗', nothing: '–', unchecked: '?' };
 
 function Spec({ spec }: { spec: SpecRow }) {
   const { shown, notShown } = listed(spec.failures);
   const expandable = shown.length > 0;
   const summary = (
     <>
-      <span className={`state ${spec.state}`}>
-        <span aria-hidden="true">{STATE_MARK[spec.state]}</span> {STATE_TEXT[spec.state]}
-      </span>
+      <span className={`state ${spec.state}`}>{STATE_TEXT[spec.state]}</span>
       <span className="spec-name">{spec.name}</span>
       <span className="spec-counts">
         {spec.summary}{expandable ? ' Open to see the elements.' : ''}
@@ -38,17 +35,18 @@ function Spec({ spec }: { spec: SpecRow }) {
       <details>
         <summary className="spec-head">{summary}</summary>
         <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>IFC class</th><th>Name</th><th>GlobalId</th><th>Why it failed</th></tr>
+          {/* The roles keep this a table for screen readers on a narrow screen, where each row is laid out as a block. */}
+          <table role="table">
+            <thead role="rowgroup">
+              <tr role="row"><th role="columnheader">IFC class</th><th role="columnheader">Name</th><th role="columnheader">GlobalId</th><th role="columnheader">Why it failed</th></tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {shown.map((f, i) => (
-                <tr key={i}>
-                  <td>{f.ifcClass}</td>
-                  <td>{f.name ?? '(no name)'}</td>
-                  <td className="mono">{f.globalId ?? '(none)'}</td>
-                  <td>{f.reasons.length ? f.reasons.join(' ') : '(no reason given)'}</td>
+                <tr key={i} role="row">
+                  <td role="cell">{f.ifcClass}</td>
+                  <td role="cell">{f.name ?? '(no name)'}</td>
+                  <td role="cell" className="mono">{f.globalId ?? '(none)'}</td>
+                  <td role="cell">{f.reasons.length ? f.reasons.join(' ') : '(no reason given)'}</td>
                 </tr>
               ))}
             </tbody>
@@ -68,12 +66,16 @@ function Spec({ spec }: { spec: SpecRow }) {
 export function Results({ result }: { result: RunResult }) {
   return (
     <section className="results" aria-label="Result">
-      <p className="meta">
-        IDS file: {result.idsFile}. Model: {result.ifcFile}, {result.schema}, {result.entityCount.toLocaleString('en')} entities. Checked in {result.seconds.toFixed(1)} s.
-      </p>
-      <ul className="specs">
+      <dl className="meta record">
+        <div><dt>IDS file</dt><dd>{result.idsFile}</dd></div>
+        <div><dt>Model</dt><dd>{result.ifcFile}</dd></div>
+        <div><dt>IFC version</dt><dd>{result.schema}</dd></div>
+        <div><dt>Entities</dt><dd>{result.entityCount.toLocaleString('en')}</dd></div>
+        <div><dt>Checked in</dt><dd>{result.seconds.toFixed(1)} s</dd></div>
+      </dl>
+      <ol className="specs" aria-label="Specifications">
         {result.specs.map((s, i) => <Spec key={i} spec={s} />)}
-      </ul>
+      </ol>
     </section>
   );
 }

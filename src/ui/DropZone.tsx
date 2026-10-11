@@ -47,6 +47,7 @@ export function DropZone({ label, accept, file, onFile }: Props) {
           'Drop a file here, or press to choose one.'
         )}
       </span>
+      {file && <span className="drop-hint">Press to choose another file.</span>}
       <input
         ref={input}
         type="file"

@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>idsbench components</title>
+  <!-- A review page for the design system. It is not part of the product and is not built into dist.
+       Serve the repository root with any static server and open /design/components.html. -->
+  <link rel="stylesheet" href="../src/styles.css" />
+  <style>
+    /* Layout of this review page only. Nothing here belongs in the product. */
+    .demo { margin: 0 0 var(--s7); }
+    .demo > h3 { padding-bottom: var(--s2); border-bottom: var(--w-fine) solid var(--rule); margin-bottom: var(--s4); }
+    .demo-note { color: var(--ink-soft); font-size: var(--t-small); margin: var(--s4) 0 var(--s2); }
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--s4); }
+    .demo-stack > * + * { margin-top: var(--s4); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1 class="brand">idsbench</h1>
+    <div role="tablist" aria-label="Sections" class="tabs">
+      <button role="tab" aria-selected="false" class="tab" tabindex="-1">Write</button>
+      <button role="tab" aria-selected="true" class="tab">Check</button>
+      <button role="tab" aria-selected="false" class="tab" tabindex="-1">Run</button>
+    </div>
+  </header>
+
+  <main>
+    <h2>Components</h2>
+    <p class="lead">Every part of the interface in each of its states, drawn by the product stylesheet. Use it to review a change before a screen exists.</p>
+
+    <section class="demo">
+      <h3>File box</h3>
+      <div class="demo-grid">
+        <div>
+          <p class="demo-note">Empty</p>
+          <div class="drop" role="button" tabindex="0">
+            <span class="drop-label">IDS file (.ids)</span>
+            <span class="drop-detail">Drop a file here, or press to choose one.</span>
+          </div>
+        </div>
+        <div>
+          <p class="demo-note">File chosen</p>
+          <div class="drop has-file" role="button" tabindex="0">
+            <span class="drop-label">IDS file (.ids)</span>
+            <span class="drop-detail"><strong class="fname">Riverside-information-requirements.ids</strong> <span class="fsize">(3.1 KB)</span></span>
+            <span class="drop-hint">Press to choose another file.</span>
+          </div>
+        </div>
+        <div>
+          <p class="demo-note">A file is being dragged over it</p>
+          <div class="drop over" role="button" tabindex="0">
+            <span class="drop-label">IFC model (.ifc)</span>
+            <span class="drop-detail">Drop a file here, or press to choose one.</span>
+          </div>
+        </div>
+        <div>
+          <p class="demo-note">The file in it was refused</p>
+          <div class="drop has-file invalid" role="button" tabindex="0">
+            <span class="drop-label">IFC model (.ifc)</span>
+            <span class="drop-detail"><strong class="fname">Riverside-L02-architecture.zip.ifc</strong> <span class="fsize">(4.8 MB)</span></span>
+            <span class="drop-hint">Press to choose another file.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <h3>Buttons</h3>
+      <div class="actions">
+        <button type="button" class="btn primary">Run</button>
+        <button type="button" class="btn">Download report</button>
+        <button type="button" class="btn small">Move up</button>
+        <button type="button" class="btn primary" disabled>Run</button>
+        <button type="button" class="btn" disabled>Use this IDS in Run</button>
+        <button type="button" class="btn small" disabled>Move down</button>
+      </div>
+      <p class="demo-note">One primary button on a screen. A dashed outline means not available yet.</p>
+    </section>
+
+    <section class="demo">
+      <h3>Verdict</h3>
+      <div class="demo-stack">
+        <div>
+          <div class="verdict pass"><p class="verdict-word">Pass</p><p class="headline pass">All 4 specifications passed.</p></div>
+          <dl class="meta record">
+            <div><dt>IDS file</dt><dd>Riverside-stage-4-core.ids</dd></div>
+            <div><dt>Model</dt><dd>Riverside-L03-architecture.ifc</dd></div>
+            <div><dt>IFC version</dt><dd>IFC4</dd></div>
+            <div><dt>Entities</dt><dd>304</dd></div>
+            <div><dt>Checked in</dt><dd>0.1 s</dd></div>
+          </dl>
+        </div>
+        <div class="verdict fail"><p class="verdict-word">Fail</p><p class="headline fail">5 of 8 specifications passed. 2 failed. 1 could not be checked. 1 optional specification matched nothing in this model, so there was nothing to check there.</p></div>
+        <div class="verdict incomplete"><p class="verdict-word">Incomplete</p><p class="headline incomplete">2 of 3 specifications passed. 1 could not be checked.</p></div>
+        <div>
+          <p class="demo-note">A headline that is not yet inside a verdict block still reads correctly.</p>
+          <p class="headline fail">This IDS file is not valid. 3 problems were found.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <h3>Progress, refusal and notice</h3>
+      <div class="demo-stack">
+        <p class="working">Reading the IFC model. Large models take a while...</p>
+        <p class="error">This file is zipped. Unzip it and choose the .ifc file inside.</p>
+        <p class="notice-box">Run checks the model against the IDS file as it is written. It does not check that the IDS file itself is valid.</p>
+        <p class="empty">No specifications yet. Add the first one to say what the model must contain.</p>
+      </div>
+    </section>
+
+    <section class="demo">
+      <h3>Specification rows</h3>
+      <ol class="specs" aria-label="Specifications">
+        <li class="spec">
+          <details open>
+            <summary class="spec-head">
+              <span class="state fail">Fail</span>
+              <span class="spec-name">Walls have a fire rating</span>
+              <span class="spec-counts">Applied to 46 elements: 39 passed, 7 failed. Open to see the elements.</span>
+            </summary>
+            <div class="table-wrap">
+              <table role="table">
+                <thead role="rowgroup"><tr role="row"><th role="columnheader">IFC class</th><th role="columnheader">Name</th><th role="columnheader">GlobalId</th><th role="columnheader">Why it failed</th></tr></thead>
+                <tbody role="rowgroup">
+                  <tr role="row"><td role="cell">IfcWall</td><td role="cell">Blockwork 215 W-206</td><td role="cell" class="mono">0ZDgH9Ak3_yO0oPsKzWNq0</td><td role="cell">Property "FireRating" not found in "Pset_WallCommon". Available: Pset_WallCommon.LoadBearing, Pset_WallCommon.IsExternal.</td></tr>
+                  <tr role="row"><td role="cell">IfcWall</td><td role="cell">Plasterboard partition 100 W-212</td><td role="cell" class="mono">3jVu7xMVKeAHRbxSlX3koD</td><td role="cell">Property "FireRating" not found in "Pset_WallCommon". Available: Pset_WallCommon.LoadBearing, Pset_WallCommon.IsExternal.</td></tr>
+                  <tr role="row"><td role="cell">IfcWall</td><td role="cell">(no name)</td><td role="cell" class="mono">11F3ZNob30C_wNoDdVJu1R</td><td role="cell">Property "FireRating" not found in "Pset_WallCommon". Available: Pset_WallCommon.LoadBearing, Pset_WallCommon.IsExternal.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="note">The first 200 failing elements are listed here. 1,040 more are not shown on this page. The downloaded report lists all 1,240.</p>
+          </details>
+        </li>
+        <li class="spec">
+          <div class="spec-head static">
+            <span class="state pass">Pass</span>
+            <span class="spec-name">Walls say whether they are load bearing</span>
+            <span class="spec-counts">Applied to 46 elements: 46 passed, 0 failed.</span>
+          </div>
+        </li>
+        <li class="spec">
+          <div class="spec-head static">
+            <span class="state nothing">Nothing to check</span>
+            <span class="spec-name">Stairs are marked as fire exits where they are one</span>
+            <span class="spec-counts">No element in this model matches it.</span>
+          </div>
+          <p class="note">This specification is optional and no element in this model matches it, so there was nothing to check. If you expected matches, look at how the IDS file names the elements.</p>
+        </li>
+        <li class="spec">
+          <details>
+            <summary class="spec-head">
+              <span class="state fail">Fail</span>
+              <span class="spec-name">No generic placeholder elements</span>
+              <span class="spec-counts">Found 3 elements that must not be in the model. Open to see the elements.</span>
+            </summary>
+          </details>
+          <p class="note">This specification says the model must not contain these elements. It contains 3.</p>
+        </li>
+        <li class="spec">
+          <div class="spec-head static">
+            <span class="state unchecked">Not checked</span>
+            <span class="spec-name">Every element has a classification</span>
+            <span class="spec-counts">Not checked.</span>
+          </div>
+          <p class="note">This specification does not say which elements it applies to, so it was not checked. Add an applicability to it in the IDS file.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="demo">
+      <h3>Findings, for Check</h3>
+      <ul class="findings">
+        <li class="finding">
+          <details open>
+            <summary class="finding-head">
+              <span class="sev error">Problem</span>
+              <span class="finding-message">The specification "Walls have a fire rating" has no applicability, so it does not say which elements it is about.</span>
+              <span class="finding-meta"><span class="finding-where">Line 14, column 5</span><code class="finding-code">missing-applicability</code></span>
+            </summary>
+            <pre class="excerpt" tabindex="0" aria-label="The file around line 14, column 5">12    &lt;specifications&gt;
+13
+14      &lt;specification name="Walls have a fire rating" ifcVersion="IFC4"&gt;
+          ^
+15        &lt;requirements&gt;
+16          &lt;property dataType="IFCLABEL"&gt;</pre>
+          </details>
+        </li>
+        <li class="finding">
+          <details>
+            <summary class="finding-head">
+              <span class="sev warning">Warning</span>
+              <span class="finding-message">The data type "IfcLabel" is written in mixed case. IDS expects capitals: IFCLABEL.</span>
+              <span class="finding-meta"><span class="finding-where">Line 16, column 21</span><code class="finding-code">datatype-case</code></span>
+            </summary>
+          </details>
+        </li>
+        <li class="finding">
+          <div class="finding-head static">
+            <span class="sev error">Problem</span>
+            <span class="finding-message">The file has no title. Add one so the people who receive it know what it is for.</span>
+            <span class="finding-meta"><code class="finding-code">missing-title</code></span>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="demo">
+      <h3>Form controls, for Write</h3>
+      <div class="actions write-bar" role="toolbar" aria-label="File">
+        <button type="button" class="btn">New</button>
+        <button type="button" class="btn">Open</button>
+        <button type="button" class="btn primary">Download .ids</button>
+        <button type="button" class="btn">Use this IDS in Run</button>
+      </div>
+      <p class="meta"><span class="file-name">Riverside-information-requirements.ids</span> <span class="unsaved">has unsaved changes</span></p>
+
+      <div class="field">
+        <label class="field-label" for="d-title">Title</label>
+        <input id="d-title" type="text" value="Riverside House, information requirements, stage 4" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="d-desc">Description</label>
+        <textarea id="d-desc" rows="2" placeholder="What this IDS is for and who must meet it"></textarea>
+        <span class="hint">Shown to the people who deliver the model.</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="d-pset">Property set</label>
+        <input id="d-pset" type="text" value="" aria-invalid="true" aria-describedby="d-pset-msg" />
+        <span id="d-pset-msg" class="msg error-msg">Name the property set, for example Pset_WallCommon.</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="d-type">Data type</label>
+        <input id="d-type" type="text" class="mono-input" value="IfcLabel" aria-describedby="d-type-msg" />
+        <span id="d-type-msg" class="msg advice-msg">IDS expects capitals here: IFCLABEL.</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="d-card">This item is</label>
+        <select id="d-card"><option>Required</option><option>Optional</option><option>Prohibited</option></select>
+      </div>
+
+      <label class="check"><input type="checkbox" checked /> <span>Only walls that are external</span></label>
+      <label class="check"><input type="checkbox" /> <span>Include elements with no name</span></label>
+
+      <fieldset class="choice-group" style="margin-top: 1.5rem">
+        <legend>How many matching elements must the model have?</legend>
+        <label class="radio"><input type="radio" name="d-occurs" checked /> <span><strong>Required</strong> <span class="hint">At least one matching element must be in the model.</span></span></label>
+        <label class="radio"><input type="radio" name="d-occurs" /> <span><strong>Optional</strong> <span class="hint">Matching elements are checked if there are any.</span></span></label>
+        <label class="radio"><input type="radio" name="d-occurs" /> <span><strong>Prohibited</strong> <span class="hint">No matching element may be in the model.</span></span></label>
+      </fieldset>
+
+      <details class="more">
+        <summary>More details</summary>
+        <div class="field">
+          <label class="field-label" for="d-id">Identifier</label>
+          <input id="d-id" type="text" value="SP01" />
+          <span class="hint">A short code to refer to this specification, such as SP01.</span>
+        </div>
+      </details>
+      <details class="more" open>
+        <summary>More details</summary>
+        <div class="field">
+          <label class="field-label" for="d-ins">Instructions for the people delivering the model</label>
+          <textarea id="d-ins" rows="2">Take the fire rating from the fire strategy drawings, revision C.</textarea>
+        </div>
+      </details>
+
+      <p class="demo-note">A specification list that opens in place, with the items inside one</p>
+      <p class="words" aria-label="This IDS in words">Every wall must have the property FireRating in Pset_WallCommon.</p>
+      <ul class="specs write-specs">
+        <li class="spec">
+          <div class="spec-head write-spec-head">
+            <button type="button" class="spec-toggle" aria-expanded="true"><span class="spec-name">Walls have a fire rating</span><span class="hint">Required</span></button>
+            <span class="row-actions">
+              <button type="button" class="btn small" disabled>Move up</button>
+              <button type="button" class="btn small">Move down</button>
+              <button type="button" class="btn small">Delete</button>
+            </span>
+          </div>
+          <div class="spec-body">
+            <h4>Applies to</h4>
+            <p class="hint">Which elements this specification is about.</p>
+            <ol class="facets">
+              <li class="facet">
+                <div class="facet-head"><h5>IFC class</h5><span class="row-actions"><button type="button" class="btn small">Delete</button></span></div>
+                <div class="field"><label class="field-label" for="d-class">IFC class</label><input id="d-class" type="text" value="IFCWALL" /></div>
+              </li>
+            </ol>
+            <button type="button" class="btn">Add</button>
+          </div>
+        </li>
+        <li class="spec">
+          <div class="spec-head write-spec-head">
+            <button type="button" class="spec-toggle" aria-expanded="false"><span class="spec-name">Doors have a door number</span><span class="hint">Required, 1 to fix</span></button>
+            <span class="row-actions">
+              <button type="button" class="btn small">Move up</button>
+              <button type="button" class="btn small" disabled>Move down</button>
+              <button type="button" class="btn small">Delete</button>
+            </span>
+          </div>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">Runs in your browser. Your files are not uploaded.</footer>
+</div>
+</body>
+</html>

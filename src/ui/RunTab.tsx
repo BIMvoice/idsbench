@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { DropZone } from './DropZone';
 import { Results } from './Results';
+import { Verdict } from './Verdict';
 import { runInWorker, RunCancelled, RunFailed, type Run } from '../runner';
 import { reportFileName, reportParts } from '../core/format';
 import { UNEXPECTED } from '../core/errors';
-import type { RunResult } from '../core/types';
+import type { RunResult, Verdict as VerdictState } from '../core/types';
 import type { Phase } from '../core/validate';
 
 const PHASE_TEXT: Record<Phase, string> = {
@@ -12,6 +13,8 @@ const PHASE_TEXT: Record<Phase, string> = {
   'reading-ifc': 'Reading the IFC model. Large models take a while...',
   checking: 'Checking the model against the specifications...',
 };
+
+const VERDICT_WORD: Record<VerdictState, string> = { pass: 'Pass', fail: 'Fail', incomplete: 'Incomplete' };
 
 /** An IDS file handed over from another tab. A new token means a new hand-over, even of a file with the same name. */
 export interface Incoming { file: File; token: number }
@@ -131,7 +134,7 @@ export function RunTab({ incoming = null, onShowInCheck }: { incoming?: Incoming
             <button type="button" className="btn" onClick={() => onShowInCheck(ids)}>Show them in Check</button>
           </p>
         )}
-        {result && <p className={`headline ${result.verdict}`}>{result.headline}</p>}
+        {result && <Verdict state={result.verdict} word={VERDICT_WORD[result.verdict]}>{result.headline}</Verdict>}
       </div>
       {result && (
         <p className="meta">

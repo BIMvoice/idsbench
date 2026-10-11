@@ -64,8 +64,9 @@ Files are read and checked in your browser, in Web Workers. The Write tab keeps 
 | `@ifc-lite/ids` | reading the IDS and checking the model against it (it cannot write IDS; the Write tab has its own writer) | MPL-2.0 |
 | `@idsbench/check` (`packages/check`) | checking the IDS file itself; uses `xmllint-wasm` and `@xmldom/xmldom` | MIT |
 | `react`, `react-dom` | the interface | MIT |
+| Atkinson Hyperlegible Next, Barlow Condensed | the two typefaces, bundled as local files in `src/fonts/` | SIL OFL 1.1 |
 
-These are from the ifc-lite project. The build tools (Vite, TypeScript, Vitest, Playwright) are development dependencies only.
+The first two are from the ifc-lite project. How the interface looks and reads is described in `DESIGN.md`. The build tools (Vite, TypeScript, Vitest, Playwright) are development dependencies only.
 
 ## Tests
 

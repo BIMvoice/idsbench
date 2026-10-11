@@ -227,7 +227,16 @@ try {
   check('prohibited and found shows Fail and never "2 passed"', st['Prohibited, found'].state.includes('Fail') && st['Prohibited, found'].counts.startsWith('Found 2 elements that must not be in the model.') && !/2 passed/.test(st['Prohibited, found'].counts));
   check('an unsafe pattern shows Not checked and what to do', st['Unsafe pattern'].state.includes('Not checked') && /Simplify the pattern/.test(st['Unsafe pattern'].notes));
   check('IFC2X3 specification shows Pass with the version note', st['Written for IFC2X3'].state.includes('Pass') && /lists IFC2X3/.test(st['Written for IFC2X3'].notes));
-  check('every state has a word and a mark, not colour alone', states.every((s) => /^[✓✗–?] (Pass|Fail|Nothing to check|Not checked)$/.test(s.state)), states.map((s) => s.state).join(' / '));
+  // The mark is drawn by the stylesheet in front of the word: a different box for each state.
+  const marks = await run.locator('.spec .state').evaluateAll((els) => els.map((e) => {
+    const m = getComputedStyle(e, '::before');
+    const shape = m.maskImage && m.maskImage !== 'none' ? m.maskImage : `box ${m.borderTopWidth} ${m.borderTopStyle}`;
+    return { state: e.className.replace('state ', ''), shape, size: parseFloat(m.width) };
+  }));
+  const shapeOf = Object.fromEntries(marks.map((m) => [m.state, m.shape]));
+  check('every state has a word and a mark, not colour alone',
+    states.every((s) => /^(Pass|Fail|Nothing to check|Not checked)$/.test(s.state)) && marks.every((m) => m.size >= 16 && m.shape !== 'box 0px none') && new Set(Object.values(shapeOf)).size === 4,
+    `${states.map((s) => s.state).join(' / ')} | ${Object.keys(shapeOf).length} states, ${new Set(Object.values(shapeOf)).size} different marks`);
   const prohibitedRow = run.locator('.spec', { hasText: 'Prohibited, found' });
   await prohibitedRow.locator('summary').click();
   check('prohibited and found lists the elements that must not be there', (await prohibitedRow.locator('tbody tr').count()) === 2 && /must not be in the model/.test(await prohibitedRow.locator('tbody tr').first().innerText()));
@@ -268,7 +277,7 @@ try {
   await runButton.click();
   await settled();
   const second = await pageText();
-  check('second pair shows its own result under its own names', /^0 of 1/.test(await run.locator('.headline').innerText()) && second.includes('Walls are named Wilma') && second.includes('IDS file: walls-named-wilma.ids') && !second.includes('Walls are named Waldo'));
+  check('second pair shows its own result under its own names', /^0 of 1/.test(await run.locator('.headline').innerText()) && second.includes('Walls are named Wilma') && /IDS file\s+walls-named-wilma\.ids/.test(second) && !second.includes('Walls are named Waldo'));
 
   // Changing a file while a run is in progress: the run must not deliver.
   await page.goto(origin + '/');
@@ -286,7 +295,7 @@ try {
   await setFiles(null, goodIfc);
   await runButton.click();
   await settled();
-  check('a run after a stopped run gives the new pair its own result', (await run.locator('.headline').innerText()) === 'The one specification passed.' && (await pageText()).includes('Model: two-walls.ifc'));
+  check('a run after a stopped run gives the new pair its own result', (await run.locator('.headline').innerText()) === 'The one specification passed.' && /Model\s+two-walls\.ifc/.test(await pageText()));
 
   // Run clicked twice in quick succession.
   await page.goto(origin + '/');
