@@ -36,19 +36,23 @@ export function App() {
   // ---- what an edit did to the result: said next to the specification when the form is closed ----
   // The result of the specification as it was when its form was opened, and the one to compare when the form is closed.
   const opened = useRef<{ uid: string; before: Snapshot | null } | null>(null);
-  const [watching, setWatching] = useState<{ uid: string; before: Snapshot } | null>(null);
+  const [watching, setWatching] = useState<{ uid: string; before: Snapshot; scroll: boolean } | null>(null);
   const [changed, setChanged] = useState<{ uid: string; text: string } | null>(null);
   const editingNow = page.editing;
   useEffect(() => {
     if (editingNow && editingNow !== 'about') {
       const i = doc ? doc.specifications.findIndex((x) => x.uid === editingNow) : -1;
+      // Another form opened straight from this one, without Done: the one left is still told what its edit did, but the
+      // page is not moved to it, because the person is now in the other form.
+      const left = opened.current && opened.current.uid !== editingNow ? opened.current : null;
       if (opened.current?.uid !== editingNow) opened.current = { uid: editingNow, before: rows && result && i >= 0 ? snapshotOf(rows[i], result.verdict) : null };
-      setChanged((c) => (c?.uid === editingNow ? null : c));
-      setWatching(null);
+      // A line about an earlier edit is taken away when the next edit starts: by then it may no longer be true (it names the verdict).
+      setChanged(null);
+      setWatching(left?.before ? { uid: left.uid, before: left.before, scroll: false } : null);
     } else if (opened.current) {
       const was = opened.current;
       opened.current = null;
-      if (was.before) setWatching({ uid: was.uid, before: was.before });
+      if (was.before) setWatching({ uid: was.uid, before: was.before, scroll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingNow]);
@@ -61,8 +65,10 @@ export function App() {
     if (!text) return;
     setChanged({ uid: watching.uid, text });
     // Into view where it is, at once: no scrolling animation to follow (and none to switch off for those who ask for less motion).
-    requestAnimationFrame(() => document.getElementById(`spec-${watching.uid}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior }));
+    if (watching.scroll) requestAnimationFrame(() => document.getElementById(`spec-${watching.uid}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior }));
   }, [watching, rows, result, doc]);
+  // The line is about one edit against one model: another model makes it a line about something that is no longer on the page.
+  useEffect(() => { setChanged(null); setWatching(null); }, [model]);
 
   // ---- the classes a specification names leave their subtypes out: IDS matches the exact class ----
   const schemaMap = useSchemaMap(doc ? doc.specifications.flatMap((s) => versionsFor(s.ifcVersion)) : []);
@@ -85,7 +91,8 @@ export function App() {
     // Nothing to look up while no class is named: the form opens at once.
     if (made.applicability.length > 0) try {
       const tables = await loadSchemas(versionsFor(made.ifcVersion));
-      s = syncName(withDefaultSubtypes(made, tables), { className: classNameIn(tables) });
+      const wide = withDefaultSubtypes(made, tables);
+      s = syncName(wide, { className: classNameIn(tables), family: familyOf(wide, tables) });
     } catch (e) { console.error(e); }
     pendingFocus.current = s.uid;
     addSpec(s);
@@ -336,7 +343,7 @@ export function App() {
                   subtypes={subtypesOf(s)}
                   words={wordsOf(s)}
                   changed={changed?.uid === s.uid ? changed.text : null}
-                  onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? addSubtypes(x, note) : x)) })); }}
+                  onAddSubtypes={() => { const note = subtypesOf(s); if (note && note.subtypes.length) page.change(`Applied "${s.name || 'the specification'}" also to ${note.subtypes.length === 1 ? note.subtypes[0].name : `${note.subtypes.length} subtypes`}`, (d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? (x.made ? { ...addSubtypes(x, note, true), exact: undefined } : addSubtypes(x, note)) : x)) })); }}
                   onDelete={() => { page.change(`Deleted "${s.name || 'Untitled specification'}"`, (x) => ({ ...x, specifications: x.specifications.filter((y) => y.uid !== s.uid) })); page.setEditing(null); }}
                 />
               ))}

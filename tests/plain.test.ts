@@ -76,3 +76,43 @@ describe('the sentences asked for', () => {
     expect(plainFinding(f('xsd-missing-element', m))).toEqual({ plain: 'Add at least one specification.', technical: m, translated: true });
   });
 });
+
+// A plain sentence is read in place of the engine's: when it points to another part of the form, or to another repair,
+// than the engine's does, the person fixes the wrong thing. Each of these is a finding of a real published file or of
+// the official corpus.
+describe('a plain sentence never sends the person to another place or another repair than the engine does', () => {
+  const plain = (code: string, message: string) => plainFinding({ code, message });
+  it('conditions that cannot be met together: under "Applies to" when the engine says the applicability, under "Must have" when it says the requirements', () => {
+    expect(plain('conditions-impossible', 'The conditions in this applicability can never be met together for IFC2X3: no IFC class satisfies all of them.').plain)
+      .toBe('No IFC class fits all the conditions under "Applies to" in IFC2X3, so this specification can never match anything.');
+    const req = plain('conditions-impossible', 'The conditions in this requirements can never be met together for IFC4X3: no IFC class satisfies all of them.');
+    expect(req.translated).toBe(true);
+    expect(req.plain).toMatch(/"Must have"/);
+    expect(req.plain).not.toMatch(/"Applies to"/);
+  });
+  it('an attribute written in other letters is to be spelt right, not removed (datatype for dataType: 23,089 findings in the published files surveyed)', () => {
+    expect(plain('xsd-unexpected-attribute', "The attribute 'datatype' is not allowed on <property>; remove it.").plain)
+      .toBe('datatype is not a name IDS knows on a property: it is written dataType. Names are case-sensitive, so correct the spelling.');
+    expect(plain('xsd-unexpected-attribute', "The attribute 'minOccurs' is not allowed on <specification>; remove it.").plain)
+      .toBe('minOccurs does not belong on a specification: in IDS 1.0 it is written on the "Applies to" part (<applicability>). Move it there.');
+    expect(plain('xsd-unexpected-attribute', "The attribute 'minOccurs' is not allowed on <material>; remove it.").plain).toMatch(/says cardinality="required", "optional" or "prohibited" instead\. Replace it\.$/);
+    expect(plain('xsd-unexpected-attribute', "The attribute 'invalidAttribute' is not allowed on <entity>; remove it.").plain).toBe('invalidAttribute does not belong on a type of element. Remove it.');
+  });
+  it('a property name the engine has a suggestion for is a spelling to correct, not a reason for a property set of one\'s own', () => {
+    const typo = plain('property-unknown-in-standard-set', "The property name in 'Qto_RailingBaseQuantities' 'Lenght' is not valid in IFC4. The only accepted value is 'Length'. Did you mean 'Length'?").plain;
+    expect(typo).toBe("Qto_RailingBaseQuantities has no property called Lenght in IFC4. The only standard one is 'Length'. Did you mean Length?");
+    const own = plain('property-unknown-in-standard-set', "The property name in 'Pset_ElementAssemblyCommon' 'IsExternal' is not valid in IFC4X3. Accepted values are 'Status', 'Reference'.").plain;
+    expect(own).toBe("Pset_ElementAssemblyCommon has no property called IsExternal in IFC4X3. Standard ones are 'Status', 'Reference'. Use a custom property set for your own properties.");
+  });
+  it('one class that is not known reads as one class; a file with no schema location, an author that is not an email address and a data type in small letters each have a sentence', () => {
+    expect(plain('entity-unknown-class', "No enumeration option of the entity name (IfcDoor) is valid in IFC4. Check the spelling; the names are case-sensitive. Did you mean 'IFCDOOR'?").plain).toBe('IfcDoor is not an IFC class in IFC4. Did you mean IFCDOOR?');
+    expect(plain('entity-unknown-class', 'No enumeration option of the entity name (IFCWAL, IFCDOR) is valid in IFC4. Check the spelling; the names are case-sensitive.').plain).toBe('None of IFCWAL, IFCDOR is an IFC class in IFC4.');
+    expect(plain('ids-version-unsupported', 'The <ids> element has no xsi:schemaLocation, so the IDS version is unknown; add xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd".').translated).toBe(true);
+    expect(plain('xsd-invalid-value', "<author> is 'André Vonthron', which does not match the required form [^@]+@[^\\.]+\\..+.").plain).toBe('The author must be an email address, such as name@company.com. It is "André Vonthron".');
+    expect(plain('xsd-invalid-value', "The attribute 'dataType' on <property> is 'IfcDoor', which does not match the required form [A-Z]+.").plain).toBe('The dataType of a property (IfcDoor) is not written in the form the standard asks for: capital letters only, like IFCLABEL.');
+    expect(plain('value-missing', 'The attribute facet needs a name given as a simple value or a restriction; none was found.').plain).toBe('An attribute needs a name, as a value or as a rule. None is given.');
+  });
+  it('says no more than the engine about why a file cannot be read as XML', () => {
+    expect(plain('xml-not-well-formed', 'The file is not well-formed XML: Error constructing the DOM: NamespaceError: prefix is non-null and namespace is null.').plain).not.toMatch(/damaged|cut off/);
+  });
+});

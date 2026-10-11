@@ -170,7 +170,7 @@ try {
 
   // The sentence is the face of the specification, and follows the form
   const words1 = await s1.locator('.spec-words').innerText();
-  check('"In words" line for the specification', words1 === 'Every wall, including wall standard case, must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR" and the attribute Name with a value matching the pattern "Wal.*".', words1);
+  check('"In words" line for the specification', words1 === 'Every wall, including wall elemented case and wall standard case, must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR" and the attribute Name with a value matching the pattern "Wal.*".', words1);
   const screenWords = await s1.locator('.spec-body').innerText();
   check('plain words on screen: no "facet", "applicability", "cardinality", "restriction" or "how to match" in the form', !/facet|applicability|cardinality|restriction|how to match/i.test(screenWords), screenWords.match(/.{0,120}(facet|applicability|cardinality|restriction|how to match).{0,80}/is)?.[0] ?? '');
   check('the form shows what the common case needs; the rest is behind More options', (await s1.locator('.spec-body > details.more').evaluate((d) => !d.open)) && (await s1.locator('.spec-body > details.more > summary').innerText()) === 'More options' && !(await s1.getByLabel('Identifier').isVisible()));
@@ -179,7 +179,7 @@ try {
   await addSpec('Elements must have a classification');
   const s2 = spec(1);
   check('opening a new specification closes the other (accordion)', (await page.locator('.spec-body').count()) === 1);
-  check('a pattern arrives complete: it reads as a sentence and has nothing to fix', (await s2.locator('.spec-words').innerText()) === 'Every door must have a classification in Uniclass 2015.' && (await s2.locator('.error-msg').count()) === 0);
+  check('a pattern arrives complete: it reads as a sentence and has nothing to fix', (await s2.locator('.spec-words').innerText()) === 'Every door, including door standard case, must have a classification in Uniclass 2015.' && (await s2.locator('.error-msg').count()) === 0);
   await s2.getByLabel('Name', { exact: true }).fill('Walls are classified');
   await pick(s2, 'IFC class', 'wall');
   const must2 = s2.getByRole('region', { name: 'Must have' });
@@ -267,7 +267,7 @@ try {
   console.log(`OPEN SPECIFICATION at 1280 x 800: the open row is ${fitsOnScreen.height} px tall (viewport ${fitsOnScreen.viewport} px)`);
   const acoustic = await pick(spec(0).getByRole('region', { name: 'Must have' }).locator('li.facet').nth(0), 'Property', 'acoustic');
   await spec(0).locator('.spec-words', { hasText: 'AcousticRating' }).waitFor();
-  check('changing "fire rating" to "acoustic rating" is one pick: no name is typed in its technical form', acoustic === 'Acoustic rating (AcousticRating)' && (await spec(0).locator('.spec-words').innerText()).startsWith('Every wall, including wall standard case, must have the property AcousticRating in Pset_WallCommon'), acoustic);
+  check('changing "fire rating" to "acoustic rating" is one pick: no name is typed in its technical form', acoustic === 'Acoustic rating (AcousticRating)' && (await spec(0).locator('.spec-words').innerText()).startsWith('Every wall, including wall elemented case and wall standard case, must have the property AcousticRating in Pset_WallCommon'), acoustic);
 
   // ---- phone width ----------------------------------------------------------
   const phoneCtx = await newContext({ width: 390, height: 844 });
@@ -388,7 +388,7 @@ try {
     await fname.fill('Door naming');
     await fclass.fill('window'); await fp.locator('[role=option]').first().waitFor(); await fclass.press('Enter');
     check('once a name is typed it is never touched', (await fname.inputValue()) === 'Door naming', await fname.inputValue());
-    // "number" for a space
+    // "type mark" for a space finds Reference, which the standard defines as the reference of the type (a room number is the Name)
     await fclass.fill('space'); await fp.locator('[role=option]').first().waitFor(); await fclass.press('Enter');
     const must = fs0.getByRole('region', { name: 'Must have' });
     await must.getByRole('button', { name: 'Add an item to Must have' }).click();
@@ -396,10 +396,10 @@ try {
     const fprop = must.locator('li.facet').nth(1);
     await pick(fprop, 'Property set', 'space common');
     const pbox = fprop.getByRole('combobox', { name: 'Property', exact: true });
-    await pbox.fill('number');
+    await pbox.fill('type mark');
     await fprop.locator('[role=option]').first().waitFor();
     const offered = await fprop.locator('[role=option]').allInnerTexts();
-    check('typing "number" for a space offers Reference, with what it means, and the field with text in it never says "Fill this in"', offered.some((t) => /^Reference\n[\s\S]*room number/.test(t)) && !(await fprop.innerText()).includes('Fill this in'), offered.join(' | '));
+    check('typing "type mark" for a space offers Reference, with what it means (the reference of the type, not a room number), and the field with text in it never says "Fill this in"', offered.some((t) => /^Reference\n[\s\S]*The reference of the type[\s\S]*a room number is the Name/.test(t)) && !(await fprop.innerText()).includes('Fill this in'), offered.join(' | '));
     await pbox.fill('zzz');
     await fp.waitForTimeout(200);
     const said = await fprop.locator('.msg, .hint').allInnerTexts();
@@ -418,7 +418,68 @@ try {
     await fs0.getByRole('button', { name: /^Done editing/ }).first().click();
     await fs0.locator('.change-line').waitFor({ timeout: 30000 });
     check('after Done the row says what changed, in one line, next to it and in view', /^Now fails: 1 element/.test(await fs0.locator('.change-line').innerText()) && (await fs0.evaluate((e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < window.innerHeight; })), await fs0.locator('.change-line').innerText());
+    // the line is about one edit: it goes when the next edit starts, and deleting the specification being edited leaves none behind
+    await fadd('Elements must have a material');
+    check('the line about an edit is taken away when another specification is opened for editing', (await fp.locator('.change-line').count()) === 0);
+    await fspec.nth(1).getByRole('button', { name: /^Delete / }).click();
+    await fp.waitForFunction(() => document.querySelectorAll('.page-specs > li.spec').length === 1);
+    await fp.locator('.title-block[data-kind="run"] .headline').waitFor({ timeout: 60000 });
+    await fp.waitForTimeout(500);
+    check('deleting the specification that was being edited: no line about it appears anywhere, and the page has no error', (await fp.locator('.change-line').count()) === 0 && pageErrors.length === 0, pageErrors.join(' | '));
     await fctx.close();
+  }
+
+  // ---- what a new specification writes by default: the class and its subtypes in every ticked version; a list of the person's own is kept ----
+  {
+    const dctx = await newContext({ width: 1280, height: 900 });
+    const dp = await dctx.newPage();
+    dp.on('pageerror', (e) => pageErrors.push(String(e)));
+    await dp.goto(origin + '/');
+    await dp.getByRole('button', { name: 'New' }).click();
+    await dp.getByLabel('Title').fill('Defaults');
+    const dspec = dp.locator('.page-specs > li.spec');
+    const dadd = async (how) => { const n = await dspec.count(); await dp.getByRole('button', { name: 'Add a specification' }).click(); await dp.getByRole('group', { name: 'Start a specification from' }).getByRole('button', { name: how }).click(); await dp.waitForFunction((k) => document.querySelectorAll('.page-specs > li.spec').length === k + 1, n); };
+    const saved = async () => { await dp.locator('.verdict.pass .verdict-word', { hasText: 'Valid' }).waitFor({ timeout: 30000 }); const [d] = await Promise.all([dp.waitForEvent('download'), dp.getByRole('button', { name: 'Download .ids' }).click()]); return fs.readFileSync(await d.path(), 'utf8'); };
+    const listed = (xml, n) => [...xml.split('<specification ')[n + 1].split('</applicability>')[0].matchAll(/<xs:enumeration value="([^"]+)"/g)].map((m) => m[1]);
+    await dadd('Elements must have a classification');
+    const d0 = dspec.nth(0);
+    await d0.locator('.subtype-choice').waitFor({ timeout: 30000 });
+    const doors = await saved();
+    check('a new specification for doors ticks IFC2X3, IFC4 and IFC4X3_ADD2 and is written for IFCDOOR and IFCDOORSTANDARDCASE, a class of IFC4 alone: an IFC4 model of standard-case doors is covered',
+      /ifcVersion="IFC2X3 IFC4 IFC4X3_ADD2"/.test(doors) && JSON.stringify(listed(doors, 0)) === JSON.stringify(['IFCDOOR', 'IFCDOORSTANDARDCASE']), JSON.stringify(listed(doors, 0)));
+    check('the sentence and the form say so: "including door standard case", and the choice to include the subtypes is ticked and names it',
+      (await d0.locator('.spec-words').innerText()) === 'Every door, including door standard case, must have a classification in Uniclass 2015.' && /^Include the subtypes: door standard case$/.test((await d0.locator('.subtype-choice').innerText()).trim()) && (await d0.locator('.subtype-choice input').isChecked()), await d0.locator('.subtype-choice').innerText());
+    check('the choice about a model with none is asked in words that read: "If the model has no doors", "applies to all doors the model has"',
+      (await d0.getByText('If the model has no doors').isVisible()) && (await d0.locator('.occurs').innerText()).includes('The specification applies to all doors the model has. A model with none passes.') && !/every doors|one doors/.test(await d0.locator('.occurs').innerText()), (await d0.locator('.occurs').innerText()).replace(/\n/g, ' | '));
+    // "One of a list" opens the list as it is written; a class added to it by hand stays, and nothing is brought in beside it
+    const applies = d0.getByRole('region', { name: 'Applies to' });
+    await applies.getByLabel('IFC class: accepted values').selectOption('list');
+    const values = applies.getByLabel('IFC class: values');
+    await values.waitFor({ timeout: 10000 });
+    check('choosing "One of a list" for a class with its subtypes opens the list as it is written, both classes, not the class alone', (await values.inputValue()) === 'IFCDOOR\nIFCDOORSTANDARDCASE', JSON.stringify(await values.inputValue()));
+    await values.fill('IFCDOOR\nIFCDOORSTANDARDCASE\nIFCWINDOW');
+    await dp.waitForTimeout(600);
+    const own = await saved();
+    check('a class added to the list by hand stays, the list stays a list, nothing is added beside it, and the name says it is more than doors',
+      JSON.stringify(listed(own, 0)) === JSON.stringify(['IFCDOOR', 'IFCDOORSTANDARDCASE', 'IFCWINDOW']) && (await values.isVisible()) && (await d0.locator('.subtype-choice').count()) === 0 && (await d0.getByLabel('Name', { exact: true }).inputValue()) === 'Doors and 2 other classes are classified in Uniclass 2015',
+      `${JSON.stringify(listed(own, 0))} | ${await d0.getByLabel('Name', { exact: true }).inputValue()}`);
+    await d0.getByRole('button', { name: /^Done editing/ }).first().click();
+    // a list typed by hand that happens to be a class and one of its subtypes is kept as typed
+    await dadd('An empty specification');
+    const d1 = dspec.nth(1);
+    const a1 = d1.getByRole('region', { name: 'Applies to' });
+    await a1.getByRole('button', { name: 'Add an item to Applies to' }).click();
+    await a1.getByRole('button', { name: 'Type of element', exact: true }).click();
+    await a1.getByLabel('IFC class: accepted values').selectOption('list');
+    await a1.getByLabel('IFC class: values').fill('IFCWALL\nIFCWALLSTANDARDCASE');
+    const m1 = d1.getByRole('region', { name: 'Must have' });
+    await m1.getByRole('button', { name: 'Add an item to Must have' }).click();
+    await m1.getByRole('button', { name: 'Material', exact: true }).click();
+    await dp.waitForTimeout(800);
+    const typed = await saved();
+    check('a list typed by hand, IFCWALL and IFCWALLSTANDARDCASE, is written as typed: IFCWALLELEMENTEDCASE is not added to it and it is still shown as the list it is',
+      JSON.stringify(listed(typed, 1)) === JSON.stringify(['IFCWALL', 'IFCWALLSTANDARDCASE']) && (await a1.getByLabel('IFC class: values').isVisible()) && (await a1.getByLabel('IFC class: values').inputValue()) === 'IFCWALL\nIFCWALLSTANDARDCASE', JSON.stringify(listed(typed, 1)));
+    await dctx.close();
   }
 
   // ---- the network ---------------------------------------------------------

@@ -82,6 +82,16 @@ describe('coverageOf, on its own', () => {
     const c = coverageOf(['IFCFLOWSEGMENT'], 0, (u) => counts[u] ?? 0, s);
     expect(c?.text).toBe('This specification names IfcFlowSegment. The model has no IfcFlowSegment, but it has 5 IfcPipeSegment, 4 IfcDuctSegment, 3 IfcCableSegment and 2 IfcCableCarrierSegment, which this specification does not cover.');
   });
+  it('a specification for one kind of terminal says nothing of the other kinds in the model (light fixtures are not sanitary terminals left uncovered); the other variant of a wall is told', async () => {
+    const s = await loadSchema('IFC4');
+    const mep: Record<string, number> = { IFCSANITARYTERMINAL: 4, IFCLIGHTFIXTURE: 500, IFCAIRTERMINAL: 120, IFCPIPESEGMENT: 900 };
+    expect(coverageOf(['IFCSANITARYTERMINAL'], 4, (u) => mep[u] ?? 0, s)).toBeNull();
+    const none: Record<string, number> = { IFCLIGHTFIXTURE: 500, IFCPIPESEGMENT: 900, IFCFLOWTERMINAL: 2 };
+    expect(coverageOf(['IFCSANITARYTERMINAL'], 0, (u) => none[u] ?? 0, s)?.text).toBe('This specification names IfcSanitaryTerminal. The model has no IfcSanitaryTerminal, but it has 2 IfcFlowTerminal, which this specification does not cover.');
+    expect(coverageOf(['IFCZONE'], 3, (u) => ({ IFCZONE: 3, IFCDISTRIBUTIONSYSTEM: 7 } as Record<string, number>)[u] ?? 0, s)).toBeNull();
+    const walls: Record<string, number> = { IFCWALLELEMENTEDCASE: 6 };
+    expect(coverageOf(['IFCWALLSTANDARDCASE'], 0, (u) => walls[u] ?? 0, s)?.related).toEqual([{ name: 'IfcWallElementedCase', upper: 'IFCWALLELEMENTEDCASE', count: 6, how: 'sibling' }]);
+  });
   it('is silent for an abstract class and for a class it does not know', async () => {
     const s = await loadSchema('IFC4');
     expect(coverageOf(['IFCBUILDINGELEMENT'], 0, () => 9, s)).toBeNull();

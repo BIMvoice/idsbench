@@ -137,7 +137,11 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     // reported as not checked.
     const modelInfo = { modelId: input.ifcName, schemaVersion: store.schemaVersion, entityCount: store.entityCount };
     const onProgress = input.onTick ? () => input.onTick!() : undefined;
-    const options: ShapeOptions = input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {};
+    // The IFC tables of the model's version: a reason may depend on them (an attribute the element's class does not have).
+    const known = await tablesFor(loaded.schema);
+    // Said only of a class and an attribute the tables know; of anything else nothing is claimed.
+    const reasons = known ? { hasAttribute: (cls: string, attribute: string) => (known.classes.has(cls.toUpperCase()) ? known.attributes.get(attribute)?.classes.includes(cls.toUpperCase()) : undefined) } : undefined;
+    const options: ShapeOptions = { ...(input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {}), ...(reasons ? { reasons } : {}) };
     // The storey or space of a failing element is read from the part of the model being checked (the accessor of its range).
     const placer: { find: (id: number) => string } = { find: () => '' };
     const place = (id: number) => placer.find(id);
@@ -149,7 +153,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     // the values read from them) in memory at once. A model of ordinary size is one range, as if there were no ranges.
     for (const [lo, hi] of idRanges(store, input.rangeIds ?? RANGE_IDS)) {
       const accessor = hi === Infinity && lo === 0 ? createDataAccessor(store) : inRange(createDataAccessor(store), lo, hi);
-      placer.find = placeFinder(accessor);
+      placer.find = placeFinder(accessor, known ? (t) => known.isA(t.toUpperCase(), 'IFCSPATIALELEMENT') || known.isA(t.toUpperCase(), 'IFCSPATIALSTRUCTUREELEMENT') : undefined);
       // Elements that pass are not needed for anything but a prohibited specification (every match of it is a failure
       // whatever its requirements say), so the library is asked to drop them from all the others: on a model with
       // millions of elements that is most of the memory of a run. The counts it reports are the same either way.
@@ -190,19 +194,30 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
   }
 }
 
+/** The classes that are a place in a model (a storey, a space, a building, a site, and what IFC4X3 adds to them), told by name where the IFC tables are not at hand. */
+const SPATIAL = /^Ifc(BuildingStorey|Space|Building|Site|SpatialZone|ExternalSpatialElement|Facility|FacilityPart\w*|Bridge|BridgePart|Road|RoadPart|Railway|RailwayPart|MarineFacility|MarinePart)$/i;
+
 /**
- * Where the model puts an element: the name of the storey or space that contains it, or of what it is a component of
- * (a space is a component of its storey). Empty when the model does not say. The name of a container is looked up once.
+ * Where the model puts an element: the name of the storey or space that contains it. An element that is a component of
+ * another (a panel of a curtain wall, a flight of a stair) is where the whole is, and a space is on the storey it is a
+ * component of: the way up is followed until a storey, a space, a building or a site is reached. The name of the stair
+ * is not a storey, so it is never given as one. Empty when the model does not say, or the place has no name. A space is
+ * marked "(space)", and a building or a site (an element placed in no storey) by its kind. The name of a place is
+ * looked up once.
  */
-export function placeFinder(accessor: Accessor): (expressId: number) => string {
+export function placeFinder(accessor: Accessor, isPlace: (entityType: string) => boolean = (t) => SPATIAL.test(t)): (expressId: number) => string {
   const labels = new Map<number, string>();
+  const up = (id: number) => accessor.getParent?.(id, 'IfcRelContainedInSpatialStructure') ?? accessor.getParent?.(id, 'IfcRelAggregates');
   return (id) => {
-    const parent = accessor.getParent?.(id, 'IfcRelContainedInSpatialStructure') ?? accessor.getParent?.(id, 'IfcRelAggregates');
-    if (!parent) return '';
+    let parent = up(id);
+    // A model may be written with a loop in it; the way up is not followed for ever.
+    for (let hops = 0; parent && !isPlace(parent.entityType) && hops < 32; hops++) parent = up(parent.expressId);
+    if (!parent || !isPlace(parent.entityType)) return '';
     let label = labels.get(parent.expressId);
     if (label === undefined) {
       const name = accessor.getEntityName(parent.expressId)?.trim();
-      label = name ? (/space/i.test(parent.entityType) ? `${name} (space)` : name) : '';
+      const kind = /^IfcBuildingStorey$/i.test(parent.entityType) ? '' : /space/i.test(parent.entityType) ? 'space' : parent.entityType.replace(/^Ifc/i, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+      label = name ? (kind ? `${name} (${kind})` : name) : '';
       labels.set(parent.expressId, label);
     }
     return label;
@@ -225,12 +240,18 @@ function elementsIn(store: LoadedModel['store'], tables: Tables | null): { eleme
   return { elementCount: n };
 }
 
-async function addCoverage(rows: RunResult['specs'], doc: IDSDocument, store: LoadedModel['store'], modelSchema: string): Promise<Tables | null> {
+/** The IFC tables of a model's version; null when the version is not one of the three, or they cannot be had. */
+async function tablesFor(modelSchema: string): Promise<Tables | null> {
   const version = tableVersion(modelSchema);
+  if (!version) return null;
+  try { return await (await import('@idsbench/check/ifc')).loadSchema(version); } catch (e) { console.error('IFC tables not loaded', e); return null; }
+}
+
+async function addCoverage(rows: RunResult['specs'], doc: IDSDocument, store: LoadedModel['store'], modelSchema: string): Promise<Tables | null> {
   const byType = store.entityIndex?.byType;
-  if (!version || !byType) return null;
-  let tables: Tables | null = null;
-  try { tables = await (await import('@idsbench/check/ifc')).loadSchema(version); } catch (e) { console.error('IFC tables not loaded', e); return null; }
+  if (!byType) return null;
+  const tables = await tablesFor(modelSchema);
+  if (!tables) return null;
   for (const [i, row] of rows.entries()) {
     if (row.state === 'unchecked') continue;
     const names = namedByLibrarySpec(doc.specifications[i] as never);

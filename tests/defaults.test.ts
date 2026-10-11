@@ -22,7 +22,7 @@ const tables = Promise.all(IFC_VERSIONS.map((v) => loadSchema(v)));
 const className = async () => { const t = await tables; return (u: string) => t.map((s) => s.classes.get(u)?.name).find(Boolean); };
 const doc = (...s: Specification[]) => ({ ...blankDocument(), info: { ...blankDocument().info, title: 't' }, specifications: s });
 /** A specification as the page makes it when a starting shape is chosen. */
-const started = async (p: (typeof PATTERNS)[number]) => syncName(withDefaultSubtypes(p.make(), await tables), { className: await className() });
+const started = async (p: (typeof PATTERNS)[number]) => { const wide = withDefaultSubtypes(p.make(), await tables); return syncName(wide, { className: await className(), family: familyOf(wide, await tables) }); };
 
 describe('a new specification', () => {
   it('ticks all three IFC versions and does not demand that the model has the element (optional)', () => {
@@ -70,13 +70,13 @@ describe('every starting shape as the page makes it is accepted by the Check eng
 });
 
 describe('the class and its subtypes', () => {
-  it('"every wall" applies to IfcWall and IfcWallStandardCase in all three versions (the subtypes every version has)', async () => {
+  it('"every wall" applies to IfcWall, IfcWallStandardCase and IfcWallElementedCase with all three versions ticked (the subtypes of each of them)', async () => {
     const s = await started(PATTERNS[0]);
     const entity = s.applicability[0];
-    expect(entity.kind === 'entity' && entity.name.kind === 'restriction' && entity.name.facets.map((f) => f.value)).toEqual(['IFCWALL', 'IFCWALLSTANDARDCASE']);
+    expect(entity.kind === 'entity' && entity.name.kind === 'restriction' && entity.name.facets.map((f) => f.value)).toEqual(['IFCWALL', 'IFCWALLELEMENTEDCASE', 'IFCWALLSTANDARDCASE']);
     const family = familyOf(s, await tables);
-    expect(family).toEqual({ head: 'IFCWALL', others: ['IFCWALLSTANDARDCASE'] });
-    expect(describeSpecification(s, { family, className: await className() }).text).toBe('Every wall, including wall standard case, must have the property FireRating in Pset_WallCommon.');
+    expect(family).toEqual({ head: 'IFCWALL', others: ['IFCWALLELEMENTEDCASE', 'IFCWALLSTANDARDCASE'] });
+    expect(describeSpecification(s, { family, className: await className() }).text).toBe('Every wall, including wall elemented case and wall standard case, must have the property FireRating in Pset_WallCommon.');
   });
 
   it('a class without subtypes stays one class, and says so in the sentence as before', async () => {

@@ -56,7 +56,7 @@ try {
   const counts = () => spec(0).locator('.spec-counts').innerText();
   // New: "every wall" applies to the class and its subtypes, in the three versions, and the sentence says so.
   await spec(0).locator('.spec-words', { hasText: 'including' }).waitFor({ timeout: 20000 });
-  check('a new "every wall" lists IfcWall and the subtype every version has, and the sentence says so', /^Every wall, including wall standard case, must have the property FireRating/.test(await spec(0).locator('.spec-words').innerText()) && (await spec(0).getByRole('checkbox', { name: /^Include the subtypes: wall standard case/ }).isChecked()), await spec(0).locator('.spec-words').innerText());
+  check('a new "every wall" lists IfcWall and the subtypes of every ticked version, and the sentence says so', /^Every wall, including wall elemented case and wall standard case, must have the property FireRating/.test(await spec(0).locator('.spec-words').innerText()) && (await spec(0).getByRole('checkbox', { name: /^Include the subtypes: wall elemented case, wall standard case/ }).isChecked()), await spec(0).locator('.spec-words').innerText());
   await page.getByRole('button', { name: /^Done editing/ }).first().click();
   await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 20000 });
   check('and the run applies to the wall and the standard-case wall', (await counts()).startsWith('Applied to 2 elements'), await counts());
@@ -87,11 +87,11 @@ try {
   await spec(0).getByLabel('IFC2X3', { exact: true }).check();
   check('with only IFC2X3 ticked the line names the one subtype that version has', (await spec(0).locator('.subtype-note').innerText()).startsWith('This applies to IfcWall only, not to IfcWallStandardCase.'), await spec(0).locator('.subtype-note').innerText());
   check('and its action names it', (await spec(0).getByRole('button', { name: 'Also apply it to IfcWallStandardCase' }).count()) === 1);
-  // Both versions ticked: only what both have is offered; what one of them has is named and left out.
+  // Both versions ticked: the subtypes of each are offered, also the one only IFC4 has (an IFC4 model is checked against this specification too).
   await spec(0).getByLabel('IFC4', { exact: true }).check();
-  await spec(0).locator('.subtype-note', { hasText: 'IFC4 only' }).waitFor({ timeout: 20000 });
+  await spec(0).locator('.subtype-note', { hasText: 'IfcWallElementedCase' }).waitFor({ timeout: 20000 });
   const bothText = await spec(0).locator('.subtype-note').innerText();
-  check('with IFC2X3 and IFC4 ticked the action adds only the subtype both versions have, and the line says which one is left out and why', bothText.startsWith('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase. IfcWallElementedCase (IFC4 only) is not in every IFC version this specification ticks, so it is not offered.') && (await spec(0).getByRole('button', { name: 'Also apply it to IfcWallStandardCase' }).count()) === 1 && (await spec(0).getByRole('button', { name: /the 2 subtypes/ }).count()) === 0, bothText);
+  check('with IFC2X3 and IFC4 ticked the action adds the subtypes of both versions, also IfcWallElementedCase, which only IFC4 has', bothText.startsWith('This applies to IfcWall only, not to IfcWallElementedCase or IfcWallStandardCase.') && !/not offered/.test(bothText) && (await spec(0).getByRole('button', { name: 'Also apply it to the 2 subtypes' }).count()) === 1, bothText);
   await spec(0).getByLabel('IFC2X3', { exact: true }).uncheck();
   await page.getByRole('button', { name: /^Done editing/ }).first().click();
 
@@ -109,10 +109,10 @@ try {
   const classBox = spec(0).locator('.facet-list[aria-label="Applies to"] input[role=combobox]').first();
   await classBox.fill('IFCBUILDINGELEMENT');
   await classBox.press('Tab');
-  // A new specification does not keep an abstract class: nothing in a model is one, so the concrete subtypes stand in its place at once.
+  // A new specification does not apply to an abstract class alone: nothing in a model is one, so its concrete subtypes are listed with it at once (it stays first, to say which class the list stands for).
   await page.getByRole('button', { name: /^Done editing/ }).first().click();
   await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 20000 });
-  check('an abstract class chosen in a new specification is replaced by its concrete subtypes, and the run applies to the wall and the standard-case wall', (await spec(0).locator('.subtype-note', { hasText: 'abstract class' }).count()) === 0 && (await counts()).startsWith('Applied to 2 elements') && (await dlBtn.isEnabled()), await counts());
+  check('an abstract class chosen in a new specification brings its concrete subtypes with it, the sentence and the name are about that class, and the run applies to the wall and the standard-case wall', (await spec(0).locator('.subtype-note', { hasText: 'abstract class' }).count()) === 0 && /^Every building element \(and its \d+ subtypes\) must have the attribute Name\.$/.test(await spec(0).locator('.spec-words').innerText()) && (await spec(0).locator('.spec-name').innerText()) === 'Building elements have a name' && (await counts()).startsWith('Applied to 2 elements') && (await dlBtn.isEnabled()), await counts());
 
   // ---- a property set named Pset_ that the standard does not define ---------------------------
   await page.getByRole('button', { name: 'Close' }).click();
