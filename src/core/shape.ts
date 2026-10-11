@@ -34,7 +34,7 @@ export interface ReportLike {
       entityName?: string;
       globalId?: string;
       passed: boolean;
-      requirementResults: Array<{ status: string; failureReason?: string }>;
+      requirementResults: Array<{ status: string; failureReason?: string; actualValue?: string }>;
     }>;
   }>;
 }
@@ -108,12 +108,11 @@ export function shapeSpec<R extends { status: string }>(
   if (spec.status !== 'pass' && spec.status !== 'fail') return unchecked(spec, kind, NOT_CHECKED, modelSchema);
 
   const applicable = spec.applicableCount;
-  const element = (e: SpecResult['entityResults'][number], reasons: string[]): FailingElement => ({
-    ifcClass: e.entityType,
-    name: e.entityName ?? null,
-    globalId: e.globalId ?? null,
-    reasons,
-  });
+  const element = (e: SpecResult['entityResults'][number], reasons: string[], found?: (string | null)[]): FailingElement => {
+    const el: FailingElement = { ifcClass: e.entityType, name: e.entityName ?? null, globalId: e.globalId ?? null, reasons };
+    if (found && found.some((v) => v !== null)) el.found = found;
+    return el;
+  };
 
   let state: SpecState;
   let passed: number;
@@ -139,14 +138,13 @@ export function shapeSpec<R extends { status: string }>(
     }
   } else {
     const failing = spec.entityResults.filter((e) => !e.passed);
-    failures = failing.map((e) =>
-      element(
-        e,
-        e.requirementResults
-          .filter((r) => r.status === 'fail')
-          .map((r) => sentence(r.failureReason?.trim() || describe(r as unknown as R))),
-      ),
-    );
+    failures = failing.map((e) => {
+      const failedReqs = e.requirementResults.filter((r) => r.status === 'fail');
+      const reasons = failedReqs.map((r) => sentence(r.failureReason?.trim() || describe(r as unknown as R)));
+      // The value the element has, where the reason quotes it: what differs from element to element in an otherwise equal reason.
+      const found = failedReqs.map((r, i) => (r.actualValue && reasons[i].includes(`"${r.actualValue}"`) ? r.actualValue : null));
+      return element(e, reasons, found);
+    });
     // Count from what the report really holds, so the row can never say
     // "0 failed" above a list of failing elements.
     failed = Math.max(spec.failedCount, failing.length);

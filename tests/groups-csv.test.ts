@@ -108,3 +108,41 @@ describe('kindOfFile', () => {
     expect(kindOfFile('x.ifc', '<ifcXML>', 'ifc')).toBe('ifc');
   });
 });
+
+describe('elements that fail the same requirement with a value of their own', () => {
+  const own = (n: number): FailingElement => ({ ifcClass: 'IfcWall', name: `Wall ${n}`, globalId: `id${n}`, reasons: [`Attribute "Name" is "Wall ${n}", expected "Waldo".`], found: [`Wall ${n}`] });
+  it('are one group, not one group each: 20,000 walls with 20,000 names read as one reason', () => {
+    const many = Array.from({ length: 20000 }, (_, i) => own(i + 1));
+    const groups = groupFailures(many);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ reason: 'Attribute "Name" is "…", expected "Waldo".', varies: true });
+    expect(groups[0].elements).toHaveLength(20000);
+    const { shown, notShown } = capGroups(groups, 200);
+    expect([shown[0].elements.length, shown[0].total, notShown, shown[0].varies]).toEqual([200, 20000, 19800, true]);
+  });
+  it('keep the full sentence when they all have the same value, and stay apart from elements that fail something else', () => {
+    const same = (n: number): FailingElement => ({ ...own(n), reasons: ['Attribute "Name" is "Wilma", expected "Waldo".'], found: ['Wilma'] });
+    const groups = groupFailures([same(1), el('x', [A]), same(2), own(3)]);
+    expect(groups.map((g) => [g.reason, g.elements.length, g.varies])).toEqual([
+      ['Attribute "Name" is "…", expected "Waldo".', 3, true], [A, 1, false],
+    ]);
+    expect(groupFailures([same(1), same(2)]).map((g) => [g.reason, g.varies])).toEqual([['Attribute "Name" is "Wilma", expected "Waldo".', false]]);
+  });
+  it('20,000 elements that each fail for a different reason are 20,000 groups, and the counts still add up', () => {
+    const groups = groupFailures(Array.from({ length: 20000 }, (_, i) => el(String(i), [`Reason ${i}.`])));
+    expect(groups).toHaveLength(20000);
+    const { shown, notShown } = capGroups(groups, 200);
+    expect(shown.reduce((n, g) => n + g.elements.length, 0) + notShown).toBe(20000);
+  });
+});
+
+describe('what the page says to do with a result', async () => {
+  const { afterRun } = await import('../src/core/csv');
+  const of = (verdict: RunResult['verdict'], specs: SpecRow[]) => afterRun({ verdict, specs });
+  it('says "Nothing failed" only of a result that passed', () => {
+    expect(of('pass', [spec('S', [])])).toBe('Nothing failed. Download the report to keep a record.');
+    expect(of('fail', [spec('S', [])])).toMatch(/^No single element failed: a specification failed as a whole/);
+    expect(of('incomplete', [spec('S', [])])).toMatch(/not every specification could be checked/);
+    expect(of('fail', [spec('S', [el('1', [A])])])).toMatch(/^Send the failing elements/);
+  });
+});

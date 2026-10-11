@@ -17,6 +17,11 @@ export interface FailingElement {
   globalId: string | null;
   /** One plain-language reason per failed requirement. */
   reasons: string[];
+  /**
+   * Per reason, the value this element has where the reason quotes one (null where it quotes none). Present only when
+   * some reason does. Elements that fail the same requirement with different values of their own are one group.
+   */
+  found?: (string | null)[];
 }
 
 export interface SpecRow {

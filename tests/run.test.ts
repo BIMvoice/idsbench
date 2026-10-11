@@ -117,3 +117,81 @@ describe('many failures', () => {
     expect(new Set(r.specs[0].failures.map((f) => f.globalId)).size).toBe(n);
   });
 });
+
+describe('reasons, through the real library', () => {
+  it('walls that fail one requirement with names of their own are one group, and each keeps its own value', async () => {
+    const { groupFailures, ownValues } = await import('../src/core/groups');
+    const r = await run(ids(spec({ req: nameIs('Wilma') })), ifc('IFC4', wall(1, 'North') + wall(2, 'South') + wall(3, 'Wilma')));
+    expect(r.specs[0]).toMatchObject({ state: 'fail', failed: 2, passed: 1 });
+    const groups = groupFailures(r.specs[0].failures);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].varies).toBe(true);
+    expect(groups[0].reason).toContain('"…"');
+    expect(groups[0].reason).toContain('"Wilma"');
+    expect(groups[0].elements.map(ownValues)).toEqual(['North', 'South']);
+    // The full sentence, with the element's own value, is still what the CSV and the report hold.
+    expect(r.specs[0].failures[0].reasons[0]).toContain('"North"');
+  });
+});
+
+describe('the sentence of a specification against what the run does with it', () => {
+  // Each case: a specification written as the editor's model, its sentence, and a model for which the sentence is true
+  // and one for which it is false. The run must pass the first and fail the second.
+  const prop = (set: string, name: string, value: string) => `#${name.length + 500}=IFCPROPERTYSINGLEVALUE('${name}',$,IFCLABEL('${value}'),$);\n#${name.length + 600}=IFCPROPERTYSET('0000000000000000000pset',$,'${set}',$,(#${name.length + 500}));\n#${name.length + 700}=IFCRELDEFINESBYPROPERTIES('0000000000000000000rel1',$,$,$,(#1),#${name.length + 600});\n`;
+  const cases: { title: string; make: (m: typeof import('../src/core/ids/model'), v: typeof import('../src/core/ids/value')) => object; says: string; truthy: string; falsy: string }[] = [
+    {
+      title: 'a prohibited requirement',
+      make: (m) => ({ requirements: [{ ...m.newFacet('attribute', 'requirements'), name: m.simple('Name'), value: m.simple('Waldo'), cardinality: 'prohibited' }] }),
+      says: 'Every wall must not have the attribute Name set to "Waldo". The model must contain at least one wall.',
+      truthy: wall(1, 'Wilma'), falsy: wall(1, 'Waldo'),
+    },
+    {
+      title: 'a value in a list',
+      make: (m, v) => ({ requirements: [{ ...m.newFacet('attribute', 'requirements'), name: m.simple('Name'), value: v.fromList(['A', 'B'], 'xs:string') }] }),
+      says: 'Every wall must have the attribute Name set to one of "A", "B". The model must contain at least one wall.',
+      truthy: wall(1, 'B'), falsy: wall(1, 'C'),
+    },
+    {
+      title: 'a pattern',
+      make: (m, v) => ({ requirements: [{ ...m.newFacet('attribute', 'requirements'), name: m.simple('Name'), value: v.fromPattern('L[0-9]{2}.*', 'xs:string') }] }),
+      says: 'Every wall must have the attribute Name with a value matching the pattern "L[0-9]{2}.*". The model must contain at least one wall.',
+      truthy: wall(1, 'L01 north'), falsy: wall(1, 'Level 1'),
+    },
+    {
+      title: 'a text length',
+      make: (m, v) => ({ requirements: [{ ...m.newFacet('attribute', 'requirements'), name: m.simple('Name'), value: v.fromLength({ exactly: '', atLeast: '3', atMost: '5' }, 'xs:string') }] }),
+      says: 'Every wall must have the attribute Name with a value at least 3 and at most 5 characters long. The model must contain at least one wall.',
+      truthy: wall(1, 'abcd'), falsy: wall(1, 'abcdefg'),
+    },
+    {
+      title: 'an optional specification: nothing matching is accepted, a match must meet it',
+      make: (m) => ({ minOccurs: '0', maxOccurs: 'unbounded', applicability: [{ ...m.newFacet('entity', 'applicability'), name: m.simple('IFCDOOR') }], requirements: [{ ...m.newFacet('attribute', 'requirements'), name: m.simple('Name'), value: m.simple('D') }] }),
+      says: 'Every door must have the attribute Name set to "D".',
+      truthy: wall(1, 'no doors here'), falsy: `#1=IFCDOOR('0000000000000000000001',$,'X',$,$,$,$,$,$,$,$,$,$);\n`,
+    },
+    {
+      title: 'a prohibited specification with two conditions: both must hold for an element to be forbidden',
+      make: (m) => ({ minOccurs: '0', maxOccurs: '0', applicability: [{ ...m.newFacet('entity', 'applicability'), name: m.simple('IFCWALL') }, { ...m.newFacet('attribute', 'applicability'), name: m.simple('Name'), value: m.simple('Temp') }], requirements: [] }),
+      says: 'The model must not contain any wall that has the attribute Name set to "Temp".',
+      truthy: wall(1, 'Kept'), falsy: wall(1, 'Kept') + wall(2, 'Temp'),
+    },
+    {
+      title: 'a property with a value',
+      make: (m, v) => ({ requirements: [{ ...m.newFacet('property', 'requirements'), propertySet: m.simple('My_Set'), baseName: m.simple('Rating'), dataType: 'IFCLABEL', value: m.simple('R60') }] }),
+      says: 'Every wall must have the property Rating in My_Set set to "R60". The model must contain at least one wall.',
+      truthy: wall(1) + prop('My_Set', 'Rating', 'R60'), falsy: wall(1) + prop('My_Set', 'Rating', 'R30'),
+    },
+  ];
+  for (const c of cases) {
+    it(`${c.title}: the sentence is what the run tests`, async () => {
+      const m = await import('../src/core/ids/model'), v = await import('../src/core/ids/value');
+      const { describeSpecification } = await import('../src/core/ids/words');
+      const { writeIds } = await import('../src/core/ids/write');
+      const s = { ...m.newSpecification(), name: 'S', applicability: [{ ...m.newFacet('entity', 'applicability'), name: m.simple('IFCWALL') }], ...c.make(m, v) } as import('../src/core/ids/model').Specification;
+      expect(describeSpecification(s)).toEqual({ mode: 'sentence', text: c.says });
+      const xml = writeIds({ info: { ...m.blankDocument().info, title: 't' }, specifications: [s] });
+      expect((await run(xml, ifc('IFC4', c.truthy))).verdict).toBe('pass');
+      expect((await run(xml, ifc('IFC4', c.falsy))).verdict).toBe('fail');
+    });
+  }
+});

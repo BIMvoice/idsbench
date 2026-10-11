@@ -485,6 +485,21 @@ try {
   const names = csvRows.slice(1).map((r) => r[3]);
   check('CSV: a name that a spreadsheet would run as a formula (=, +, -, @) is written with an apostrophe in front; other names, long ones and letters outside ASCII are as in the model; an element with no name and no GlobalId has empty cells', csvRows.length === 8 && names[0] === `'${nasty[0]}` && names[1] === `'${nasty[1]}` && names[2] === `'${nasty[2]}` && names[3] === `'${nasty[3]}` && names[4] === nasty[4] && names[5] === nasty[5] && names[6] === '' && csvRows[7][4] === '' && csvRows.every((r) => r.length === 7), JSON.stringify(names.map((n) => n.slice(0, 30))));
 
+  // ---- E17: one reason is read once, whatever value each element has of its own -------------------
+  await specs.first().locator('details.fails summary').click();
+  const groupHeads = await page.locator('.fail-group .group-reason').allInnerTexts();
+  const firstGroup = page.locator('.fail-group').first();
+  check('six walls that fail one requirement, each with a name of its own, are one group with the reason said once and each wall\'s own value in its row; the wall with no name is a group of its own; the counts add up to the seven that failed', groupHeads.length === 2 && /^6 elements: Attribute "Name" is "…", expected "Waldo"\. Each element's own value is in the last column\.$/.test(groupHeads[0]) && /^1 element: /.test(groupHeads[1]) && (await firstGroup.locator('tbody tr').count()) === 6 && (await firstGroup.locator('thead th').allInnerTexts()).join('|') === 'IFC class|Name|GlobalId|It has' && (await firstGroup.locator('tbody tr').nth(1).locator('td').nth(3).innerText()) === '+2.50 Level', groupHeads.join(' || '));
+
+  // a result that fails without a single failing element
+  await fresh();
+  const needsDoor = write('needs-door.ids', idsText([spec('There is a door', 'IFCDOOR', nameIs('x'))]));
+  await idsInput.setInputFiles(needsDoor);
+  await ifcInput.setInputFiles(twoWalls);
+  await runVerdict.waitFor({ timeout: 60000 });
+  const nextStep = await page.locator('#next-step').innerText();
+  check('a required specification that matches nothing: Fail, and the page does not say "Nothing failed"', (await word()) === 'Fail' && !/Nothing failed/.test(nextStep) && /^No single element failed: a specification failed as a whole, and its row says why\./.test(nextStep) && (await page.getByRole('button', { name: 'Download failing elements' }).count()) === 0, nextStep);
+
   // ---- G: the three journeys without a mouse -----------------------------------------------------
   const kctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, acceptDownloads: true });
   await kctx.route('**/*', (route) => { const u = route.request().url(); if (u.startsWith(origin + '/') || u.startsWith('blob:') || u.startsWith('data:')) return route.continue(); blocked.push(u); return route.abort(); });

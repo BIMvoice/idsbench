@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { failureCount, failuresCsvName, failuresCsvParts } from '../core/csv';
+import { afterRun, failureCount, failuresCsvName, failuresCsvParts } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
 import { pageReportName, pageReportParts, sha256Of } from '../core/report';
@@ -120,7 +120,7 @@ export function App() {
     : report && !report.valid ? (doc ? `Work through the list below: "Fix" opens the place concerned.${model ? ' The model is checked as soon as the file is valid.' : ''}` : 'This file has to be corrected in the tool that made it.')
     : page.dirty ? 'Download .ids to keep your changes.'
     : !model ? 'The IDS file is valid. Add an IFC model to check it against the file, or edit a specification.'
-    : result ? (failing > 0 ? 'Send the failing elements to the people who model: Download failing elements gives the complete list.' : 'Nothing failed. Download the report to keep a record.')
+    : result ? afterRun(result)
     : null;
   const hasPage = doc !== null || page.source !== null;
   const listed = report ? report.findings.slice(0, ROW_CAP) : [];

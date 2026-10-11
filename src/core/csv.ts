@@ -40,6 +40,17 @@ export function failuresCsvName(ifcName: string): string {
   return `${ifcName.replace(/\.ifc$/i, '') || 'model'}-failing-elements.csv`;
 }
 
-export function failureCount(result: RunResult): number {
+/**
+ * What to do with a result, in one sentence. "Nothing failed" is said only of a result that passed: a required
+ * specification that matches nothing fails without a single failing element, and so does not make an empty list good news.
+ */
+export function afterRun(result: Pick<RunResult, 'verdict' | 'specs'>): string {
+  if (failureCount(result) > 0) return 'Send the failing elements to the people who model: Download failing elements gives the complete list.';
+  if (result.verdict === 'pass') return 'Nothing failed. Download the report to keep a record.';
+  if (result.verdict === 'fail') return 'No single element failed: a specification failed as a whole, and its row says why. Download the report to keep a record.';
+  return 'No element failed, but not every specification could be checked: see the rows marked Not checked. Download the report to keep a record.';
+}
+
+export function failureCount(result: Pick<RunResult, 'specs'>): number {
   return result.specs.reduce((n, s) => n + s.failures.length, 0);
 }

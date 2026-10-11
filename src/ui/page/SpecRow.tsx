@@ -1,5 +1,5 @@
 import type { Finding } from '@idsbench/check';
-import { capGroups, groupFailures } from '../../core/groups';
+import { capGroups, groupFailures, ownValues } from '../../core/groups';
 import type { Issue } from '../../core/ids/check';
 import type { Specification } from '../../core/ids/model';
 import { describeSpecification } from '../../core/ids/words';
@@ -20,12 +20,12 @@ export function FailureGroups({ spec }: { spec: Result }) {
       <summary>Show the {plural(spec.failures.length, 'failing element')}, by reason</summary>
       {shown.map((g, i) => (
         <section key={i} className="fail-group" aria-label={g.reason}>
-          <h5 className="group-reason">{plural(g.total, 'element')}: {g.reason}</h5>
+          <h5 className="group-reason">{plural(g.total, 'element')}: {g.reason}{g.varies ? ' Each element\'s own value is in the last column.' : ''}</h5>
           <div className="table-wrap">
             {/* The roles keep this a table for screen readers on a narrow screen, where each row is laid out as a block. */}
             <table role="table">
               <thead role="rowgroup">
-                <tr role="row"><th role="columnheader">IFC class</th><th role="columnheader">Name</th><th role="columnheader">GlobalId</th></tr>
+                <tr role="row"><th role="columnheader">IFC class</th><th role="columnheader">Name</th><th role="columnheader">GlobalId</th>{g.varies && <th role="columnheader">It has</th>}</tr>
               </thead>
               <tbody role="rowgroup">
                 {g.elements.map((f, j) => (
@@ -33,6 +33,7 @@ export function FailureGroups({ spec }: { spec: Result }) {
                     <td role="cell">{f.ifcClass}</td>
                     <td role="cell">{f.name ?? '(no name)'}</td>
                     <td role="cell" className="mono">{f.globalId ?? '(none)'}</td>
+                    {g.varies && <td role="cell">{ownValues(f)}</td>}
                   </tr>
                 ))}
               </tbody>
