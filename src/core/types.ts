@@ -1,3 +1,5 @@
+import type { ShownGroup } from './groups';
+
 /**
  * pass: checked, and the model meets the specification.
  * fail: checked, and the model does not meet it.
@@ -38,11 +40,38 @@ export interface SpecRow {
   note: string | null;
   /** Set when the model's IFC version is not one the specification lists. */
   schemaNote: string | null;
-  /** Every failing element. The page lists the first FAILURE_CAP; the downloaded report holds all of them. */
+  /**
+   * The failing elements held in this row. A run made in the browser's worker holds only the first FAILURE_CAP here
+   * (the rest went straight into the files to download, see RunResult.spilled); a run made anywhere else holds all.
+   */
   failures: FailingElement[];
+  /** How many elements failed, always exact, whatever `failures` holds. Absent in a row built by hand: then it is failures.length. */
+  failureTotal?: number;
+  /** The failing elements by reason as the page lists them (at most FAILURE_CAP elements in all), with each reason's exact count. Absent in a row built by hand. */
+  groups?: ShownGroup[];
+  /**
+   * Set when the specification failed as a whole and not through one element: it needs at least one matching element
+   * and the model has none, or it allows fewer matching elements than the model has. The reason, in a sentence.
+   */
+  wholeFailure?: string;
+  /** How many failing elements the page does not list. Absent in a row built by hand. */
+  notListed?: number;
+}
+
+/** The failing elements of one specification as the text of the two downloads, kept as pieces the browser may hold on disk. */
+export interface Spilled {
+  /** The CSV rows, without the header. */
+  csv: Blob[];
+  /** The elements as JSON objects separated by commas, to go between the brackets of the "failures" list in the report. */
+  failures: Blob[];
 }
 
 export interface RunResult {
+  /**
+   * Per specification (same order as `specs`), the complete failing elements as pieces of the two downloads. Present
+   * only on a run made in the worker, where holding millions of elements would not fit; null where there are none.
+   */
+  spilled?: (Spilled | null)[];
   idsFile: string;
   ifcFile: string;
   schema: string;
@@ -86,6 +115,8 @@ export type ErrorKind =
   | 'ifc-unreadable'
   | 'file-unreadable'
   | 'out-of-memory'
+  | 'ifc-too-large'
+  | 'worker-stopped'
   | 'unexpected';
 
 export interface AppErrorInfo {

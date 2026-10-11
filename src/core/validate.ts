@@ -5,7 +5,7 @@ import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { AppError, mapError } from './errors';
 import { checkIdsDocument, precheckIdsText } from './idsfile';
 import { inspectIfc } from './ifcfile';
-import { hasNoApplicability, shapeReport, type ReportLike } from './shape';
+import { assembleReport, hasNoApplicability, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
 import type { RunResult } from './types';
 
 export type Phase = 'reading-ids' | 'reading-ifc' | 'checking';
@@ -17,6 +17,41 @@ export interface RunInput {
   ifcBytes: ArrayBuffer;
   ifcName: string;
   onPhase?: (phase: Phase) => void;
+  /** Put the failing elements straight into the downloads instead of holding them (see ShapeOptions.spill). Used by the worker. */
+  spill?: boolean;
+  /** Called every so often while the check runs; throwing from it stops the run (the worker uses this to stop a run that was cancelled). */
+  onTick?: () => void;
+  /** How many express ids one range of the check covers (see RANGE_IDS). Tests set it small to force many ranges. */
+  rangeIds?: number;
+  /** Used instead of reading the bytes again when the model is already read (see ModelKeeper). */
+  loaded?: LoadedModel;
+}
+
+/** How many express ids one range of the check covers. A model whose highest id is below this is checked as one range. */
+export const RANGE_IDS = 400_000;
+
+type Accessor = ReturnType<typeof createDataAccessor>;
+/** The same accessor, answering the lists of entities (by class, or all) with only those whose express id is in [lo, hi). */
+function inRange(a: Accessor, lo: number, hi: number): Accessor {
+  const within = (ids: number[]) => ids.filter((id) => id >= lo && id < hi);
+  return { ...a, getEntitiesByType: (t: string) => within(a.getEntitiesByType(t)), getAllEntityIds: () => within(a.getAllEntityIds()) };
+}
+
+/** [lo, hi) ranges that together cover every express id of the model. */
+async function idRanges(store: LoadedModel['store'], size: number): Promise<[number, number][]> {
+  if (store.entityCount <= size) return [[0, Infinity]];
+  let max = 0;
+  for (const id of createDataAccessor(store).getAllEntityIds()) if (id > max) max = id;
+  const out: [number, number][] = [];
+  for (let lo = 0; lo <= max; lo += size) out.push([lo, lo + size > max ? Infinity : lo + size]);
+  return out.length ? out : [[0, Infinity]];
+}
+
+/** A model that is read and ready to be checked against any IDS. Holds the parsed store, which is large: keep at most one. */
+export interface LoadedModel {
+  store: Awaited<ReturnType<IfcParser['parseColumnar']>>;
+  schema: string;
+  entityCount: number;
 }
 
 /** Parse IDS XML text. Needs DOMParser (main thread or Node), not a Web Worker. */
@@ -34,19 +69,12 @@ export function readIds(idsXml: string): IDSDocument {
   return doc;
 }
 
-/**
- * Parse the model, validate, and shape the result.
- * Throws AppError with a plain-language message for every expected failure.
- * Does not touch the DOM, so it runs in a worker or in Node.
- */
-export async function runValidation(input: RunInput): Promise<RunResult> {
-  const t0 = performance.now();
-  const doc = input.ids;
-  input.onPhase?.('reading-ifc');
-  const header = inspectIfc(input.ifcBytes);
+/** Read a model: look at its header, parse it. Throws AppError with a plain-language message for every expected failure. */
+export async function loadModel(ifcBytes: ArrayBuffer): Promise<LoadedModel> {
+  const header = inspectIfc(ifcBytes);
   let store;
   try {
-    store = await new IfcParser().parseColumnar(input.ifcBytes);
+    store = await new IfcParser().parseColumnar(ifcBytes);
   } catch (e) {
     console.error('IFC parse failed', e);
     const m = mapError(e, 'ifc');
@@ -55,6 +83,23 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
   if (!store || store.entityCount === 0) {
     throw new AppError('ifc-empty', 'The IFC file has a header but no model data in it, so there is nothing to check. Export the model again.');
   }
+  return { store, schema: header.schema, entityCount: store.entityCount };
+}
+
+/**
+ * Parse the model, validate, and shape the result.
+ * Throws AppError with a plain-language message for every expected failure.
+ * Does not touch the DOM, so it runs in a worker or in Node.
+ */
+export async function runValidation(input: RunInput): Promise<RunResult> {
+  const t0 = performance.now();
+  const doc = input.ids;
+  let loaded = input.loaded;
+  if (!loaded) {
+    input.onPhase?.('reading-ifc');
+    loaded = await loadModel(input.ifcBytes);
+  }
+  const { store } = loaded;
 
   // The ifcVersion a specification lists is not a condition for checking it.
   // The official test case is named "Specification version is purely metadata
@@ -67,36 +112,54 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     // A specification with nothing in its applicability would be applied by
     // the library to every record in the file. It is left out of the run and
     // reported as not checked.
-    const runnable = doc.specifications.filter((s) => !hasNoApplicability(s));
-    const report = await validateIDS(
-      { ...doc, specifications: runnable },
-      createDataAccessor(store),
-      { modelId: input.ifcName, schemaVersion: store.schemaVersion, entityCount: store.entityCount },
-      { translator },
-    );
-    if (report.specificationResults.length !== runnable.length) {
-      throw new Error('the report does not hold one result per specification');
+    const modelInfo = { modelId: input.ifcName, schemaVersion: store.schemaVersion, entityCount: store.entityCount };
+    const onProgress = input.onTick ? () => input.onTick!() : undefined;
+    const options: ShapeOptions = input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {};
+    const accs = doc.specifications.map((s) => new SpecAccumulator<IDSRequirementResult>(s, (r) => translator.describeFailure(r), loaded.schema, options));
+    const indexed = doc.specifications.map((s, i) => ({ s, i })).filter(({ s }) => !hasNoApplicability(s));
+    // The model is checked one range of express ids at a time, each with its own accessor and its own results, which are
+    // let go of before the next range: a model with millions of applicable elements never has all their results (or all
+    // the values read from them) in memory at once. A model of ordinary size is one range, as if there were no ranges.
+    for (const [lo, hi] of await idRanges(store, input.rangeIds ?? RANGE_IDS)) {
+      const accessor = hi === Infinity && lo === 0 ? createDataAccessor(store) : inRange(createDataAccessor(store), lo, hi);
+      // Elements that pass are not needed for anything but a prohibited specification (every match of it is a failure
+      // whatever its requirements say), so the library is asked to drop them from all the others: on a model with
+      // millions of elements that is most of the memory of a run. The counts it reports are the same either way.
+      for (const keepPassing of [false, true]) {
+        const part = indexed.filter(({ s }) => (specKind(s) === 'prohibited') === keepPassing);
+        if (part.length === 0) continue;
+        const report = await validateIDS(
+          { ...doc, specifications: part.map(({ s }) => s) },
+          accessor,
+          modelInfo,
+          { translator, includePassingEntities: keepPassing, onProgress },
+        );
+        if (report.specificationResults.length !== part.length) {
+          throw new Error('the report does not hold one result per specification');
+        }
+        part.forEach(({ i }, k) => {
+          const r = report.specificationResults[k] as ReportLike['specificationResults'][number];
+          accs[i].feed(r);
+          r.entityResults = [];
+        });
+      }
     }
-    let next = 0;
-    const specificationResults: ReportLike['specificationResults'] = doc.specifications.map((s) =>
-      hasNoApplicability(s)
-        ? { specification: s, status: 'not_applicable', applicableCount: 0, passedCount: 0, failedCount: 0, entityResults: [] }
-        : report.specificationResults[next++],
-    );
-    return shapeReport<IDSRequirementResult>(
-      { specificationResults },
-      (r) => translator.describeFailure(r),
-      {
-        idsFile: input.idsName,
-        ifcFile: input.ifcName,
-        schema: header.schema,
-        entityCount: store.entityCount,
-        seconds: (performance.now() - t0) / 1000,
-      },
+    for (const [i, s] of doc.specifications.entries()) {
+      if (hasNoApplicability(s)) accs[i].feed({ specification: s, status: 'not_applicable', applicableCount: 0, passedCount: 0, failedCount: 0, entityResults: [] });
+    }
+    const done = accs.map((a) => a.finish());
+    return assembleReport(
+      done.map((d) => d.row),
+      input.spill ? done.map((d) => d.spilled) : null,
+      { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, seconds: (performance.now() - t0) / 1000 },
     );
   } catch (e) {
+    if (e instanceof RunStopped) throw e;
     console.error('Validation failed', e);
     const m = mapError(e, 'validate');
     throw new AppError(m.kind, m.message);
   }
 }
+
+/** Thrown from onTick to stop a run. Never a failure to show. */
+export class RunStopped extends Error {}

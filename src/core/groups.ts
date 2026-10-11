@@ -14,11 +14,13 @@ export const NO_REASON = '(no reason given)';
 export const OWN_VALUE = '"…"';
 
 /** The reasons of an element with its own values taken out, so that elements failing the same requirement share them. */
-function sharedReason(f: FailingElement): string {
+export function sharedReason(f: FailingElement): string {
   if (f.reasons.length === 0) return NO_REASON;
   return f.reasons.map((r, i) => { const own = f.found?.[i]; return own ? r.replace(`"${own}"`, OWN_VALUE) : r; }).join(' ');
 }
 /** The values an element has of its own in its reasons, for the list of a group whose elements differ in them. */
+/** All of an element's reasons as one sentence (the text of a group whose elements all have the same). */
+export const fullReason = (f: FailingElement): string => (f.reasons.length ? f.reasons.join(' ') : NO_REASON);
 export const ownValues = (f: FailingElement): string => (f.found ?? []).filter((v): v is string => v !== null).join('; ');
 
 /**
@@ -54,4 +56,51 @@ export function capGroups(groups: FailureGroup[], cap: number): { shown: (Failur
     if (take.length) shown.push({ reason: g.reason, elements: take, total: g.elements.length, varies: g.varies });
   }
   return { shown, notShown };
+}
+
+/** A group as the page lists it: the elements shown (at most the cap), and the group's full count. */
+export type ShownGroup = FailureGroup & { total: number };
+
+/** How many different reasons are told apart before the rest are only counted (a reason of every element's own would otherwise be one entry each). */
+export const MAX_REASONS = 5000;
+
+/**
+ * The groups of groupFailures, built one element at a time, so that a result with millions of failing elements never
+ * has to be held (or grouped) as a whole. It keeps, per reason, the count and the first `cap` elements only; what it
+ * hands back through shown() is what capGroups(groupFailures(all), cap) gives, and the counts are exact.
+ */
+export class GroupAccumulator {
+  private groups = new Map<string, { group: FailureGroup & { total: number }; full: string }>();
+  /** Elements whose reason was not told apart because more than MAX_REASONS reasons were already in. */
+  untold = 0;
+  count = 0;
+  constructor(private cap: number) {}
+
+  add(f: FailingElement): void {
+    this.count++;
+    const key = sharedReason(f);
+    let g = this.groups.get(key);
+    if (!g) {
+      if (this.groups.size >= MAX_REASONS) { this.untold++; return; }
+      g = { group: { reason: key, elements: [], varies: false, total: 0 }, full: fullReason(f) };
+      this.groups.set(key, g);
+    }
+    g.group.total++;
+    if (fullReason(f) !== g.full) g.group.varies = true;
+    if (g.group.elements.length < this.cap) g.group.elements.push(f);
+  }
+
+  /** The groups cut to at most `cap` elements in all, and how many elements are not listed (those left out, and those of untold reasons). */
+  shown(): { shown: ShownGroup[]; notShown: number } {
+    const all: ShownGroup[] = [...this.groups.values()].map(({ group, full }) => ({ ...group, reason: group.varies ? group.reason : full }));
+    let left = this.cap, listed = 0;
+    const shown: ShownGroup[] = [];
+    for (const g of all) {
+      const take = g.elements.slice(0, Math.max(0, left));
+      left -= take.length;
+      listed += take.length;
+      if (take.length) shown.push({ ...g, elements: take });
+    }
+    return { shown, notShown: this.count - listed };
+  }
 }

@@ -1,0 +1,45 @@
+// Times and measures one run in Node, phase by phase, for models made by make-large-model.mjs.
+// Usage: node --max-old-space-size=<MB> node_modules/.bin/vite-node scripts/measure-run.ts <model.ifc> <spec.ids>
+import fs from 'node:fs';
+import { IfcParser } from '@ifc-lite/parser';
+import { parseIDS, validateIDS, createTranslationService } from '@ifc-lite/ids';
+import { createDataAccessor } from '@ifc-lite/ids/bridge';
+import { shapeReport } from '../src/core/shape';
+import { failuresCsvParts } from '../src/core/csv';
+import { reportParts } from '../src/core/format';
+
+const [ifcPath, idsPath] = process.argv.slice(2);
+const noise = console.log;
+console.warn = console.error = console.info = () => {};
+const mb = (b: number) => Math.round(b / 1048576);
+let peak = 0;
+const sample = () => { const m = process.memoryUsage(); peak = Math.max(peak, m.rss); };
+const timer = setInterval(sample, 50);
+const t = (label: string, t0: number) => noise(`  ${label}: ${((performance.now() - t0) / 1000).toFixed(1)} s (rss ${mb(process.memoryUsage().rss)} MB, heap ${mb(process.memoryUsage().heapUsed)} MB)`);
+const size = fs.statSync(ifcPath).size;
+noise(`model ${ifcPath}: ${mb(size)} MB`);
+let t0 = performance.now();
+const b = fs.readFileSync(ifcPath);
+const bytes = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+t('read file', t0);
+t0 = performance.now();
+const store = await new IfcParser().parseColumnar(bytes);
+t('parse', t0);
+noise(`  entities: ${store.entityCount}`);
+t0 = performance.now();
+const translator = createTranslationService('en');
+const doc = parseIDS(fs.readFileSync(idsPath, 'utf8'));
+const report = await validateIDS(doc, createDataAccessor(store), { modelId: 'm', schemaVersion: store.schemaVersion, entityCount: store.entityCount }, { translator });
+t('validate', t0);
+noise(`  applicable ${report.specificationResults[0].applicableCount}, failed ${report.specificationResults[0].failedCount}`);
+t0 = performance.now();
+const result = shapeReport({ specificationResults: report.specificationResults as never }, (r) => translator.describeFailure(r as never), { idsFile: 'a', ifcFile: 'm.ifc', schema: 'IFC4', entityCount: store.entityCount, seconds: 0 });
+t('shape', t0);
+t0 = performance.now();
+let n = 0;
+for (const p of reportParts(result)) n += typeof p === 'string' ? p.length : 0;
+for (const p of failuresCsvParts(result)) n += typeof p === 'string' ? p.length : 0;
+t(`report+csv text (${mb(n)} MB)`, t0);
+sample();
+clearInterval(timer);
+noise(`  PEAK rss ${mb(peak)} MB`);

@@ -1,4 +1,5 @@
 import type { Finding } from '@idsbench/check';
+import { failureTotalOf } from '../../core/csv';
 import { capGroups, groupFailures, ownValues } from '../../core/groups';
 import type { Issue } from '../../core/ids/check';
 import type { Specification } from '../../core/ids/model';
@@ -12,12 +13,14 @@ const STATE_TEXT: Record<SpecState, string> = { pass: 'Pass', fail: 'Fail', noth
 
 /** The failing elements of one specification, one group per reason, so each reason is read once. */
 export function FailureGroups({ spec }: { spec: Result }) {
-  const { shown, notShown } = capGroups(groupFailures(spec.failures), FAILURE_CAP);
+  // A row made in the worker carries its groups, counted over every failing element; one built by hand is grouped here.
+  const { shown, notShown } = spec.groups ? { shown: spec.groups, notShown: spec.notListed ?? 0 } : capGroups(groupFailures(spec.failures), FAILURE_CAP);
   if (shown.length === 0) return null;
-  const listed = spec.failures.length - notShown;
+  const total = failureTotalOf(spec);
+  const listed = total - notShown;
   return (
     <details className="more fails">
-      <summary>Show the {plural(spec.failures.length, 'failing element')}, by reason</summary>
+      <summary>Show the {plural(total, 'failing element')}, by reason</summary>
       {shown.map((g, i) => (
         <section key={i} className="fail-group" aria-label={g.reason}>
           <h5 className="group-reason">{plural(g.total, 'element')}: {g.reason}{g.varies ? ' Each element\'s own value is in the last column.' : ''}</h5>
@@ -43,7 +46,7 @@ export function FailureGroups({ spec }: { spec: Result }) {
       ))}
       {notShown > 0 && (
         <p className="note">
-          The first {listed} failing elements are listed here. {notShown.toLocaleString('en')} more {notShown === 1 ? 'is' : 'are'} not shown on this page. The downloaded files list all {spec.failures.length.toLocaleString('en')}.
+          The first {listed.toLocaleString('en')} failing elements are listed here. {notShown.toLocaleString('en')} more {notShown === 1 ? 'is' : 'are'} not shown on this page. The downloaded files list all {total.toLocaleString('en')}.
         </p>
       )}
     </details>

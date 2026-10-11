@@ -62,7 +62,10 @@ describe('downloaded report', () => {
     { idsFile: 'a.ids', ifcFile: 'b.ifc', schema: 'IFC4', entityCount: n, seconds: 1 },
   );
   it('is one valid JSON document equal to the result', () => {
-    expect(JSON.parse(reportParts(result).join(''))).toEqual(JSON.parse(JSON.stringify(result)));
+    // The report is the result without the page's own view of it (`groups`, `notListed`), which would only repeat the elements.
+    const expected = JSON.parse(JSON.stringify(result));
+    for (const s of expected.specs) { delete s.groups; delete s.notListed; }
+    expect(JSON.parse(reportParts(result).join(''))).toEqual(expected);
   });
   it('holds every failing element, not only the 200 the page lists', () => {
     const j = JSON.parse(reportParts(result).join(''));

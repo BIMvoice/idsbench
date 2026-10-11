@@ -12,15 +12,22 @@ export function reportFileName(ifcName: string): string {
 }
 
 /**
- * The report as JSON text, in pieces: one per specification, so a result with
- * very many failing elements is never built as one enormous string. Joined,
- * the pieces are one JSON document holding every failing element.
+ * The report as JSON text, in pieces: one run of pieces per specification, so a result with very many failing
+ * elements is never built as one enormous string. Joined, the pieces are one JSON document holding every failing
+ * element: from memory, or, for a result made in the worker, from the blobs it put them in. What the page lists
+ * (`groups`, `notListed`) is a view of the elements and is not part of the report.
  */
-export function reportParts(result: RunResult): string[] {
-  const { specs, ...rest } = result;
+export function reportParts(result: RunResult): BlobPart[] {
+  const { specs, spilled, ...rest } = result;
   const head = JSON.stringify(rest, null, 2).replace(/\n\}$/, '');
-  const parts = [`${head},\n  "specs": [`];
-  specs.forEach((s, i) => parts.push(`${i ? ',' : ''}\n${JSON.stringify(s)}`));
+  const parts: BlobPart[] = [`${head},\n  "specs": [`];
+  specs.forEach((s, i) => {
+    const { failures, groups: _groups, notListed: _notListed, ...others } = s;
+    const own = spilled?.[i];
+    const start = `${i ? ',' : ''}\n${JSON.stringify(others).slice(0, -1)},"failures":[`;
+    if (own) parts.push(start, ...own.failures, ']}');
+    else parts.push(`${start}${failures.map((f) => JSON.stringify(f)).join(',')}]}`);
+  });
   parts.push('\n  ]\n}\n');
   return parts;
 }

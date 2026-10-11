@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { afterRun, failureCount, failuresCsvName, failuresCsvParts } from '../core/csv';
+import { afterRun, failureCount, failuresCsvName, failuresCsvParts, wholeFailureCount } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
 import { pageReportName, pageReportParts, sha256Of } from '../core/report';
@@ -23,6 +23,7 @@ export function App() {
   const [problem, setProblem] = useState<string | null>(null);
   const result = run && 'outcome' in run ? run.outcome.result : null;
   const failing = result ? failureCount(result) : 0;
+  const wholeFailed = result ? wholeFailureCount(result) : 0;
   // A result row is shown beside a specification only when the result is of exactly these specifications, in this order.
   const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
 
@@ -112,7 +113,7 @@ export function App() {
     : doc && doc.specifications.length === 0 ? 'add'
     : report && !report.valid ? (errorRows >= 0 ? `edit-${errorRows}` : 'open')
     : !model ? 'model'
-    : result ? (failing > 0 ? 'csv' : 'report') : '';
+    : result ? (failing + wholeFailed > 0 ? 'csv' : 'report') : '';
   const next = !doc && !page.source ? 'Open an IDS file, or drop an IDS file and an IFC model anywhere on this page. No files at hand? Try the example.'
     : page.blank ? 'Give the IDS a title under "About this IDS", then add the first specification.'
     : page.editing ? 'Your changes are checked as you make them. Press Done when the specification reads as you mean it.'
@@ -161,7 +162,7 @@ export function App() {
         {hasPage && <>
           {(report || result) && (
             <div className="actions">
-              {result && failing > 0 && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={downloadCsv}>Download failing elements</button>}
+              {result && failing + wholeFailed > 0 && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={downloadCsv}>Download failing elements</button>}
               {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
           )}

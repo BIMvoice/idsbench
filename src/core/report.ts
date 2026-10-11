@@ -21,7 +21,7 @@ export async function sha256Of(blob: Blob): Promise<string | null> {
  * `ids` and `model` say exactly which bytes were judged, so that a report cannot be taken for the report of another
  * file with the same name: `ids` is the text that was checked (and run), `model` the model file, null without one.
  */
-export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null): string[] {
+export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null): BlobPart[] {
   const head = JSON.stringify({
     idsFile,
     edited,
@@ -30,7 +30,10 @@ export function pageReportParts(idsFile: string, edited: boolean, check: Report,
     check: { valid: check.valid, idsVersion: check.version, errors: check.errors, warnings: check.warnings, findings: check.findings },
   }, null, 2).replace(/\n\}$/, '');
   if (!run) return [`${head},\n  "run": null\n}\n`];
-  return [`${head},\n  "run": `, ...reportParts(run).map((p, i, all) => (i === all.length - 1 ? p.replace(/\n$/, '') : p)), '\n}\n'];
+  const run_ = reportParts(run);
+  // The run's own closing line end is dropped: the document closes after it.
+  const last = run_[run_.length - 1];
+  return [`${head},\n  "run": `, ...run_.slice(0, -1), typeof last === 'string' ? last.replace(/\n$/, '') : last, '\n}\n'];
 }
 
 export function pageReportName(idsName: string, run: RunResult | null): string {

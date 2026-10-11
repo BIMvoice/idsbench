@@ -1,4 +1,7 @@
 import { Verdict } from '../Verdict';
+import { formatSize } from '../../core/format';
+import { LARGE_MODEL_BYTES } from '../../core/limits';
+import { SILENCE_MS } from '../../runner';
 import type { Verdict as RunVerdict } from '../../core/types';
 import type { Phase } from '../../core/validate';
 import type { Page } from './usePage';
@@ -48,7 +51,17 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
   } else if (result) {
     verdict = <Verdict state={result.verdict} word={RUN_WORD[result.verdict]}>{result.headline}</Verdict>;
   } else if (page.running) {
-    verdict = <Verdict state="waiting" word="Checking"><span className="working">{PHASE_TEXT[page.phase]}</span></Verdict>;
+    verdict = (
+      <Verdict state="waiting" word="Checking">
+        <span className="working">{PHASE_TEXT[page.phase]}{model && model.size >= LARGE_MODEL_BYTES ? ` This model is ${formatSize(model.size)}; a large model needs several gigabytes of memory.` : ''}</span>
+        {page.silent && (
+          <span className="stalled" id="stalled" role="alert">
+            {' '}The check has not answered for {Math.round(SILENCE_MS / 1000)} seconds. It may still be working on a very large model, or the browser may have stopped it.{' '}
+            <button type="button" className="btn small" onClick={page.stopAndRetry}>Stop and try again</button>
+          </span>
+        )}
+      </Verdict>
+    );
   } else {
     verdict = <Verdict state={report.warnings ? 'incomplete' : 'pass'} word="Valid">{report.headline}</Verdict>;
   }
@@ -82,7 +95,7 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
       {run && 'error' in run && (
         <div className="model-refusal" role="alert">
           <p className="error">{run.error.message}</p>
-          {['unexpected', 'out-of-memory', 'file-unreadable'].includes(run.error.kind) && (
+          {['unexpected', 'out-of-memory', 'file-unreadable', 'worker-stopped'].includes(run.error.kind) && (
             <p className="refusal-action"><button type="button" className="btn small" onClick={page.runAgain}>Run again</button></p>
           )}
         </div>

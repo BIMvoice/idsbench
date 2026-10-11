@@ -1,22 +1,65 @@
-import { runValidation, type Phase } from './core/validate';
+// The worker: reads the model, keeps it between runs, checks it against the IDS, and tells the page that it is alive.
 import { mapError } from './core/errors';
+import { ModelKeeper, runSession, type ModelRef } from './core/session';
+import { RunStopped, type Phase } from './core/validate';
 import type { IDSDocument } from '@ifc-lite/ids';
 import type { AppErrorInfo, RunResult } from './core/types';
 
-export type WorkerRequest = { ids: IDSDocument; idsName: string; ifcBytes: ArrayBuffer; ifcName: string };
+export type WorkerRequest =
+  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean }
+  | { type: 'cancel'; id: number }
+  /** The page no longer needs the model: let go of its memory. */
+  | { type: 'forget' };
 export type WorkerMessage =
-  | { type: 'phase'; phase: Phase }
-  | { type: 'done'; result: RunResult }
-  | { type: 'error'; error: AppErrorInfo };
+  | { type: 'alive'; lock: string | null }
+  | { type: 'beat' }
+  | { type: 'phase'; id: number; phase: Phase }
+  | { type: 'done'; id: number; result: RunResult; reused: boolean }
+  | { type: 'cancelled'; id: number }
+  | { type: 'error'; id: number; error: AppErrorInfo };
 
 const post = (m: WorkerMessage) => (self as unknown as Worker).postMessage(m);
+const keeper = new ModelKeeper();
+const cancelled = new Set<number>();
+let queue: Promise<void> = Promise.resolve();
 
-self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
+// The page is told every second that this worker is running. (While the model is being parsed nothing can be said:
+// that is one long step.) And while this worker lives it holds a lock that the page waits for: when the browser ends
+// the worker without a word, the lock is let go and the page knows at once.
+setInterval(() => post({ type: 'beat' }), 1000);
+const lock = `idsbench-worker-${Math.random().toString(36).slice(2)}`;
+if (typeof navigator !== 'undefined' && navigator.locks) {
+  void navigator.locks.request(lock, () => { post({ type: 'alive', lock }); return new Promise<void>(() => {}); });
+} else {
+  post({ type: 'alive', lock: null });
+}
+
+async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
+  if (cancelled.delete(m.id)) { post({ type: 'cancelled', id: m.id }); return; }
   try {
-    const result = await runValidation({ ...ev.data, onPhase: (phase) => post({ type: 'phase', phase }) });
-    post({ type: 'done', result });
+    const { result, reused } = await runSession(keeper, {
+      ids: m.ids,
+      idsName: m.idsName,
+      model: m.model,
+      read: () => m.file.arrayBuffer(),
+      fresh: m.fresh,
+      spill: true,
+      onPhase: (phase) => post({ type: 'phase', id: m.id, phase }),
+      onTick: () => { if (cancelled.has(m.id)) throw new RunStopped(); },
+    });
+    cancelled.delete(m.id);
+    post({ type: 'done', id: m.id, result, reused });
   } catch (e) {
+    if (e instanceof RunStopped) { cancelled.delete(m.id); post({ type: 'cancelled', id: m.id }); return; }
     console.error(e);
-    post({ type: 'error', error: mapError(e, 'validate') });
+    post({ type: 'error', id: m.id, error: mapError(e, 'validate') });
   }
+}
+
+self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
+  const m = ev.data;
+  if (m.type === 'cancel') { cancelled.add(m.id); return; }
+  if (m.type === 'forget') { queue = queue.then(() => keeper.forget()); return; }
+  // Runs go one after the other; a run asked for while another is going waits, and finds the model kept if it is the same.
+  queue = queue.then(() => run(m));
 };

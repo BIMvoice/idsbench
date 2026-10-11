@@ -71,9 +71,9 @@ describe('the CSV of failing elements', () => {
     expect(rows.length - 1).toBe(failureCount(r));
     expect(failureCount(r)).toBe(4);
     expect(rows.every((x) => x.length === CSV_COLUMNS.length)).toBe(true);
-    expect(rows[1]).toEqual(['Walls, "rated"', A, 'IfcWall', 'Wand "Süd", außen', 'id-Wand "Süd", außen', 'Tower, east.ifc', 'req.ids']);
-    expect(rows[2]).toEqual(['Walls, "rated"', `${A} ${B}`, 'IfcWall', '', '', 'Tower, east.ifc', 'req.ids']);
-    expect(rows.map((x) => x[0])).not.toContain('All fine');
+    expect(rows[1]).toEqual(['Element', 'Walls, "rated"', A, 'IfcWall', 'Wand "Süd", außen', 'id-Wand "Süd", außen', 'Tower, east.ifc', 'req.ids']);
+    expect(rows[2]).toEqual(['Element', 'Walls, "rated"', `${A} ${B}`, 'IfcWall', '', '', 'Tower, east.ifc', 'req.ids']);
+    expect(rows.map((x) => x[1])).not.toContain('All fine');
   });
   it('is named after the model', () => expect(failuresCsvName('Tower.ifc')).toBe('Tower-failing-elements.csv'));
 });
@@ -141,7 +141,8 @@ describe('what the page says to do with a result', async () => {
   const of = (verdict: RunResult['verdict'], specs: SpecRow[]) => afterRun({ verdict, specs });
   it('says "Nothing failed" only of a result that passed', () => {
     expect(of('pass', [spec('S', [])])).toBe('Nothing failed. Download the report to keep a record.');
-    expect(of('fail', [spec('S', [])])).toMatch(/^No single element failed: a specification failed as a whole/);
+    expect(of('fail', [{ ...spec('S', []), state: 'fail', wholeFailure: 'Needs one.' }])).toMatch(/^No single element failed: a specification failed as a whole/);
+    expect(of('fail', [spec('S', [])])).toMatch(/^The result is Fail without a failing element or a failed specification to list/);
     expect(of('incomplete', [spec('S', [])])).toMatch(/not every specification could be checked/);
     expect(of('fail', [spec('S', [el('1', [A])])])).toMatch(/^Send the failing elements/);
   });

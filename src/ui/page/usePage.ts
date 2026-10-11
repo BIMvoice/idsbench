@@ -23,7 +23,7 @@ import { outline, placeFindings, targetOf, type Outline, type Placed, type Targe
 import { kindOfFile, type FileKind } from '../../core/sniff';
 import type { AppErrorInfo } from '../../core/types';
 import type { Phase } from '../../core/validate';
-import { runInWorker, RunCancelled, RunFailed, type RunOutcome } from '../../runner';
+import { forgetModel, onSilence, runInWorker, RunCancelled, RunFailed, stopWorker, type RunOutcome } from '../../runner';
 import { loadDraft, saveDraft, type Draft } from './draft';
 
 /** How long the page waits after the last change to the document before it checks and runs it again. */
@@ -97,6 +97,10 @@ export function usePage() {
   const [ran, setRan] = useState<Ran | null>(null);
   const [phase, setPhase] = useState<Phase>('reading-ids');
   const [nonce, setNonce] = useState(0);
+  /** True while the worker has said nothing for a long time during a run: the page then offers to stop it. */
+  const [silent, setSilent] = useState(false);
+  /** Set by "Run again" and "Stop and try again": the next run reads the model again instead of using the copy the worker keeps. */
+  const freshNext = useRef(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [focusKey, setFocusKey] = useState<{ key: string; n: number } | null>(null);
   const [undo, setUndo] = useState<Undo | null>(null);
@@ -149,7 +153,9 @@ export function usePage() {
     if (!runnable || !idsFile || !model || text === null) return;
     const live = { on: true };
     setPhase('reading-ids');
-    const run = runInWorker({ ids: idsFile, ifc: model }, (p) => { if (live.on) setPhase(p); });
+    const fresh = freshNext.current;
+    freshNext.current = false;
+    const run = runInWorker({ ids: idsFile, ifc: model }, (p) => { if (live.on) setPhase(p); }, { fresh });
     run.promise.then(
       (outcome) => { if (live.on) setRan({ text, model, nonce, outcome }); },
       (e) => {
@@ -161,6 +167,9 @@ export function usePage() {
     return () => { live.on = false; run.cancel(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runnable, idsFile, model, nonce]);
+  useEffect(() => onSilence(setSilent), []);
+  // The model the worker has read is let go when the page no longer has a model.
+  useEffect(() => { if (model === null) forgetModel(); }, [model]);
   const run = ran !== null && ran.text === text && ran.model === model && ran.nonce === nonce && runnable ? ran : null;
   const running = runnable && run === null;
 
@@ -389,7 +398,11 @@ export function usePage() {
     placed, targets, issues, guardErrors, lines,
     editing, setEditing, focusKey, undo, saveProblem, downloadBlocked,
     openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, save, idsBlob, textOf, asInFile, kept,
-    setModel, clearRefusal: () => setRefusal(null), runAgain: () => setNonce((n) => n + 1),
+    setModel, clearRefusal: () => setRefusal(null),
+    runAgain: () => { freshNext.current = true; setNonce((n) => n + 1); },
+    /** The worker has been silent too long: end it, and with it the model it holds, and run again from the file. */
+    stopAndRetry: () => { stopWorker(); freshNext.current = true; setNonce((n) => n + 1); },
+    silent: silent && running,
   };
 }
 export type Page = ReturnType<typeof usePage>;

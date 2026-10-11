@@ -2,12 +2,15 @@ import {
   FAILURE_CAP,
   type FailingElement,
   type RunResult,
+  type Spilled,
   type SpecKind,
   type SpecRow,
   type SpecState,
   type Verdict,
 } from './types';
 import { schemaFamily } from './ifcfile';
+import { GroupAccumulator } from './groups';
+import { elementCsvRow } from './csv';
 
 /**
  * The parts of the @ifc-lite/ids report that we read. Declared structurally so
@@ -94,7 +97,66 @@ function unchecked(spec: SpecResult, kind: SpecKind, note: string, modelSchema: 
     note,
     schemaNote: schemaNote(spec.specification.ifcVersionRaw, modelSchema),
     failures: [],
+    failureTotal: 0,
+    groups: [],
+    notListed: 0,
   };
+}
+
+/** Pieces of text for the two downloads: gathered in chunks and handed to the browser as blobs, so that they need not stay in memory as strings. */
+class Chunks {
+  private parts: string[] = [];
+  private chars = 0;
+  readonly blobs: Blob[] = [];
+  add(text: string): void {
+    this.parts.push(text);
+    this.chars += text.length;
+    if (this.chars >= 1 << 20) this.flush();
+  }
+  flush(): void {
+    if (this.parts.length) this.blobs.push(new Blob([this.parts.join('')]));
+    this.parts = [];
+    this.chars = 0;
+  }
+}
+
+export interface ShapeOptions {
+  /**
+   * Put every failing element straight into the two downloads (the result then holds only the first FAILURE_CAP of
+   * them in `failures`, and the complete text in `spilled`). Used by the worker, where a result of millions of
+   * elements would not fit in memory twice. Without it the row holds every failing element.
+   */
+  spill?: { ifcFile: string; idsFile: string };
+}
+
+/** Takes failing elements one at a time: counts them exactly, groups them by reason, holds what the page lists, and (if asked) writes the rest to the downloads. */
+class Failures {
+  total = 0;
+  readonly held: FailingElement[] = [];
+  readonly groups = new GroupAccumulator(FAILURE_CAP);
+  private csv: Chunks | null;
+  private json: Chunks | null;
+  constructor(private name: string, private options: ShapeOptions) {
+    this.csv = options.spill ? new Chunks() : null;
+    this.json = options.spill ? new Chunks() : null;
+  }
+  add(f: FailingElement): void {
+    if (this.options.spill && this.csv && this.json) {
+      this.csv.add(elementCsvRow(this.name, f, this.options.spill.ifcFile, this.options.spill.idsFile));
+      this.json.add(`${this.total ? ',' : ''}${JSON.stringify(f)}`);
+      if (this.held.length < FAILURE_CAP) this.held.push(f);
+    } else {
+      this.held.push(f);
+    }
+    this.total++;
+    this.groups.add(f);
+  }
+  spilled(): Spilled | null {
+    if (!this.csv || !this.json || this.total === 0) return null;
+    this.csv.flush();
+    this.json.flush();
+    return { csv: this.csv.blobs, failures: this.json.blobs };
+  }
 }
 
 export function shapeSpec<R extends { status: string }>(
@@ -102,91 +164,164 @@ export function shapeSpec<R extends { status: string }>(
   describe: Describe<R>,
   modelSchema = '',
 ): SpecRow {
-  const kind = specKind(spec.specification);
-  if (hasNoApplicability(spec.specification)) return unchecked(spec, kind, NO_APPLICABILITY, modelSchema);
-  if (spec.error) return unchecked(spec, kind, /pattern|regex/i.test(spec.error) ? PATTERN_REJECTED : NOT_CHECKED, modelSchema);
-  if (spec.status !== 'pass' && spec.status !== 'fail') return unchecked(spec, kind, NOT_CHECKED, modelSchema);
+  return shapeSpecInto(spec, describe, modelSchema, {}).row;
+}
 
-  const applicable = spec.applicableCount;
-  const element = (e: SpecResult['entityResults'][number], reasons: string[], found?: (string | null)[]): FailingElement => {
-    const el: FailingElement = { ifcClass: e.entityType, name: e.entityName ?? null, globalId: e.globalId ?? null, reasons };
-    if (found && found.some((v) => v !== null)) el.found = found;
-    return el;
-  };
+/** What the library says of a specification's cardinality for `count` matching elements (the same rule, for a count added up from several parts of a model). */
+function cardinalityOf(spec: SpecResult['specification'], count: number): SpecResult['cardinalityResult'] {
+  if (spec.minOccurs === undefined && spec.maxOccurs === undefined) return undefined;
+  const min = spec.minOccurs ?? 0;
+  const tooFew = count < min;
+  const tooMany = spec.maxOccurs !== 'unbounded' && spec.maxOccurs !== undefined && count > spec.maxOccurs;
+  return { passed: !tooFew && !tooMany, message: '' };
+}
 
-  let state: SpecState;
-  let passed: number;
-  let failed: number;
-  let failures: FailingElement[];
-  let summary: string;
-  let note: string | null = null;
+/** The library's status of a specification, from counts added up from several parts of a model. */
+function statusOf(count: number, failed: number, cardinality: SpecResult['cardinalityResult']): string {
+  if (count === 0) return cardinality?.passed === false ? 'fail' : cardinality?.passed === true ? 'pass' : 'not_applicable';
+  return failed > 0 || cardinality?.passed === false ? 'fail' : 'pass';
+}
 
-  if (kind === 'prohibited') {
-    // The standard: "No [matching element] should be found in the model,
-    // requirements are ignored". Every match is a failure, whatever the
-    // library's per-element requirement results say.
-    passed = 0;
-    failed = applicable;
-    failures = spec.entityResults.map((e) => element(e, [MUST_NOT_EXIST]));
-    if (applicable === 0) {
-      state = 'pass';
-      summary = 'None found in the model, as this specification asks.';
-    } else {
-      state = 'fail';
-      summary = `Found ${plural(applicable, 'element')} that must not be in the model.`;
-      note = `This specification says the model must not contain these elements. It contains ${applicable.toLocaleString('en')}.`;
+/**
+ * The row of one specification, built from its results fed in one part of the model at a time (feed), so that the
+ * failing elements of a very large model are never all held at once. One feed is the whole model.
+ */
+export class SpecAccumulator<R extends { status: string }> {
+  private fails: Failures;
+  private applicable = 0;
+  private failedCount = 0;
+  private parts = 0;
+  private error: string | undefined;
+  private last: SpecResult | undefined;
+
+  constructor(private spec: SpecResult['specification'], private describe: Describe<R>, private modelSchema: string, private options: ShapeOptions = {}) {
+    this.fails = new Failures(spec.name || '(unnamed specification)', options);
+  }
+
+  feed(r: SpecResult): void {
+    this.parts++;
+    this.applicable += r.applicableCount;
+    this.failedCount += r.failedCount;
+    this.error ??= r.error;
+    this.last = r;
+    if (hasNoApplicability(this.spec) || r.error || (r.status !== 'pass' && r.status !== 'fail' && r.status !== 'not_applicable')) return;
+    const element = (e: SpecResult['entityResults'][number], reasons: string[], found?: (string | null)[]): FailingElement => {
+      const el: FailingElement = { ifcClass: e.entityType, name: e.entityName ?? null, globalId: e.globalId ?? null, reasons };
+      if (found && found.some((v) => v !== null)) el.found = found;
+      return el;
+    };
+    if (specKind(this.spec) === 'prohibited') {
+      // The standard: "No [matching element] should be found in the model,
+      // requirements are ignored". Every match is a failure, whatever the
+      // library's per-element requirement results say.
+      for (const e of r.entityResults) this.fails.add(element(e, [MUST_NOT_EXIST]));
+      return;
     }
-  } else {
-    const failing = spec.entityResults.filter((e) => !e.passed);
-    failures = failing.map((e) => {
-      const failedReqs = e.requirementResults.filter((r) => r.status === 'fail');
-      const reasons = failedReqs.map((r) => sentence(r.failureReason?.trim() || describe(r as unknown as R)));
+    for (const e of r.entityResults) {
+      if (e.passed) continue;
+      const failedReqs = e.requirementResults.filter((q) => q.status === 'fail');
+      const reasons = failedReqs.map((q) => sentence(q.failureReason?.trim() || this.describe(q as unknown as R)));
       // The value the element has, where the reason quotes it: what differs from element to element in an otherwise equal reason.
-      const found = failedReqs.map((r, i) => (r.actualValue && reasons[i].includes(`"${r.actualValue}"`) ? r.actualValue : null));
-      return element(e, reasons, found);
-    });
-    // Count from what the report really holds, so the row can never say
-    // "0 failed" above a list of failing elements.
-    failed = Math.max(spec.failedCount, failing.length);
-    passed = Math.max(0, applicable - failed);
-    const cardinalityFailed = spec.cardinalityResult?.passed === false;
-    if (spec.status === 'fail' || failed > 0 || cardinalityFailed) state = 'fail';
-    else if (applicable === 0) state = 'nothing';
-    else state = 'pass';
+      const found = failedReqs.map((q, i) => (q.actualValue && reasons[i].includes(`"${q.actualValue}"`) ? q.actualValue : null));
+      this.fails.add(element(e, reasons, found));
+    }
+  }
 
-    if (applicable === 0) {
-      summary = 'No element in this model matches it.';
-      if (state === 'fail') note = 'This specification needs at least one matching element, and the model has none.';
-      else note = 'This specification is optional and no element in this model matches it, so there was nothing to check. If you expected matches, look at how the IDS file names the elements.';
+  finish(): { row: SpecRow; spilled: Spilled | null } {
+    const { spec, modelSchema, fails } = this;
+    const kind = specKind(spec);
+    const raw = { specification: spec } as SpecResult;
+    const no = (note: string) => ({ row: unchecked(raw, kind, note, modelSchema), spilled: null });
+    if (hasNoApplicability(spec)) return no(NO_APPLICABILITY);
+    if (this.error) return no(/pattern|regex/i.test(this.error) ? PATTERN_REJECTED : NOT_CHECKED);
+    // One part of the model: the library's own cardinality and status. Several: the same rules over the added-up counts.
+    const merged = this.parts > 1;
+    const cardinalityResult = merged ? cardinalityOf(spec, this.applicable) : this.last?.cardinalityResult;
+    const status = merged ? statusOf(this.applicable, this.failedCount, cardinalityResult) : this.last?.status;
+    if (status !== 'pass' && status !== 'fail') return no(NOT_CHECKED);
+
+    const applicable = this.applicable;
+    let state: SpecState;
+    let passed: number;
+    let failed: number;
+    let summary: string;
+    let note: string | null = null;
+    let wholeFailure: string | undefined;
+
+    if (kind === 'prohibited') {
+      passed = 0;
+      failed = applicable;
+      if (applicable === 0) {
+        state = 'pass';
+        summary = 'None found in the model, as this specification asks.';
+      } else {
+        state = 'fail';
+        summary = `Found ${plural(applicable, 'element')} that must not be in the model.`;
+        note = `This specification says the model must not contain these elements. It contains ${applicable.toLocaleString('en')}.`;
+      }
     } else {
-      summary = `Applied to ${plural(applicable, 'element')}: ${passed.toLocaleString('en')} passed, ${failed.toLocaleString('en')} failed.`;
-      if (cardinalityFailed) {
-        const { minOccurs: min, maxOccurs: max } = spec.specification;
-        const allowed =
-          typeof max === 'number' && applicable > max
-            ? `at most ${max.toLocaleString('en')}`
-            : `at least ${(min ?? 1).toLocaleString('en')}`;
-        note = `This specification allows ${allowed} matching ${allowed.endsWith(' 1') ? 'element' : 'elements'}, and the model has ${applicable.toLocaleString('en')}.`;
+      // Count from what the report really holds, so the row can never say
+      // "0 failed" above a list of failing elements.
+      failed = Math.max(this.failedCount, fails.total);
+      passed = Math.max(0, applicable - failed);
+      const cardinalityFailed = cardinalityResult?.passed === false;
+      if (status === 'fail' || failed > 0 || cardinalityFailed) state = 'fail';
+      else if (applicable === 0) state = 'nothing';
+      else state = 'pass';
+
+      if (applicable === 0) {
+        summary = 'No element in this model matches it.';
+        if (state === 'fail') { note = 'This specification needs at least one matching element, and the model has none.'; wholeFailure = note; }
+        else note = 'This specification is optional and no element in this model matches it, so there was nothing to check. If you expected matches, look at how the IDS file names the elements.';
+      } else {
+        summary = `Applied to ${plural(applicable, 'element')}: ${passed.toLocaleString('en')} passed, ${failed.toLocaleString('en')} failed.`;
+        if (cardinalityFailed) {
+          const { minOccurs: min, maxOccurs: max } = spec;
+          const allowed =
+            typeof max === 'number' && applicable > max
+              ? `at most ${max.toLocaleString('en')}`
+              : `at least ${(min ?? 1).toLocaleString('en')}`;
+          note = `This specification allows ${allowed} matching ${allowed.endsWith(' 1') ? 'element' : 'elements'}, and the model has ${applicable.toLocaleString('en')}.`;
+          wholeFailure = note;
+        }
       }
     }
-  }
 
-  if (state === 'fail' && failures.length === 0 && !note) {
-    note = 'The check reported this specification as failed without naming an element.';
+    if (state === 'fail' && fails.total === 0 && !note) {
+      note = 'The check reported this specification as failed without naming an element.';
+      wholeFailure = note;
+    }
+    const { shown, notShown } = fails.groups.shown();
+    const spilled = fails.spilled();
+    const row: SpecRow = {
+      name: spec.name || '(unnamed specification)',
+      state,
+      kind,
+      applicable,
+      passed,
+      failed,
+      summary,
+      note,
+      schemaNote: schemaNote(spec.ifcVersionRaw, modelSchema),
+      failures: fails.held,
+      failureTotal: fails.total,
+      groups: shown,
+      notListed: notShown,
+      ...(wholeFailure ? { wholeFailure } : {}),
+    };
+    return { row, spilled };
   }
+}
 
-  return {
-    name: spec.specification.name || '(unnamed specification)',
-    state,
-    kind,
-    applicable,
-    passed,
-    failed,
-    summary,
-    note,
-    schemaNote: schemaNote(spec.specification.ifcVersionRaw, modelSchema),
-    failures,
-  };
+function shapeSpecInto<R extends { status: string }>(
+  spec: SpecResult,
+  describe: Describe<R>,
+  modelSchema: string,
+  options: ShapeOptions,
+): { row: SpecRow; spilled: Spilled | null } {
+  const acc = new SpecAccumulator(spec.specification, describe, modelSchema, options);
+  acc.feed(spec);
+  return acc.finish();
 }
 
 /** The failing elements a row lists on the page, and how many more there are. */
@@ -223,12 +358,12 @@ export function headline(c: Counts): string {
   return parts.join(' ');
 }
 
-export function shapeReport<R extends { status: string }>(
-  report: ReportLike,
-  describe: Describe<R>,
+/** The counts, headline and verdict of rows already made. */
+export function assembleReport(
+  specs: SpecRow[],
+  spilled: (Spilled | null)[] | null,
   meta: { idsFile: string; ifcFile: string; schema: string; entityCount: number; seconds: number },
 ): RunResult {
-  const specs = report.specificationResults.map((s) => shapeSpec(s, describe, meta.schema));
   const count = (...states: SpecState[]) => specs.filter((s) => states.includes(s.state)).length;
   const counts: Counts = {
     specifications: specs.length,
@@ -246,5 +381,23 @@ export function shapeReport<R extends { status: string }>(
     verdict,
     allPassed: verdict === 'pass',
     seconds: meta.seconds,
+    ...(spilled ? { spilled } : {}),
   };
+}
+
+export function shapeReport<R extends { status: string }>(
+  report: ReportLike,
+  describe: Describe<R>,
+  meta: { idsFile: string; ifcFile: string; schema: string; entityCount: number; seconds: number },
+  options: ShapeOptions = {},
+): RunResult {
+  const spilled: (Spilled | null)[] = [];
+  const specs = report.specificationResults.map((s) => {
+    const { row, spilled: pieces } = shapeSpecInto(s, describe, meta.schema, options);
+    spilled.push(pieces);
+    // The library's per-element results are not needed again: let go of them now, one specification at a time.
+    s.entityResults = [];
+    return row;
+  });
+  return assembleReport(specs, options.spill ? spilled : null, meta);
 }

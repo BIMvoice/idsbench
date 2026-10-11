@@ -4,7 +4,7 @@
 // Usage: npx vite-node scripts/handover.ts <TestCases dir>
 import fs from 'node:fs';
 import path from 'node:path';
-import { CSV_COLUMNS, failureCount, failuresCsvParts } from '../src/core/csv';
+import { CSV_COLUMNS, ROW_KINDS, failureCount, failuresCsvParts, wholeFailureCount } from '../src/core/csv';
 import { reportParts } from '../src/core/format';
 import { groupFailures } from '../src/core/groups';
 import { prepareIds } from '../src/core/prepare';
@@ -37,8 +37,8 @@ const walk = (d: string) => { for (const f of fs.readdirSync(d, { withFileTypes:
 walk(root);
 files.sort();
 
-let pairs = 0, failPairs = 0, specs = 0, elements = 0, csvTotal = 0, groups = 0, singletons = 0;
-let wholeSpecFailures = 0, failPairsWithoutRows = 0, noName = 0, noId = 0, noReason = 0;
+let pairs = 0, failPairs = 0, specs = 0, elements = 0, csvElementRows = 0, csvWholeRows = 0, wholeSpecs = 0, groups = 0, singletons = 0;
+let failPairsWithoutRows = 0, noName = 0, noId = 0, noReason = 0;
 const wrong: string[] = [];
 for (const idsPath of files) {
   const ifcPath = idsPath.replace(/\.ids$/, '.ifc');
@@ -52,35 +52,43 @@ for (const idsPath of files) {
   unmute();
   pairs++;
   if (r.verdict === 'fail') failPairs++;
-  const parts = failuresCsvParts(r);
-  const rows = csvRows(parts.join(''));
+  const rows = csvRows(await new Blob(failuresCsvParts(r)).text());
   const where = path.relative(root, idsPath);
   if (rows[0].join(',') !== CSV_COLUMNS.join(',')) wrong.push(`${where}: header`);
   if (rows.some((x) => x.length !== CSV_COLUMNS.length)) wrong.push(`${where}: a row with another number of cells`);
-  // One part per specification with failures, in order: its rows are that specification's failing elements.
-  const failing = r.specs.filter((s) => s.failures.length > 0);
-  if (parts.length - 1 !== failing.length) wrong.push(`${where}: ${parts.length - 1} parts for ${failing.length} specifications with failures`);
-  failing.forEach((s, i) => { const n = csvRows(parts[i + 1]).length; if (n !== s.failures.length) wrong.push(`${where}: "${s.name}" has ${s.failures.length} failing elements and ${n} rows`); });
+  const body = rows.slice(1);
+  const elementRows = body.filter((x) => x[0] === ROW_KINDS.element), wholeRows = body.filter((x) => x[0] === ROW_KINDS.specification);
+  if (elementRows.length + wholeRows.length !== body.length) wrong.push(`${where}: a row that is neither an element row nor a whole-specification row`);
+  // The element rows are the failing elements the run counted, specification by specification.
+  for (const s of r.specs) {
+    const mine = elementRows.filter((x) => x[1] === s.name).length;
+    const same = r.specs.filter((o) => o.name === s.name).length;
+    if (same === 1 && mine !== (s.failureTotal ?? s.failures.length)) wrong.push(`${where}: "${s.name}" has ${s.failureTotal} failing elements and ${mine} element rows`);
+  }
+  // A whole-specification row has no element in it, and there is one for each specification that failed as a whole.
+  if (wholeRows.some((x) => x[3] || x[4] || x[5])) wrong.push(`${where}: a whole-specification row names an element`);
+  if (wholeRows.length !== wholeFailureCount(r)) wrong.push(`${where}: ${wholeFailureCount(r)} specifications failed as a whole and ${wholeRows.length} such rows`);
   for (const s of r.specs) {
     specs++;
     // What the run counts as failed is what it lists; a prohibited specification lists the elements that must not be there.
     if (s.failures.length !== s.failed && !(s.kind === 'prohibited' && s.failures.length === s.applicable)) wrong.push(`${where}: "${s.name}" counts ${s.failed} failed and lists ${s.failures.length}`);
-    if (s.state === 'fail' && s.failures.length === 0) wholeSpecFailures++;
+    if (s.wholeFailure) wholeSpecs++;
     const g = groupFailures(s.failures);
     groups += g.length; singletons += g.filter((x) => x.elements.length === 1).length;
     if (g.reduce((n, x) => n + x.elements.length, 0) !== s.failures.length) wrong.push(`${where}: "${s.name}" groups do not add up`);
     for (const f of s.failures) { if (!f.name) noName++; if (!f.globalId) noId++; if (f.reasons.length === 0) noReason++; }
   }
   elements += failureCount(r);
-  csvTotal += rows.length - 1;
-  if (r.verdict === 'fail' && failureCount(r) === 0) failPairsWithoutRows++;
-  const inReport = (JSON.parse(reportParts(r).join('')) as { specs: { failures: unknown[] }[] }).specs.reduce((n, s) => n + s.failures.length, 0);
+  csvElementRows += elementRows.length;
+  csvWholeRows += wholeRows.length;
+  if (r.verdict === 'fail' && failureCount(r) === 0 && wholeFailureCount(r) === 0) failPairsWithoutRows++;
+  const inReport = (JSON.parse(await new Blob(reportParts(r)).text()) as { specs: { failures: unknown[] }[] }).specs.reduce((n, s) => n + s.failures.length, 0);
   if (inReport !== failureCount(r)) wrong.push(`${where}: the report holds ${inReport} failing elements, the run ${failureCount(r)}`);
 }
 console.log(`pairs run: ${pairs}; with the verdict fail: ${failPairs}; specifications: ${specs}`);
-console.log(`failing elements the runs counted: ${elements}; rows in the CSV files: ${csvTotal}; groups by reason: ${groups} (of one element: ${singletons})`);
+console.log(`failing elements the runs counted: ${elements}; element rows in the CSV files: ${csvElementRows}; groups by reason: ${groups} (of one element: ${singletons})`);
 console.log(`failing elements with no name: ${noName}; with no GlobalId: ${noId}; with no reason given: ${noReason}`);
-console.log(`specifications that fail as a whole, with no element to list: ${wholeSpecFailures}; pairs with the verdict fail and an empty list: ${failPairsWithoutRows}`);
+console.log(`specifications that fail as a whole: ${wholeSpecs}; whole-specification rows in the CSV files: ${csvWholeRows}; pairs with the verdict fail and nothing at all to list: ${failPairsWithoutRows}`);
 console.log(`disagreements: ${wrong.length}`);
 for (const w of wrong.slice(0, 20)) console.log(`  ${w}`);
 process.exit(wrong.length ? 1 : 0);
