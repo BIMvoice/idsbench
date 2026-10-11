@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadSchema } from '@idsbench/check/ifc';
 import { checkIds } from '@idsbench/check';
-import { blankDocument, newFacet, newSpecification, occursFor, simple, type Facet, type Specification } from '../src/core/ids/model';
+import { blankDocument, newFacet, newSpecification, occursFor, simple, type Facet, type Specification, type Value } from '../src/core/ids/model';
 import { pluralSubject, suggestName, syncName } from '../src/core/ids/naming';
 import { fromList } from '../src/core/ids/value';
 import { describeSpecification } from '../src/core/ids/words';
@@ -16,7 +16,7 @@ const saved = { log: console.log, warn: console.warn, error: console.error, info
 beforeAll(() => { console.log = console.warn = console.error = console.info = () => {}; });
 afterAll(() => { Object.assign(console, saved); });
 
-const entity = (name: Facet extends infer F ? (F extends { kind: 'entity' } ? F['name'] : never) : never, predefinedType: string | null = null): Facet =>
+const entity = (name: Value, predefinedType: string | null = null): Facet =>
   ({ ...newFacet('entity', 'applicability'), name, predefinedType: predefinedType ? simple(predefinedType) : null } as Facet);
 const fireRating = (value: string | null = null): Facet => ({ ...newFacet('property', 'requirements'), propertySet: simple('Pset_WallCommon'), baseName: simple('FireRating'), dataType: 'IFCLABEL', value: value ? simple(value) : null } as Facet);
 const spec = (applicability: Facet[], requirements: Facet[], extra: Partial<Specification> = {}): Specification => ({ ...newSpecification(), autoName: true, applicability, requirements, ...extra });

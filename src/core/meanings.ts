@@ -32,7 +32,7 @@ export const MEANINGS: Meaning[] = [
   { name: 'Status', words: ['phase', 'stage', 'new', 'existing', 'demolish'], means: 'Whether the item is new, existing, to be demolished or temporary.' },
   { name: 'IsExternal', words: ['exterior', 'outside', 'external', 'facade'], means: 'Whether the item is on the outside of the building.' },
   { name: 'LoadBearing', words: ['structural', 'structure', 'carries load', 'bearing'], means: 'Whether the item carries load in the structure of the building.' },
-  { name: 'FireRating', words: ['fire resistance', 'fire protection', 'fire class', 'rei', 'ei30', 'fire', 'fire door'], means: 'The fire rating of the item in the national fire classification, such as EI 60.' },
+  { name: 'FireRating', words: ['fire resistance', 'fire protection', 'fire class', 'rei', 'ei30', 'fire', 'fire door'], means: 'How long the item resists fire, as a rating such as 60 minutes or EI60.' },
   { name: 'AcousticRating', words: ['sound', 'noise', 'acoustic', 'sound insulation', 'db'], means: 'How well the item insulates against sound.' },
   { name: 'ThermalTransmittance', words: ['u value', 'u-value', 'heat loss', 'insulation', 'thermal'], means: 'The U value: how much heat passes through the item.' },
   { name: 'Combustible', words: ['burns', 'flammable'], means: 'Whether the item is made of material that can burn.' },
