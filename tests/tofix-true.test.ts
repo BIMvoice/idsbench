@@ -57,6 +57,14 @@ describe('doing what "What to fix" says makes the element pass', () => {
     expect(filled.specs[0].state).toBe('pass');
   });
 
+  it('a name that has to follow a pattern: the reason says "pattern" once, and the instruction gives the pattern', async () => {
+    const ids = spec(cls('IFCWALL'), '<attribute><name><simpleValue>Name</simpleValue></name><value><xs:restriction base="xs:string"><xs:pattern value="W-[0-9]{2}"/></xs:restriction></value></attribute>');
+    const before = await one(ids, line(1, 'IFCWALL', 'wall one'));
+    expect(before.why).toBe('Attribute "Name" value "wall one" does not match pattern "W-[0-9]{2}".');
+    expect(before.fix).toBe('Change the name to a value that matches the pattern "W-[0-9]{2}"');
+    expect((await one(ids, line(1, 'IFCWALL', 'W-07'))).state).toBe('pass');
+  });
+
   it('a requirement that says "must not have": the reason has no unfilled placeholder and says what the element has', async () => {
     const ids = spec(cls('IFCWALL'), '<attribute cardinality="prohibited"><name><simpleValue>Description</simpleValue></name></attribute>');
     const described = `#1=IFCWALL('${G(1)}',$,'w','old text',$,$,$,$,$);\n`;

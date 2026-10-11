@@ -103,7 +103,7 @@ node scripts/measure-browser.mjs <model.ifc> <spec.ids>   # time, longest freeze
 
 Measured on the one-page app, on the machine it was built on:
 
-- Unit tests: 629 in the app, 44 in the Check package (1 more is skipped: it needs the official tool's output on disk).
+- Unit tests: 630 in the app, 44 in the Check package (1 more is skipped: it needs the official tool's output on disk).
 - `truth`: 307 of 307 `pass-` / `fail-` pairs give the verdict named in the file name, and Check rejects none of their IDS files. In 9 the specification lists IFC2X3 and the model is IFC4; they are checked like the others and carry a note. All 27 `invalid-*` files are refused because Check finds problems in them.
 - Check against the official audit tool: 425 of 425 IDS 1.0 files get the same valid or invalid verdict, and for the 80 it rejects the same error numbers. One file declares IDS 0.9.7 and is refused by design.
 - Round trip (read, write back in full, compare): 319 files read; 319 schema-valid, 319 parse-equal, 319 equal as XML; the verdict is the same for 307 of 307 pairs.
