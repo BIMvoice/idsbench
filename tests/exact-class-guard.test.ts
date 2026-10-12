@@ -13,7 +13,7 @@ import { IfcParser } from '@ifc-lite/parser';
 import { loadSchema, type IfcVersion, type SchemaData } from '@idsbench/check/ifc';
 import { afterRun, failuresCsvParts, offersFailingDownload, parseCsv, ROW_KINDS } from '../src/core/csv';
 import { reportParts } from '../src/core/format';
-import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, IFC2X3_OWN_ATTRIBUTES, withheldSentence } from '../src/core/foldguard';
+import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, IFC2X3_OWN_ATTRIBUTES, readAlike, withheldSentence } from '../src/core/foldguard';
 import { readIds } from '../src/core/validate';
 import { idsText, ifcText, line, NS, runText } from './helpers/small-model';
 
@@ -177,7 +177,6 @@ describe('where the exact class cannot be proved the result is withheld: Not che
   // What each pattern applies to, in the exact-class reading: the class the file declares is matched, not the class the library reads.
   const patterns: [string, string, string, string[]][] = [
     ['two names with a bar between them, the parent first', restriction('IFCDOOR|IFCWALL'), door, ['IFCDOOR', 'IFCWALL']],
-    ['two patterns in one restriction, the parent first', restriction('IFCDOOR', 'IFCWALL'), door, ['IFCDOOR', 'IFCWALL']],
     ['a class of letters written the XML Schema way (\\p{L})', restriction('IFC\\p{L}{0,4}DOOR'), door, ['IFCDOOR']],
     ['name characters written the XML Schema way (\\c) after the parent', restriction('IFCDISTRIBUTIONELEMENT\\c*'), control, ['IFCDISTRIBUTIONELEMENT']],
     ['the subtype only', restriction('IFCDOORSTANDARDCASE'), door, ['IFCDOORSTANDARDCASE']],
@@ -194,6 +193,36 @@ describe('where the exact class cannot be proved the result is withheld: Not che
       expect(appliedTo(result.specs[0])).toEqual(expected);
     });
   }
+
+  // The run with the declared class is given only for a pattern written with the signs that were compared with IfcTester
+  // and read alike by both. Each of these is read one way by the library and another by IfcTester (which answers 0
+  // elements for the first three, and refuses the others as not XML Schema), so a result for them is not proven.
+  const unproven: [string, string][] = [
+    ['a caret and a dollar, which XML Schema reads as the characters and the library as the two ends', restriction('^IFCDOOR$')],
+    ['a dollar after the name', restriction('IFCDOOR$')],
+    ['two patterns in one restriction, which IfcTester reads as both and the library as either', restriction('IFCDOOR', 'IFCWALL')],
+    ['a lazy quantifier, which XML Schema does not have', restriction('IFCDOOR.{0}?')],
+    ['a group that does not capture, which XML Schema does not have', restriction('(?:IFCDOOR)')],
+    ['a \\u escape, which XML Schema does not have', restriction('IFCDOO\\u0052')],
+    ['an \\x escape, which XML Schema does not have', restriction('IFCDOO\\x52')],
+    ['a small letter, which IfcTester does not match with a class name and the library does', restriction('IFCDOOR|ifcwall')],
+  ];
+  for (const [what, applicability] of unproven) {
+    it(`a pattern that is not read alike by the library and IfcTester is withheld when the fold changes it: ${what}`, async () => {
+      const result = await runText(idsText(spec('p', applicability)), door);
+      expect(result.specs[0].state).toBe('unchecked');
+      expect(result.specs[0].withheld).toBe(withheldSentence(['IFCDOORSTANDARDCASE']));
+      expect(result.specs[0].applicable).toBe(0);
+    });
+  }
+
+  it('such a pattern is left as it was where the fold changes nothing: a model without the ten classes, or a class the fold does not touch', async () => {
+    const plain = ifcText(body(['IFCDOOR', 'IFCWALL']), 'IFC4');
+    for (const [, applicability] of unproven) expect((await runText(idsText(spec('p', applicability)), plain)).specs[0].withheld).toBeUndefined();
+    const walls = await runText(idsText(spec('p', restriction('^IFCWALL$'))), door);
+    expect(walls.specs[0].withheld).toBeUndefined();
+    expect(appliedTo(walls.specs[0])).toEqual(['IFCWALL']);
+  });
 
   it('a pattern in a requirement, or beside a predefined type, is still withheld', async () => {
     for (const xml of [spec('r', entity(['IFCWALL']), `<requirements>${restriction('IFCDOOR')}</requirements>`), spec('q', `<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOOR"/></xs:restriction></name><predefinedType><simpleValue>DOOR</simpleValue></predefinedType></entity>`)]) {
@@ -287,6 +316,18 @@ describe('an attribute the subtype has and its parent has not: the library names
       expect(own).toEqual(v === 'IFC2X3' ? IFC2X3_OWN_ATTRIBUTES : {});
     });
   }
+});
+
+describe('the patterns the guard runs with the declared class (readAlike): the signs compared with IfcTester, and no other', () => {
+  it('each sign that was compared is taken', () => {
+    for (const p of ['IFCDOOR', 'IFCDOOR|IFCWALL', 'IFCDOOR|', '(IFCDOOR)', 'IFC(DOOR|WALL)', '.*DOOR', '.+CASE', 'IFCDOOR.?', 'IFCDOOR.{12}', 'IFCDOOR.{0,12}', '[A-Z]{8,}', 'IFCDOOR[A-R]*', 'IFCDOOR[^X]*', 'IFCDOOR[-A-Z]*', 'IFCDOOR[.]*', 'IFC2X3_A',
+      'IFCDOOR\\p{L}+', 'IFCDOOR\\p{Lu}*', 'IFCDOOR\\c*', '\\i\\c*', 'IFCDOOR\\w*', 'IFCDOOR\\W*', 'IFCDOOR\\d*', 'IFCDOOR\\s*', 'IFCDOOR\\S*', '']) expect(readAlike(p), p).toBe(true);
+  });
+  it('every other sign is refused', () => {
+    for (const p of ['^IFCDOOR', 'IFCDOOR$', 'IFCDOOR|ifcwall', 'IFCDOOR[a-z]*', 'IFCDOOR[A-Z-[S]]*', 'IFCDOOR[]', 'IFCDOOR[A-Z', '(?:IFCDOOR)', '(?=IFCDOOR)', '(?:IFCDOOR)|(?:IFCWALL)', 'IFCDOOR.*?', 'IFCDOOR.*+', 'IFCDOOR.??', 'IFCDOOR.{2}?', 'IFCDOOR.**', 'IFCDOOR.{2}{3}',
+      'IFCDOOR.{,3}', 'IFCDOOR.{a}', 'IFCDOOR{', 'IFCDOOR}', 'IFCDOOR]', 'IFCDOO\\u0052', 'IFCDOO\\x52', 'IFCDOOR\\p{Ll}*', 'IFCDOOR\\P{L}*', 'IFCDOOR\\p{IsBasicLatin}*', 'IFCDOOR\\.', 'IFCDOOR\\D*', 'IFCDOOR\\C*', 'IFCDOOR\\I*', 'IFCDOOR\\t*', 'IFCDOOR\\1', 'IFCDOOR\\',
+      'IFCDOOR ', 'IFCDOOR&', 'IFCDOOR-', 'IFCDOOR,', 'IFCD\u00d6OR']) expect(readAlike(p), p).toBe(false);
+  });
 });
 
 describe('what the guard looks at (foldEffect)', () => {

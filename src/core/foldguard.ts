@@ -74,6 +74,47 @@ type Match = boolean | 'unknown';
 // library would run it against every element, but this is run once per class, and an unsafe pattern is not guessed at.
 const RISKY = /\)\s*[+*{?]|\\[1-9]/;
 
+/**
+ * True for a pattern written only with the signs that were compared with IfcTester over the models of the ten classes and
+ * read alike by it and by the library: capital letters, digits and the underscore, the dot, the bar, a group, a class of
+ * capital letters and digits in square brackets (negated or not), the quantifiers * + ? {n} {n,} {n,m}, and the escapes
+ * \p{L} \p{Lu} \c \i \w \W \d \s \S. Anything else is read differently by the two, or was not compared: a caret or a
+ * dollar outside square brackets (the library takes them for the two ends, XML Schema and IfcTester for the characters),
+ * a small letter (the library ignores case, IfcTester compares with the name in capitals), a lazy or possessive
+ * quantifier, "(?", "\u", "\x" (not XML Schema: IfcTester refuses them and the library runs them as JavaScript), and two
+ * patterns in one restriction, which reach this file joined as "(?:a)|(?:b)" (either, for the library and XML Schema;
+ * both, for IfcTester).
+ */
+export function readAlike(pattern: string): boolean {
+  // A quantifier with another sign of repetition after it (lazy, possessive, or one on top of another).
+  const quantified = (i: number) => i >= pattern.length || !'*+?{'.includes(pattern.charAt(i));
+  for (let i = 0; i < pattern.length;) {
+    const ch = pattern.charAt(i);
+    if (ch === '\\') {
+      const property = /^\\p\{Lu?\}/.exec(pattern.slice(i));
+      if (property) { i += property[0].length; continue; }
+      if (i + 1 >= pattern.length || !'ciwWdsS'.includes(pattern.charAt(i + 1))) return false;
+      i += 2;
+    } else if (ch === '[') {
+      const cls = /^\[\^?[A-Z0-9.-]+\]/.exec(pattern.slice(i));
+      if (!cls) return false;
+      i += cls[0].length;
+    } else if (ch === '(') {
+      if (pattern.charAt(i + 1) === '?') return false;
+      i++;
+    } else if (ch === '*' || ch === '+' || ch === '?') {
+      if (!quantified(i + 1)) return false;
+      i++;
+    } else if (ch === '{') {
+      const count = /^\{\d+(,\d*)?\}/.exec(pattern.slice(i));
+      if (!count || !quantified(i + count[0].length)) return false;
+      i += count[0].length;
+    } else if (/[A-Z0-9_.|)]/.test(ch)) i++;
+    else return false;
+  }
+  return true;
+}
+
 function matches(c: IDSConstraint, cls: string): Match {
   if (c.type === 'simpleValue') return c.value === c.value.toUpperCase() && c.value.toUpperCase() === cls;
   if (c.type === 'enumeration' && !c.and) return c.values.some((v) => v.toUpperCase() === cls);
@@ -127,8 +168,9 @@ export function foldEffect(spec: IDSSpecification, present: readonly string[], i
       const unknown = asDeclared === 'unknown' || asRead === 'unknown';
       if (asDeclared === asRead && !alias && !unknown) continue;
       hit.add(d);
-      // A name, a list of names or a pattern can be run with the declared class; `unknown` (below) keeps out a pattern that could take long.
-      const simple = facet.name.type === 'simpleValue' || ((facet.name.type === 'enumeration' || facet.name.type === 'pattern') && !facet.name.and);
+      // A name, a list of names or a pattern can be run with the declared class; `unknown` (below) keeps out a pattern that
+      // could take long, and readAlike one whose answer was not proven against IfcTester.
+      const simple = facet.name.type === 'simpleValue' || (facet.name.type === 'enumeration' && !facet.name.and) || (facet.name.type === 'pattern' && !facet.name.and && readAlike(facet.name.pattern));
       if (!plain || !simple || unknown || alias) correctable = false;
     }
   }
