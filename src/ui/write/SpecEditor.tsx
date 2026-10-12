@@ -6,7 +6,7 @@ import type { SubtypeNote } from '../../core/subtypes';
 import { classNameIn, useSchemas } from './useSchema';
 import { listsFor } from '../../core/picks';
 import { familyOf, narrowToHead, withDefaultSubtypes } from '../../core/subtypes';
-import { pluralSubject, syncName } from '../../core/ids/naming';
+import { pluralSubject, syncName, withTypedName } from '../../core/ids/naming';
 import { plainName } from '../../core/picks';
 import type { Lists } from '../../core/picks';
 import { type Issue } from '../../core/ids/check';
@@ -108,7 +108,7 @@ export function SpecEditor({ spec: s, issues, onChange, focusKey, subtypes, onAd
 
   return (
     <div className="spec-body" ref={root}>
-      <TextField label="Name" dataKey={`${s.uid}.name`} required value={s.name} error={err('name')} onChange={(v) => onChange({ ...s, name: v, autoName: undefined })} />
+      <TextField label="Name" dataKey={`${s.uid}.name`} required value={s.name} error={err('name')} onChange={(v) => onChange(withTypedName(s, v))} />
       <FacetList title="Applies to" help="Which elements this specification is about." kind="applicability" facets={s.applicability} issues={issues} groupError={err('applicability')} groupAdvice={adv('applicability')}
         dataKey={`${s.uid}.applicability`} lists={lists} several={several} appliesTo="" onChange={changeApplicability} onLimitVersions={setVersions}
         extra={subtypes ? <SubtypeLine note={subtypes} onAdd={onAddSubtypes} /> : undefined} family={familyProps} />

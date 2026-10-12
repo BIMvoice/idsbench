@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadSchema } from '@idsbench/check/ifc';
 import { checkIds } from '@idsbench/check';
 import { blankDocument, newFacet, newSpecification, occursFor, simple, type Facet, type Specification, type Value } from '../src/core/ids/model';
-import { pluralSubject, suggestName, syncName } from '../src/core/ids/naming';
+import { pluralSubject, suggestName, syncName, withTypedName } from '../src/core/ids/naming';
 import { fromList } from '../src/core/ids/value';
 import { describeSpecification } from '../src/core/ids/words';
 import { writeIds } from '../src/core/ids/write';
@@ -51,7 +51,7 @@ describe('the generated name says which elements the rule is about', () => {
 
 describe('a name the person typed is theirs', () => {
   const typed = (name: string): Specification => ({ ...spec([entity(simple('IFCWALL'))], [fireRating()]), name, autoName: undefined });
-  it('is kept through every change of the content, also when it equals the name the page would give, and when it was cleared', () => {
+  it('is kept through every change of the content, also when it equals the name the page would give (a specification that carries no flag is not for the page to name)', () => {
     for (const name of ['FR-01', 'Walls have a fire rating', '']) {
       const s = typed(name);
       const changed = syncName({ ...s, applicability: [entity(simple('IFCDOOR'))], requirements: [] });
@@ -64,6 +64,36 @@ describe('a name the person typed is theirs', () => {
     const generated = JSON.parse(JSON.stringify({ ...spec([entity(simple('IFCWALL'))], [fireRating()]), name: 'Walls have a fire rating' })) as Specification;
     expect(syncName({ ...mine, applicability: [entity(simple('IFCDOOR'))] }).name).toBe('FR-01');
     expect(syncName({ ...generated, applicability: [entity(simple('IFCDOOR'))] }).name).toBe('Doors have a fire rating');
+  });
+});
+
+describe('a name that is typed and then cleared goes back to following the content', () => {
+  const made = (): Specification => ({ ...spec([entity(simple('IFCWALL'))], [fireRating()]), name: 'Walls have a fire rating', autoName: true });
+  const toDoors = (s: Specification): Specification => ({ ...s, applicability: [entity(simple('IFCDOOR'))] });
+  it('a name the person typed is kept through a change of the content', () => {
+    const s = withTypedName(made(), 'FR-01');
+    expect(s).toMatchObject({ name: 'FR-01' });
+    expect(s.autoName).toBeUndefined();
+    expect(syncName(toDoors(s)).name).toBe('FR-01');
+  });
+  it('the field emptied: the name is empty while it is being retyped, and follows the content from the next change of it', () => {
+    const typed = withTypedName(made(), 'FR-01');
+    const emptied = withTypedName(typed, '');
+    expect(emptied).toMatchObject({ name: '', autoName: true });
+    expect(syncName(emptied).name).toBe('Walls have a fire rating');
+    expect(syncName(toDoors(emptied)).name).toBe('Doors have a fire rating');
+    // A field of spaces is not a name either.
+    expect(withTypedName(typed, '   ').autoName).toBe(true);
+  });
+  it('a name typed again after the field was emptied is the person\'s, and is never overwritten', () => {
+    const again = withTypedName(withTypedName(withTypedName(made(), 'FR-01'), ''), 'FR-02');
+    expect(again.name).toBe('FR-02');
+    expect(again.autoName).toBeUndefined();
+    expect(syncName(toDoors(again)).name).toBe('FR-02');
+  });
+  it('keeping the name the page worked out, or one typed over it and cleared, does not change what is written to the file', () => {
+    const s = made();
+    expect(JSON.stringify(withTypedName(s, s.name))).toContain('"name":"Walls have a fire rating"');
   });
 });
 

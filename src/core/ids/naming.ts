@@ -93,3 +93,13 @@ export function syncName<S extends Pick<Specification, 'applicability' | 'requir
   const name = suggestName(s, o);
   return name && name !== s.name ? { ...s, name } : s;
 }
+
+/**
+ * The specification after the person has edited its name field to `typed`. A name of their own stops the name following the
+ * content; a field they have emptied has no name of its own any more, so the name follows the content again (it is filled in
+ * at the next change of the content, not at once, so that clearing the field to type another name is not undone under their hands).
+ */
+export function withTypedName<S extends Pick<Specification, 'name' | 'autoName'>>(s: S, typed: string): S {
+  const { autoName: _was, ...rest } = s;
+  return (typed.trim() === '' ? { ...rest, name: typed, autoName: true } : { ...rest, name: typed }) as S;
+}
