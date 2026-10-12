@@ -242,6 +242,22 @@ describe('where the exact class cannot be proved the result is withheld: Not che
     });
   }
 
+  it('a pattern of more than 200 characters, and a pattern narrowed by a length in the same restriction, are withheld', async () => {
+    const long = `IFCDOOR|${Array.from({ length: 25 }, () => 'IFCWALL').join('|')}`;
+    expect(long.length).toBeGreaterThan(200);
+    expect(readAlike(long)).toBe(true); // nothing but its length keeps it out
+    const narrowed = '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOOR.*"/><xs:maxLength value="7"/></xs:restriction></name></entity>';
+    for (const applicability of [restriction(long), narrowed]) {
+      const result = await runText(idsText(spec('p', applicability)), door);
+      expect(result.specs[0].state).toBe('unchecked');
+      expect(result.specs[0].withheld).toBe(withheldSentence(['IFCDOORSTANDARDCASE']));
+    }
+    // one character fewer than the limit is run
+    const short = `IFCDOOR|${Array.from({ length: 24 }, () => 'IFCWALL').join('|')}`;
+    expect(short.length).toBeLessThanOrEqual(200);
+    expect((await runText(idsText(spec('p', restriction(short))), door)).specs[0].withheld).toBeUndefined();
+  });
+
   it('such a pattern is left as it was where the fold changes nothing: a model without the ten classes, or a class the fold does not touch', async () => {
     const plain = ifcText(body(['IFCDOOR', 'IFCWALL']), 'IFC4');
     for (const [, applicability] of unproven) expect((await runText(idsText(spec('p', applicability)), plain)).specs[0].withheld).toBeUndefined();

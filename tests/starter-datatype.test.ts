@@ -8,7 +8,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { checkIds } from '@idsbench/check';
 import { loadSchema, type SchemaData } from '@idsbench/check/ifc';
-import { blankDocument, isValueGiven, newFacet, simple, withPropertyValue, type Facet, type PropertyFacet, type Specification } from '../src/core/ids/model';
+import { blankDocument, isValueGiven, newFacet, simple, withPropertyValue, type Facet, type PropertyFacet, type Specification, type Value } from '../src/core/ids/model';
 import { PATTERNS } from '../src/core/ids/patterns';
 import { fromLength, fromList, fromPattern, fromRange } from '../src/core/ids/value';
 import { checkDocument } from '../src/core/ids/check';
@@ -99,6 +99,23 @@ describe('an empty pattern or an empty list is not a value', () => {
   it('one function says so, for nothing, an empty text, an empty pattern, an empty list, an empty range and an empty length', () => {
     expect([null, simple(''), ...empty].map((v) => isValueGiven(v))).toEqual(Array(2 + empty.length).fill(false));
     expect(given.map((v) => isValueGiven(v))).toEqual(Array(given.length).fill(true));
+  });
+
+  it('a pattern, a list or a range that holds only spaces is not a value either', () => {
+    for (const v of [fromPattern('  ', 'xs:string'), fromList([' ', '\t'], 'xs:string'), fromRange({ lower: { value: ' ', exclusive: false }, upper: null }, 'xs:double')]) {
+      expect(isValueGiven(v)).toBe(false);
+      expect(withPropertyValue(propertyOf(starter()), v, typeOf).dataType).toBeNull();
+    }
+  });
+
+  it('"optional" on an attribute with an empty pattern is told that it needs a value, as with no value at all', () => {
+    const s = starter();
+    const attribute = (value: Value | null) => ({ ...blankDocument(), specifications: [{ ...s, requirements: [{ kind: 'attribute', uid: 'a1', name: simple('Name'), value, cardinality: 'optional', instructions: null } as Facet] }] });
+    const said = (d: ReturnType<typeof attribute>) => checkDocument(d).map((i) => i.message);
+    expect(said(attribute(null))).toContain('Optional only means something when you also say what the value must be.');
+    expect(said(attribute(fromPattern('', 'xs:string')))).toContain('Optional only means something when you also say what the value must be.');
+    expect(said(attribute(simple('')))).toContain('Optional only means something when you also say what the value must be.');
+    expect(said(attribute(fromPattern('W.*', 'xs:string')))).not.toContain('Optional only means something when you also say what the value must be.');
   });
 
   it('withPropertyValue writes no data type for an empty one (the Value mode switched to pattern or list and left empty)', () => {

@@ -97,6 +97,26 @@ describe('choosing a standard property in the form', () => {
   });
 });
 
+describe('the Property set field of the form, when the data type is one the form wrote', () => {
+  it('the data type follows the set: a set the standard does not know has none, and the standard one brings it back', () => {
+    const got: PropertyFacet[] = [];
+    const render = (facet: PropertyFacet) => {
+      renderToStaticMarkup(createElement(FacetFields, { facet, requirement: true, issues: [], onChange: (f) => got.push(f as PropertyFacet), lists, several: false, appliesTo: 'IFCWALL' }));
+    };
+    const property = starter().requirements[0] as PropertyFacet;
+    render(property);
+    (seen.value.get(`${property.uid}.value`)! as { onChange: (v: Value | null) => void }).onChange(simple('2HR'));
+    expect(got[0]).toMatchObject({ dataType: 'IFCLABEL', autoDataType: true });
+    render(got[0]);
+    (seen.value.get(`${property.uid}.propertySet`)! as { onChange: (v: Value | null) => void }).onChange(simple('My_Set'));
+    expect(got[1].propertySet).toEqual(simple('My_Set'));
+    expect(got[1].dataType).toBeNull();
+    render(got[1]);
+    (seen.value.get(`${property.uid}.propertySet`)! as { onChange: (v: Value | null) => void }).onChange(property.propertySet);
+    expect(got[2]).toMatchObject({ dataType: 'IFCLABEL', autoDataType: true });
+  });
+});
+
 describe('the Data type field of a property in the form', () => {
   it('a data type chosen there is the person\'s: the value taken away afterwards leaves it', () => {
     const got: PropertyFacet[] = [];
