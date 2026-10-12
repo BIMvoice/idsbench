@@ -5,7 +5,7 @@ import { AppError } from '../errors';
 import { versionProblem } from '@idsbench/check/version';
 import { IDS_NAMESPACE } from '../idsfile';
 import {
-  RESTRICTION_NAMES, blankDocument, newUid,
+  RESTRICTION_NAMES, asOpened, blankDocument, newUid,
   type Cardinality, type EntityRef, type Facet, type IdsDocument, type RestrictionName, type Specification, type Value,
 } from './model';
 
@@ -149,10 +149,10 @@ function readFacet(el: Element, requirement: boolean): Facet {
     case 'entity': return { kind: 'entity', ...common, ...readEntityRef(el) };
     case 'attribute': return { kind: 'attribute', ...common, cardinality, name: readValue(el, 'name', true), value: readValue(el, 'value', false) };
     case 'classification': return { kind: 'classification', ...common, cardinality, uri, value: readValue(el, 'value', false), system: readValue(el, 'system', true) };
-    case 'property': return {
+    case 'property': return asOpened({
       kind: 'property', ...common, cardinality, uri, dataType: attrOf(el, 'dataType'),
       propertySet: readValue(el, 'propertySet', true), baseName: readValue(el, 'baseName', true), value: readValue(el, 'value', false),
-    };
+    });
     case 'material': return { kind: 'material', ...common, cardinality, uri, value: readValue(el, 'value', false) };
     case 'partOf': {
       const ent = one(el, 'entity');

@@ -47,7 +47,9 @@ export interface ClassificationFacet extends Base { kind: 'classification'; valu
 export interface PropertyFacet extends Base {
   kind: 'property'; propertySet: Value; baseName: Value; dataType: string | null; value: Value | null;
   /** True while the data type is one the form wrote by itself, because a value was given (see withPropertyValue). Never written to the file. */
-  autoDataType?: true; uri: string | null; cardinality: Cardinality; instructions: string | null }
+  autoDataType?: true;
+  /** True while the item has a value and no data type because the opened file has it so, or because a person took the data type away: the form then writes none (see withPropertyValue). Never written to the file. */
+  withoutDataType?: true; uri: string | null; cardinality: Cardinality; instructions: string | null }
 export interface MaterialFacet extends Base { kind: 'material'; value: Value | null; uri: string | null; cardinality: Cardinality; instructions: string | null }
 export interface PartOfFacet extends Base { kind: 'partOf'; relation: string | null; entity: EntityRef; cardinality: Cardinality; instructions: string | null }
 export type Facet = EntityFacet | AttributeFacet | ClassificationFacet | PropertyFacet | MaterialFacet | PartOfFacet;
@@ -190,20 +192,32 @@ export function isValueGiven(v: Value | null): boolean {
  * the item then carries `autoDataType`. When the value is taken away again, a data type that was written that way goes
  * with it, so that adding a value and removing it leaves the item as it was. A data type that was in the opened file or
  * that a person chose (chooseDataType) has no `autoDataType` and is never removed. A property the standard does not
- * know keeps what it has: the person is told, at the field, that a value needs a data type.
+ * know keeps what it has: the person is told, at the field, that a value needs a data type. So is an item that has a
+ * value and no data type in the opened file, or whose data type a person took away while a value was there
+ * (`withoutDataType`): the form writes none for it, whatever is done to its value or its property afterwards, so that a
+ * change typed back is the opened file again; the missing data type is said at the field and is the person's to give.
  */
 export function withPropertyValue(f: PropertyFacet, value: Value | null, typeOf: (propertySet: string, baseName: string) => string | null): PropertyFacet {
   const { autoDataType, ...rest } = f;
   if (!isValueGiven(value)) return autoDataType ? { ...rest, value, dataType: null } : { ...f, value };
-  if (f.dataType && !autoDataType) return { ...f, value };
+  if ((f.dataType && !autoDataType) || (!f.dataType && f.withoutDataType)) return { ...f, value };
   if (f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
   // A data type written by the form follows the property: it is worked out again, so a property changed afterwards does not keep the old one.
   const type = typeOf(f.propertySet.value, f.baseName.value);
   return type ? { ...rest, value, dataType: type, autoDataType: true } : { ...rest, value, dataType: autoDataType ? null : f.dataType };
 }
 
-/** The data type a person typed or picked: it is theirs, so the form does not take it away with the value. Empty means none. */
+/**
+ * The data type a person typed or picked: it is theirs, so the form does not take it away with the value. Empty means
+ * none, and none chosen while a value is there is theirs too: the form does not write one back.
+ */
 export function chooseDataType(f: PropertyFacet, dataType: string): PropertyFacet {
-  const { autoDataType: _auto, ...rest } = f;
-  return { ...rest, dataType: dataType === '' ? null : dataType };
+  const { autoDataType: _auto, withoutDataType: _without, ...rest } = f;
+  if (dataType !== '') return { ...rest, dataType };
+  return isValueGiven(f.value) ? { ...rest, dataType: null, withoutDataType: true } : { ...rest, dataType: null };
+}
+
+/** A property item as an opened file has it: a value with no data type is the file's, and is marked so (see withPropertyValue). */
+export function asOpened(f: PropertyFacet): PropertyFacet {
+  return !f.dataType && isValueGiven(f.value) ? { ...f, withoutDataType: true } : f;
 }

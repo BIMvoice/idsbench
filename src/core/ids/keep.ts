@@ -47,7 +47,7 @@ const keys = new WeakMap<Specification, string>();
 /** Everything a specification says, without the ids the page gives it. Two specifications with the same key are written the same. */
 export function contentKey(s: Specification): string {
   let k = keys.get(s);
-  if (k === undefined) { k = JSON.stringify(s, (name, v) => (name === 'uid' || name === 'rewrite' || name === 'made' || name === 'autoName' || name === 'autoDataType' || name === 'exact' ? undefined : v)); keys.set(s, k); }
+  if (k === undefined) { k = JSON.stringify(s, (name, v) => (name === 'uid' || name === 'rewrite' || name === 'made' || name === 'autoName' || name === 'autoDataType' || name === 'withoutDataType' || name === 'exact' ? undefined : v)); keys.set(s, k); }
   return k;
 }
 const infoKeyOf = (i: Info) => JSON.stringify([i.title, i.copyright, i.version, i.description, i.author, i.date, i.purpose, i.milestone]);

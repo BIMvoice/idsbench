@@ -115,3 +115,53 @@ describe('a data type that was not written by the form is never taken away', () 
     expect(chooseDataType(added, '').dataType).toBeNull();
   });
 });
+
+describe('a value that has no data type, because the opened file has it so or the person took the data type away, is not given one', () => {
+  // The file is not valid as it is (a value needs a data type): the page says so at the field and offers the fix as one
+  // press. Editing the value is not that press, and "a change that is typed back returns to the opened file".
+  const withValue = (text: string) => text.replace('\t\t\t\t</property>', '\t\t\t\t\t<value><simpleValue>2HR</simpleValue></value>\n\t\t\t\t</property>');
+
+  it('the value changed and typed back, letter by letter or through an empty field: the written XML is the opened file', () => {
+    const text = withValue(file(''));
+    expect(text).toContain('<value>');
+    const { doc, k } = open(text);
+    const p0 = propertyOf(doc);
+    expect(p0.dataType).toBeNull();
+    const edited = withPropertyValue(p0, simple('2HRx'), typeOf);
+    expect(edited.dataType).toBeNull();
+    expect(out(k, withFacet(doc, withPropertyValue(edited, simple('2HR'), typeOf)))).toBe(text);
+    let f = p0;
+    for (const v of [simple('2H'), simple(''), null, fromPattern('', 'xs:string'), fromPattern('.*', 'xs:string'), simple('2'), simple('2HR')] as (Value | null)[]) {
+      f = JSON.parse(JSON.stringify(withPropertyValue(f, v, typeOf))) as PropertyFacet; // the draft of the tab is JSON: the record survives a reload
+      expect(f.dataType, JSON.stringify(v)).toBeNull();
+    }
+    expect(out(k, withFacet(doc, f))).toBe(text);
+  });
+
+  it('the property changed and typed back: the written XML is the opened file', () => {
+    const text = withValue(file(''));
+    const { doc, k } = open(text);
+    const other = withPropertyValue({ ...propertyOf(doc), baseName: simple('IsExternal') }, propertyOf(doc).value, typeOf);
+    expect(other.dataType).toBeNull();
+    expect(out(k, withFacet(doc, withPropertyValue({ ...other, baseName: simple('FireRating') }, other.value, typeOf)))).toBe(text);
+  });
+
+  it('a data type the person took away while a value is there does not come back when the value is edited', () => {
+    const { doc } = open(file(''));
+    const added = withPropertyValue(propertyOf(doc), simple('2HR'), typeOf);
+    const taken = chooseDataType(added, '');
+    expect(withPropertyValue(taken, simple('3HR'), typeOf).dataType).toBeNull();
+    // choosing one again makes it the person's, and the form's own way is open again once that is taken away with no value there
+    expect(withPropertyValue(chooseDataType(taken, 'IFCTEXT'), simple('3HR'), typeOf).dataType).toBe('IFCTEXT');
+    const fresh = chooseDataType(withPropertyValue(chooseDataType(taken, 'IFCTEXT'), null, typeOf), '');
+    expect(withPropertyValue(fresh, simple('2HR'), typeOf).dataType).toBe('IFCLABEL');
+  });
+
+  it('the record is not in the written XML, and an opened file with it is still written as the opened file', () => {
+    const text = withValue(file(''));
+    const { doc, k } = open(text);
+    expect(out(k, doc)).toBe(text);
+    expect(writeIds(doc)).not.toMatch(/withoutDataType|auto/i);
+    expect(writeIds(withFacet(doc, chooseDataType(withPropertyValue(propertyOf(open(file('')).doc), simple('2HR'), typeOf), '')))).not.toMatch(/withoutDataType|auto/i);
+  });
+});
