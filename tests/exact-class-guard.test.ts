@@ -166,6 +166,15 @@ describe('where the exact class cannot be proved the result is withheld: Not che
     });
   }
 
+  it('a list that names the subtype and its parent, narrowed by a length in the same restriction, is withheld: the length is met by the name the library reads', async () => {
+    // "IfcDoor" has seven letters and "IfcDoorStandardCase" has not, so the list applies to the doors alone; the library
+    // would find the standard case door through the list and measure the seven letters of the name it reads it as.
+    const narrowed = '<entity><name><xs:restriction base="xs:string"><xs:enumeration value="IFCDOOR"/><xs:enumeration value="IFCDOORSTANDARDCASE"/><xs:maxLength value="7"/></xs:restriction></name></entity>';
+    const result = await runText(idsText(spec('p', narrowed)), door);
+    expect(result.specs[0].withheld).toBe(withheldSentence(['IFCDOORSTANDARDCASE']));
+    expect(result.specs[0].state).toBe('unchecked');
+  });
+
   it('a pattern on a model that has none of the ten classes is run as it always was', async () => {
     const result = await runText(idsText(spec('p', '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOORSTANDARDCASE"/></xs:restriction></name></entity>')), ifcText(body(['IFCDOOR', 'IFCWALL']), 'IFC4'));
     expect(result.specs[0].withheld).toBeUndefined();
