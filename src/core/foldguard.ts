@@ -14,11 +14,13 @@
 // parser's entity index, which keeps the class of the STEP line as written; the same class is what the parser's entity
 // table answers to getExactTypeName, see tests/exact-class-guard.test.ts):
 //  - A specification whose entity facet names the class or its parent in a way the fold changes, and which is a plain
-//    case (the entity facet is in the applicability, a name or a list of names, no predefined type), is run with the
-//    class the file declares. The answers of that run were compared with IfcTester over the same models, element by
-//    element (scripts/fold-vs-ifctester): identical.
-//  - Any other specification the fold changes (a pattern, a predefined type, an entity facet among the requirements, a
-//    partOf facet, a name an IFC2X3 occurrence/type mapping answers for) is not run, and its row is "Not checked"
+//    case (the entity facet is in the applicability, a name, a list of names or a pattern that is safe to work out, no
+//    predefined type), is run with the class the file declares. The answers of that run were compared with IfcTester
+//    over the same models, element by element (scripts/fold-vs-ifctester): identical, in every one of the pairs,
+//    patterns included.
+//  - Any other specification the fold changes (a pattern in a requirement or one that could take long, a predefined
+//    type, an entity facet among the requirements, a partOf facet, a name an IFC2X3 occurrence/type mapping answers
+//    for) is not run, and its row is "Not checked"
 //    with the sentence below. It is never shown as Pass or Fail.
 //  - The library also names the attributes of an element after the folded class. One attribute is lost by that:
 //    ControlElementId of an IFC2X3 IfcDistributionControlElement. A specification with an attribute facet that name
@@ -125,7 +127,8 @@ export function foldEffect(spec: IDSSpecification, present: readonly string[], i
       const unknown = asDeclared === 'unknown' || asRead === 'unknown';
       if (asDeclared === asRead && !alias && !unknown) continue;
       hit.add(d);
-      const simple = facet.name.type === 'simpleValue' || (facet.name.type === 'enumeration' && !facet.name.and);
+      // A name, a list of names or a pattern can be run with the declared class; `unknown` (below) keeps out a pattern that could take long.
+      const simple = facet.name.type === 'simpleValue' || ((facet.name.type === 'enumeration' || facet.name.type === 'pattern') && !facet.name.and);
       if (!plain || !simple || unknown || alias) correctable = false;
     }
   }

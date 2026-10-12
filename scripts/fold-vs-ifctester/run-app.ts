@@ -48,6 +48,10 @@ function specsFor(model: string): { id: string; xml: string }[] {
     add(`${par} pattern exact`, entity(pat(par)), par);
     add(`${sub} pattern wide`, entity(pat(par + '.*')), sub);
     add(`${par} pattern union`, entity(pat(`(${sub}|${par})`)), par);
+    add(`${sub} pattern with WALL`, entity(pat(`${sub}|IFCWALL`)), sub);
+    add(`${par} pattern with WALL`, entity(pat(`${par}|IFCWALL`)), par);
+    add(`${sub} pattern suffix`, entity(pat(`.*${sub.slice(3)}`)), sub);
+    add(`${par} pattern suffix`, entity(pat(`.*${par.slice(3)}`)), par);
     add(`${sub} predef`, entity(names([sub]), '<predefinedType><simpleValue>NOTDEFINED</simpleValue></predefinedType>'), sub);
     add(`${par} predef`, entity(names([par]), '<predefinedType><simpleValue>NOTDEFINED</simpleValue></predefinedType>'), par);
     add(`${par} lowercase`, entity(sv(par.toLowerCase())), par);

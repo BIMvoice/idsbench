@@ -6,7 +6,7 @@
 // that can be proved, and withhold the result ("Not checked") where it cannot. The expectations below are the exact-class
 // rule written down. They were also compared, element by element, with IfcTester over the same models
 // (scripts/fold-vs-ifctester: the models of the three IFC versions that hold the ten classes, the parents or both, and
-// every kind of specification below, in all three cardinalities): identical wherever a result is given.
+// every kind of specification below, in all three cardinalities): identical wherever a result is given, patterns included.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { IfcParser } from '@ifc-lite/parser';
@@ -100,8 +100,6 @@ describe('a specification that names the subtype, the parent or both applies to 
 describe('where the exact class cannot be proved the result is withheld: Not checked, never a Pass or a Fail', () => {
   const door = ifcText(body(['IFCDOORSTANDARDCASE', 'IFCDOOR', 'IFCWALL']), 'IFC4');
   const cases: [string, string][] = [
-    ['a pattern that names the subtype only', spec('p', `<entity><name>${'<xs:restriction base="xs:string"><xs:pattern value="IFCDOORSTANDARDCASE"/></xs:restriction>'}</name></entity>`)],
-    ['a pattern that names the parent only', spec('p', `<entity><name>${'<xs:restriction base="xs:string"><xs:pattern value="IFCDOOR"/></xs:restriction>'}</name></entity>`)],
     ['an entity facet among the requirements that names the parent', spec('p', entity(['IFCDOORSTANDARDCASE', 'IFCDOOR']), `<requirements>${entity(['IFCDOOR'])}</requirements>`)],
     ['an entity facet among the requirements that names the subtype', spec('p', entity(['IFCDOORSTANDARDCASE', 'IFCDOOR']), `<requirements>${entity(['IFCDOORSTANDARDCASE'])}</requirements>`)],
     ['a predefined type beside the subtype', spec('p', entity(['IFCDOORSTANDARDCASE'], '<predefinedType><simpleValue>DOOR</simpleValue></predefinedType>'))],
@@ -128,7 +126,7 @@ describe('where the exact class cannot be proved the result is withheld: Not che
   }
 
   describe('a withheld row is not a failure: screen, CSV and report say the same', () => {
-    const pattern = spec('pattern', '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOOR"/></xs:restriction></name></entity>');
+    const pattern = spec('pattern', entity(['IFCDOORSTANDARDCASE'], '<predefinedType><simpleValue>DOOR</simpleValue></predefinedType>')); // withheld: a predefined type beside the subtype
     const walls = spec('walls', entity(['IFCWALL']), never, 'IFC4');
 
     it('a model whose only rows that do not pass are withheld offers no Download failing elements, and says to download the report', async () => {
@@ -154,7 +152,7 @@ describe('where the exact class cannot be proved the result is withheld: Not che
 
   it('the other specifications of the same file are still checked, and the headline does not say that all passed', async () => {
     const result = await runText(idsText(
-      spec('pattern', '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOOR"/></xs:restriction></name></entity>'),
+      spec('pattern', entity(['IFCDOORSTANDARDCASE'], '<predefinedType><simpleValue>DOOR</simpleValue></predefinedType>')),
       spec('walls', entity(['IFCWALL']), '', 'IFC4'),
     ), door);
     expect(result.specs.map((r) => r.state)).toEqual(['unchecked', 'pass']);
@@ -176,20 +174,34 @@ describe('where the exact class cannot be proved the result is withheld: Not che
   // apply the specification to the standard case doors.
   const restriction = (...patterns: string[]) => `<entity><name><xs:restriction base="xs:string">${patterns.map((p) => `<xs:pattern value="${p}"/>`).join('')}</xs:restriction></name></entity>`;
   const control = ifcText(body(['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCDISTRIBUTIONELEMENT', 'IFCWALL']), 'IFC4');
-  const parentOnly: [string, string, string, string][] = [
-    ['two names with a bar between them, the parent first', restriction('IFCDOOR|IFCWALL'), door, 'IFCDOORSTANDARDCASE'],
-    ['two patterns in one restriction, the parent first', restriction('IFCDOOR', 'IFCWALL'), door, 'IFCDOORSTANDARDCASE'],
-    ['a class of letters written the XML Schema way (\\p{L})', restriction('IFC\\p{L}{0,4}DOOR'), door, 'IFCDOORSTANDARDCASE'],
-    ['name characters written the XML Schema way (\\c) after the parent', restriction('IFCDISTRIBUTIONELEMENT\\c*'), control, 'IFCDISTRIBUTIONCONTROLELEMENT'],
+  // What each pattern applies to, in the exact-class reading: the class the file declares is matched, not the class the library reads.
+  const patterns: [string, string, string, string[]][] = [
+    ['two names with a bar between them, the parent first', restriction('IFCDOOR|IFCWALL'), door, ['IFCDOOR', 'IFCWALL']],
+    ['two patterns in one restriction, the parent first', restriction('IFCDOOR', 'IFCWALL'), door, ['IFCDOOR', 'IFCWALL']],
+    ['a class of letters written the XML Schema way (\\p{L})', restriction('IFC\\p{L}{0,4}DOOR'), door, ['IFCDOOR']],
+    ['name characters written the XML Schema way (\\c) after the parent', restriction('IFCDISTRIBUTIONELEMENT\\c*'), control, ['IFCDISTRIBUTIONELEMENT']],
+    ['the subtype only', restriction('IFCDOORSTANDARDCASE'), door, ['IFCDOORSTANDARDCASE']],
+    ['the parent only', restriction('IFCDOOR'), door, ['IFCDOOR']],
+    ['the subtype and a wall', restriction('IFCDOORSTANDARDCASE|IFCWALL'), door, ['IFCDOORSTANDARDCASE', 'IFCWALL']],
+    ['the end of the subtype\'s name', restriction('.*STANDARDCASE'), door, ['IFCDOORSTANDARDCASE']],
+    ['the end of the parent\'s name', restriction('.*DOOR'), door, ['IFCDOOR']],
   ];
-  for (const [what, applicability, model, cls] of parentOnly) {
-    it(`a pattern that names the parent and not the subtype is withheld: ${what}`, async () => {
+  for (const [what, applicability, model, expected] of patterns) {
+    it(`a pattern in the applicability is run with the class the file declares, not withheld: ${what}`, async () => {
       const result = await runText(idsText(spec('p', applicability)), model);
-      expect(result.specs[0].withheld).toBe(withheldSentence([cls]));
-      expect(result.specs[0].state).toBe('unchecked');
-      expect(result.specs[0].applicable).toBe(0);
+      expect(result.specs[0].withheld).toBeUndefined();
+      expect(result.specs[0].state).toBe('fail');
+      expect(appliedTo(result.specs[0])).toEqual(expected);
     });
   }
+
+  it('a pattern in a requirement, or beside a predefined type, is still withheld', async () => {
+    for (const xml of [spec('r', entity(['IFCWALL']), `<requirements>${restriction('IFCDOOR')}</requirements>`), spec('q', `<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOOR"/></xs:restriction></name><predefinedType><simpleValue>DOOR</simpleValue></predefinedType></entity>`)]) {
+      const result = await runText(idsText(xml), door);
+      expect(result.specs[0].state).toBe('unchecked');
+      expect(result.specs[0].withheld).toBe(withheldSentence(['IFCDOORSTANDARDCASE']));
+    }
+  });
 
   it('a list that names the subtype and its parent, narrowed by a length in the same restriction, is withheld: the length is met by the name the library reads', async () => {
     // "IfcDoor" has seven letters and "IfcDoorStandardCase" has not, so the list applies to the doors alone; the library
@@ -290,7 +302,7 @@ describe('what the guard looks at (foldEffect)', () => {
       // the model does not declare it
       expect(foldEffect(doc(spec('s', entity([sub]))), [], false)).toBeNull();
       expect(foldEffect(doc(spec('s', entity([par]))), TEN.filter((c) => c !== sub && FOLDED_ONTO[c] !== par), false)).toBeNull();
-      expect(foldEffect(doc(spec('s', pattern(sub))), [sub], false)).toEqual({ classes: [sub], correctable: false });
+      expect(foldEffect(doc(spec('s', pattern(sub))), [sub], false)).toEqual({ classes: [sub], correctable: true });
       expect(foldEffect(doc(spec('s', entity([sub]), `<requirements>${entity([sub])}</requirements>`)), [sub], false)?.correctable).toBe(false);
       expect(foldEffect(doc(spec('s', entity([sub], '<predefinedType><simpleValue>X</simpleValue></predefinedType>'))), [sub], false)?.correctable).toBe(false);
     });

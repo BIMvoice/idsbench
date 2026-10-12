@@ -42,6 +42,8 @@ for model, rs in bymodel.items():
         if r['withheld'] or 'lowercase' in r['id']:
             continue
         tot[('app', 'ok' if appok else 'MISMATCH')] += 1
+        tot[('compared', 'engine alone differs from IfcTester' if not libeq else 'engine alone agrees')] += 1
+        if 'pattern' in r['id']: tot[('compared pattern rows', 'ok' if appok else 'MISMATCH')] += 1
         if not appok: bad.append((model, r['id'], r['applicable'], r['failed'], r['state'], tr, lib))
 for k, v in sorted(tot.items()): print(k, v)
 print(len(bad), 'app mismatches')
