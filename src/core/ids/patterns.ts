@@ -8,7 +8,7 @@ export interface Pattern { id: string; label: string; about: string; make: () =>
 const entity = (cls: string): Facet => ({ ...newFacet('entity', 'applicability'), name: simple(cls) } as Facet);
 // A shape fills in what the form needs to be a valid specification (the class, and for a property or a classification
 // which one) and never a value that narrows what the rule asks for beyond its title: no text pattern, no number, no
-// code. The name is worked out from the content and follows it until the person types one of their own.
+// code, and no data type: IDS asks for one only with a value (the form writes it when a value is added). The name is worked out from the content and follows it until the person types one of their own.
 const spec = (cls: string, requirements: Facet[], extra: Partial<Specification> = {}): Specification => {
   const made: Specification = { ...newSpecification(), applicability: [entity(cls)], requirements, ...extra, autoName: true };
   return { ...made, name: suggestName(made) };
@@ -17,7 +17,7 @@ const spec = (cls: string, requirements: Facet[], extra: Partial<Specification> 
 export const PATTERNS: Pattern[] = [
   {
     id: 'property', label: 'Elements must have a property', about: 'For example: every wall has a fire rating.',
-    make: () => spec('IFCWALL', [{ ...newFacet('property', 'requirements'), propertySet: simple('Pset_WallCommon'), baseName: simple('FireRating'), dataType: 'IFCLABEL' } as Facet]),
+    make: () => spec('IFCWALL', [{ ...newFacet('property', 'requirements'), propertySet: simple('Pset_WallCommon'), baseName: simple('FireRating') } as Facet]),
   },
   {
     id: 'classification', label: 'Elements must have a classification', about: 'For example: every door has a Uniclass 2015 code.',

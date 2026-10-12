@@ -2,14 +2,17 @@
 // one that does not: the verdict is the one the sentence promises, and the sentence says what the file tests.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PATTERNS } from '../src/core/ids/patterns';
-import { blankDocument, newFacet, newSpecification, occursFor, simple, type Cardinality, type Facet, type Specification } from '../src/core/ids/model';
+import { loadSchema, type SchemaData } from '@idsbench/check/ifc';
+import { blankDocument, newFacet, newSpecification, occursFor, simple, withPropertyValue, type Cardinality, type Facet, type Specification, type Value } from '../src/core/ids/model';
+import { dataTypeFor } from '../src/core/picks';
 import { fromList, fromPattern } from '../src/core/ids/value';
 import { describeSpecification } from '../src/core/ids/words';
 import { writeIds } from '../src/core/ids/write';
 import { ifcText, runText } from './helpers/small-model';
 
 const saved = { log: console.log, warn: console.warn, error: console.error, info: console.info };
-beforeAll(() => { console.log = console.warn = console.error = console.info = () => {}; });
+let ifc4: SchemaData;
+beforeAll(async () => { console.log = console.warn = console.error = console.info = () => {}; ifc4 = await loadSchema('IFC4'); });
 afterAll(() => { Object.assign(console, saved); });
 
 const G = (n: number) => String(n).padStart(22, '0');
@@ -27,6 +30,8 @@ const material = (of: number, name: string) => `#${of + 500}=IFCMATERIAL('${name
 
 interface Choice { title: string; change: (s: Specification) => Specification; says: string; meets: string; fails: string; }
 const req = (s: Specification, i: number, f: Partial<Facet>) => ({ ...s, requirements: s.requirements.map((r, j) => (j === i ? ({ ...r, ...f } as Facet) : r)) });
+/** A value given to the property item, as the form gives it: the data type the standard states for the property is written with it. */
+const propValue = (v: Value) => (s: Specification): Specification => ({ ...s, requirements: s.requirements.map((r, j) => (j === 0 && r.kind === 'property' ? withPropertyValue(r, v, (set, name) => dataTypeFor(ifc4, set, name)) : r)) });
 const card = (c: Cardinality) => (s: Specification) => req(s, 0, { cardinality: c } as never);
 
 /** What each pattern is, then the choices that follow it. `meets` and `fails` are bodies of IFC4 models. */
@@ -35,10 +40,10 @@ const PLAN: Record<string, { says: string; meets: string; fails: string; choices
     says: 'Every wall must have the property FireRating in Pset_WallCommon.',
     meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1),
     choices: [
-      { title: 'a value', change: (s) => req(s, 0, { value: simple('2HR') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon set to "2HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
-      { title: 'a list of values', change: (s) => req(s, 0, { value: fromList(['1HR', '2HR'], 'xs:string') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '3HR') },
-      { title: 'a pattern', change: (s) => req(s, 0, { value: fromPattern('[0-9]HR', 'xs:string') } as never), says: 'Every wall must have the property FireRating in Pset_WallCommon with a value matching the pattern "[0-9]HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', 'two hours') },
-      { title: 'the item optional', change: (s) => card('optional')(req(s, 0, { value: simple('2HR') } as never)), says: 'Every wall may have the property FireRating in Pset_WallCommon set to "2HR" (an optional item only has to match when the element has it).', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
+      { title: 'a value', change: propValue(simple('2HR')), says: 'Every wall must have the property FireRating in Pset_WallCommon set to "2HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
+      { title: 'a list of values', change: propValue(fromList(['1HR', '2HR'], 'xs:string')), says: 'Every wall must have the property FireRating in Pset_WallCommon set to one of "1HR", "2HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '3HR') },
+      { title: 'a pattern', change: propValue(fromPattern('[0-9]HR', 'xs:string')), says: 'Every wall must have the property FireRating in Pset_WallCommon with a value matching the pattern "[0-9]HR".', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', 'two hours') },
+      { title: 'the item optional', change: (s) => card('optional')(propValue(simple('2HR'))(s)), says: 'Every wall may have the property FireRating in Pset_WallCommon set to "2HR" (an optional item only has to match when the element has it).', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '1HR') },
       { title: 'the item prohibited', change: (s) => card('prohibited')(req(s, 0, {} as never)), says: 'Every wall must not have the property FireRating in Pset_WallCommon.', meets: wall(1), fails: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR') },
       { title: 'the specification required', change: (s) => ({ ...s, ...occursFor('required') }), says: 'Every wall must have the property FireRating in Pset_WallCommon. The model must contain at least one wall.', meets: wall(1) + prop(1, 'Pset_WallCommon', 'FireRating', '2HR'), fails: slab(1) },
       { title: 'the specification prohibited', change: (s) => ({ ...s, ...occursFor('prohibited') }), says: 'The model must not contain any wall.', meets: slab(1), fails: wall(1) },

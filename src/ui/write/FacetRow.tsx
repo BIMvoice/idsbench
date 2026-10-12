@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Combo } from './Combo';
 import { SelectField, TextField } from './fields';
 import { ValueField } from './ValueField';
-import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple } from '../../core/ids/model';
+import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple, withPropertyValue } from '../../core/ids/model';
 import { baseForDataType, fromPattern, modeOf } from '../../core/ids/value';
 import type { Issue } from '../../core/ids/check';
 import { onlySomeNote, plainName, type Lists, type Option } from '../../core/picks';
@@ -79,6 +79,8 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
   const onlySome = f.kind === 'property' ? [...psetsPartial.filter((o) => o.value === psetName), ...propsPartial.filter((o) => o.value === baseName)][0] ?? null : null;
   // A property typed into a standard set that does not define it, said before the field is left (and after).
   const mentionable = (t: string) => (props.length > 0 && !propsPartial.some((o) => o.value === t) ? noSuchProperty(psetName, t, props) : null);
+  // What a value added now is typed as: the item's data type, or, when it has none, the one the standard states for the property (withPropertyValue writes it).
+  const standardType = f.kind === 'property' && !f.dataType && lists && psetName && baseName ? lists.dataTypeFor(psetName, baseName) : null;
   const allowed = requirement ? allowedCardinalities(f.kind) : null;
   return (
     <div className="facet-fields">
@@ -123,7 +125,7 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
         )}
         <Combo label="Data type" dataKey={`${f.uid}.dataType`} value={f.dataType ?? ''} options={dataTypes} hint="Needed when you give a value."
           error={err('dataType')} advice={adv('dataType')} onChange={(v) => set({ dataType: v === '' ? null : v })} />
-        {vf('Value', 'value', f.value, true, (v) => set({ value: v }), { base: baseForDataType(f.dataType) ?? 'xs:string' })}
+        {vf('Value', 'value', f.value, true, (v) => onChange(withPropertyValue(f, v, (set_, name) => lists?.dataTypeFor(set_, name) ?? null)), { base: baseForDataType(f.dataType ?? standardType) ?? 'xs:string' })}
       </>}
       {f.kind === 'material' && vf('Material', 'value', f.value, true, (v) => set({ value: v }))}
       {f.kind === 'partOf' && <>

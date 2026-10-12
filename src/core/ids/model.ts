@@ -165,3 +165,15 @@ export function allowedCardinalities(kind: FacetKind): Cardinality[] | null {
 export function sortApplicability(f: Facet[]): Facet[] {
   return [...f].sort((a, b) => APPLICABILITY_ORDER.indexOf(a.kind) - APPLICABILITY_ORDER.indexOf(b.kind));
 }
+
+/**
+ * A property item given a value. IDS asks for a data type with a value ("if `value` is provided, it also requires
+ * `dataType`"), and for none when the item only asks that the property exists, so the data type the standard states for
+ * the property is written at the moment a value is added, and only if the item has none. A property the standard does
+ * not know keeps what it has: the person is told, at the field, that a value needs a data type.
+ */
+export function withPropertyValue(f: PropertyFacet, value: Value | null, typeOf: (propertySet: string, baseName: string) => string | null): PropertyFacet {
+  const given = value !== null && !(value.kind === 'simple' && value.value === '');
+  if (!given || f.dataType || f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
+  return { ...f, value, dataType: typeOf(f.propertySet.value, f.baseName.value) };
+}
