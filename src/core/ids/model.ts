@@ -170,13 +170,23 @@ export function sortApplicability(f: Facet[]): Facet[] {
 }
 
 /**
+ * True when a value says something: not nothing, not an empty text, and not a restriction that holds only empty
+ * parts (an empty pattern, a list of empty lines, a range or a length with no number). The one rule for "a value is
+ * given", used by the guard rails and by the data type that comes with a value.
+ */
+export function isValueGiven(v: Value | null): boolean {
+  if (v === null) return false;
+  if (v.kind === 'simple') return v.value !== '';
+  return v.facets.some((f) => f.value.trim() !== '');
+}
+
+/**
  * A property item given a value. IDS asks for a data type with a value ("if `value` is provided, it also requires
  * `dataType`"), and for none when the item only asks that the property exists, so the data type the standard states for
  * the property is written at the moment a value is added, and only if the item has none. A property the standard does
  * not know keeps what it has: the person is told, at the field, that a value needs a data type.
  */
 export function withPropertyValue(f: PropertyFacet, value: Value | null, typeOf: (propertySet: string, baseName: string) => string | null): PropertyFacet {
-  const given = value !== null && !(value.kind === 'simple' && value.value === '');
-  if (!given || f.dataType || f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
+  if (!isValueGiven(value) || f.dataType || f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
   return { ...f, value, dataType: typeOf(f.propertySet.value, f.baseName.value) };
 }

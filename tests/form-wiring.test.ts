@@ -10,6 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadSchema } from '@idsbench/check/ifc';
 import { simple, type Facet, type PropertyFacet, type Specification, type Value } from '../src/core/ids/model';
+import { fromList, fromPattern } from '../src/core/ids/value';
 import { PATTERNS } from '../src/core/ids/patterns';
 import { listsFor, type Lists } from '../src/core/picks';
 
@@ -61,6 +62,19 @@ describe('the value field of a property in the form', () => {
     valueField(property, (f) => got.push(f as PropertyFacet)).onChange(simple('2HR'));
     expect(got[0].value).toEqual(simple('2HR'));
     expect(got[0].dataType).toBe('IFCLABEL');
+  });
+});
+
+describe('the Value mode switched to pattern or list and left empty', () => {
+  it('brings no data type: an empty pattern or list is not a value', () => {
+    const property = starter().requirements[0] as PropertyFacet;
+    for (const empty of [fromPattern('', 'xs:string'), fromList([''], 'xs:string')]) {
+      const got: PropertyFacet[] = [];
+      renderToStaticMarkup(createElement(FacetFields, { facet: property, requirement: true, issues: [], onChange: (f) => got.push(f as PropertyFacet), lists, several: false, appliesTo: 'IFCWALL' }));
+      (seen.value.get(`${property.uid}.value`)! as { onChange: (v: Value | null) => void }).onChange(empty);
+      expect(got[0].value).toEqual(empty);
+      expect(got[0].dataType).toBeNull();
+    }
   });
 });
 

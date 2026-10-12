@@ -9,7 +9,7 @@
 // is left to the Check engine, which the page runs on the exact text after every change and before Download.
 import { translateXsdRegex } from '@ifc-lite/ids';
 import {
-  IFC_VERSIONS, allowedCardinalities, specChoice,
+  IFC_VERSIONS, allowedCardinalities, isValueGiven, specChoice,
   type Facet, type IdsDocument, type Specification, type Value,
 } from './model';
 import { modeOf } from './value';
@@ -170,7 +170,7 @@ function checkFacet(f: Facet, requirement: boolean, where: string, add: Add) {
     case 'property':
       field('propertySet', f.propertySet, true); field('baseName', f.baseName, true); field('value', f.value, false);
       if (f.dataType !== null && !/^[A-Z]+$/.test(f.dataType)) add(`${f.uid}.dataType`, where, 'A data type is written in capitals, like IFCLABEL.');
-      if (hasText(f.value) && !f.dataType) {
+      if (isValueGiven(f.value) && !f.dataType) {
         add(`${f.uid}.dataType`, where, 'When you give a value, give the data type too (for example IFCLABEL).');
       }
       break;
@@ -182,16 +182,11 @@ function checkFacet(f: Facet, requirement: boolean, where: string, add: Add) {
   if (f.cardinality === 'optional') {
     if (f.kind === 'property' && !f.dataType) {
       add(`${f.uid}.cardinality`, where, 'Optional only means something when you also give the data type, so there is something to check.');
-    } else if ((f.kind === 'attribute' || f.kind === 'classification' || f.kind === 'material') && !hasText(f.value)) {
+    } else if ((f.kind === 'attribute' || f.kind === 'classification' || f.kind === 'material') && !isValueGiven(f.value)) {
       add(`${f.uid}.cardinality`, where, 'Optional only means something when you also say what the value must be.');
     }
   }
   if (f.kind === 'property' && f.cardinality === 'prohibited' && f.dataType) {
     add(`${f.uid}.cardinality`, where, 'To prohibit a property, name it without a data type. Remove the data type or make the property required.');
   }
-}
-
-/** True when a value is given and is not just an empty simple value. */
-function hasText(v: Value | null): boolean {
-  return v !== null && !(v.kind === 'simple' && v.value === '');
 }

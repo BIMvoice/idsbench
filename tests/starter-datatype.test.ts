@@ -8,9 +8,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { checkIds } from '@idsbench/check';
 import { loadSchema, type SchemaData } from '@idsbench/check/ifc';
-import { blankDocument, newFacet, simple, withPropertyValue, type Facet, type PropertyFacet, type Specification } from '../src/core/ids/model';
+import { blankDocument, isValueGiven, newFacet, simple, withPropertyValue, type Facet, type PropertyFacet, type Specification } from '../src/core/ids/model';
 import { PATTERNS } from '../src/core/ids/patterns';
-import { fromList, fromPattern } from '../src/core/ids/value';
+import { fromLength, fromList, fromPattern, fromRange } from '../src/core/ids/value';
+import { checkDocument } from '../src/core/ids/check';
 import { dataTypeFor } from '../src/core/picks';
 import { writeIds } from '../src/core/ids/write';
 import { ifcText, runText } from './helpers/small-model';
@@ -87,5 +88,28 @@ describe('the data type appears when a value is added', () => {
   it('the other starters are untouched, and none of them writes a data type', () => {
     for (const p of PATTERNS) for (const r of p.make().requirements) if (r.kind === 'property') expect(r.dataType).toBeNull();
     expect(newFacet('property', 'requirements')).toMatchObject({ dataType: null });
+  });
+});
+
+describe('an empty pattern or an empty list is not a value', () => {
+  const empty = [fromPattern('', 'xs:string'), fromList([''], 'xs:string'), fromList([], 'xs:string'), fromList(['', ''], 'xs:string'),
+    fromRange({ lower: { value: '', exclusive: false }, upper: null }, 'xs:double'), fromLength({ exactly: '', atLeast: '', atMost: '' }, 'xs:string')];
+  const given = [simple('x'), fromPattern('[0-9]', 'xs:string'), fromList(['', 'a'], 'xs:string'), fromRange({ lower: { value: '1', exclusive: false }, upper: null }, 'xs:double'), fromLength({ exactly: '', atLeast: '3', atMost: '' }, 'xs:string')];
+
+  it('one function says so, for nothing, an empty text, an empty pattern, an empty list, an empty range and an empty length', () => {
+    expect([null, simple(''), ...empty].map((v) => isValueGiven(v))).toEqual(Array(2 + empty.length).fill(false));
+    expect(given.map((v) => isValueGiven(v))).toEqual(Array(given.length).fill(true));
+  });
+
+  it('withPropertyValue writes no data type for an empty one (the Value mode switched to pattern or list and left empty)', () => {
+    for (const v of empty) expect(withPropertyValue(propertyOf(starter()), v, typeOf).dataType).toBeNull();
+  });
+
+  it('the guard rails use the same function: an empty pattern asks for the pattern, not for a data type', () => {
+    const s = starter();
+    const d = { ...blankDocument(), specifications: [{ ...s, requirements: [{ ...propertyOf(s), value: fromPattern('', 'xs:string') } as Facet] }] };
+    const issues = checkDocument(d).filter((i) => i.level === 'error');
+    expect(issues.map((i) => i.message)).toContain('Type the pattern.');
+    expect(issues.map((i) => i.message).join(' ')).not.toMatch(/data type/);
   });
 });
