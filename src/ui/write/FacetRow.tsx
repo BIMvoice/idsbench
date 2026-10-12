@@ -116,9 +116,9 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
       {f.kind === 'property' && <>
         {vf('Property set', 'propertySet', f.propertySet, false, (v) => set({ propertySet: v ?? simple() }), { options: psets, extraOptions: psetsPartial, customNote: appliesTo || several ? 'A custom property set: not one the IFC standard defines for this class and the IFC versions ticked.' : 'A custom property set: it is not one the IFC standard defines.' })}
         {vf('Property', 'baseName', f.baseName, false, (v) => {
-          // A property of a standard set brings its data type with it.
-          const type = lists && v?.kind === 'simple' && psetName ? lists.dataTypeFor(psetName, v.value) : null;
-          set(type ? { baseName: v ?? simple(), dataType: type } : { baseName: v ?? simple() });
+          // Choosing a property writes no data type: a requirement that only asks for the property to exist has none. The standard's
+          // data type is written when a value is given, which includes a value that is already there.
+          onChange(withPropertyValue({ ...f, baseName: v ?? simple() }, f.value, (set_, name) => lists?.dataTypeFor(set_, name) ?? null));
         }, { options: props, extraOptions: propsPartial, typedNote: (t, found) => (found === 0 ? mentionable(t) : null), customNote: mentionable(baseName) ?? undefined })}
         {onlySome?.onlyIn && (
           <p className="msg advice-msg limit-versions">

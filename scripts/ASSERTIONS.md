@@ -252,7 +252,7 @@ In `scripts/browser-check.mjs` (49):
 - scale: the CSV holds every failing element, not only the 200 on the page
 - at no moment of this whole script did the page show a result made for another version of the document
 
-In `scripts/write-check.mjs` (18):
+In `scripts/write-check.mjs` (19):
 
 - a new document is not judged before there is something to judge: no verdict, the stamp cell says New
 - New puts the keyboard in the Title field, and About this IDS asks for the title only
@@ -260,7 +260,8 @@ In `scripts/write-check.mjs` (18):
 - the IFC class comes from a pick-list with type-ahead: plain name beside the technical one
 - choosing the class narrows the property sets offered to those of that class
 - the property set and the property come from pick-lists; the property list is that set's
-- choosing a standard property fills in its data type
+- choosing a standard property writes no data type
+- giving the property a value writes the standard data type
 - plain words on screen: no "facet", "applicability", "cardinality", "restriction" or "how to match" in the form
 - the form shows what the common case needs; the rest is behind More options
 - a pattern arrives complete: it reads as a sentence and has nothing to fix

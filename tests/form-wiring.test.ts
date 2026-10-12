@@ -63,3 +63,19 @@ describe('the value field of a property in the form', () => {
     expect(got[0].dataType).toBe('IFCLABEL');
   });
 });
+
+describe('choosing a standard property in the form', () => {
+  const fieldOf = (facet: Facet, key: string, onChange: (f: Facet) => void) => {
+    renderToStaticMarkup(createElement(FacetFields, { facet, requirement: true, issues: [], onChange, lists, several: false, appliesTo: 'IFCWALL' }));
+    return seen.value.get(`${facet.uid}.${key}`)! as { onChange: (v: Value | null) => void };
+  };
+
+  it('writes no data type: the requirement stays "the property exists", and the data type comes with a value', () => {
+    const got: PropertyFacet[] = [];
+    const property = { ...(starter().requirements[0] as PropertyFacet), baseName: simple('') };
+    expect(lists.dataTypeFor('Pset_WallCommon', 'FireRating')).toBe('IFCLABEL'); // the standard does state one
+    fieldOf(property, 'baseName', (f) => got.push(f as PropertyFacet)).onChange(simple('FireRating'));
+    expect(got[0].baseName).toEqual(simple('FireRating'));
+    expect(got[0].dataType).toBeNull();
+  });
+});

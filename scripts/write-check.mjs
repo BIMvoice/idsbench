@@ -157,9 +157,10 @@ try {
   const pickedSet = await pick(prop, 'Property set', 'wall common');
   const pickedProp = await pick(prop, 'Property', 'fire r');
   check('the property set and the property come from pick-lists; the property list is that set\'s', pickedSet === 'Wall common (Pset_WallCommon)' && pickedProp === 'Fire rating (FireRating)', `${pickedSet} | ${pickedProp}`);
-  check('choosing a standard property fills in its data type', (await prop.getByRole('combobox', { name: 'Data type', exact: true }).inputValue()).includes('IFCLABEL'), await prop.getByRole('combobox', { name: 'Data type', exact: true }).inputValue());
+  check('choosing a standard property writes no data type', (await prop.getByRole('combobox', { name: 'Data type', exact: true }).inputValue()) === '', await prop.getByRole('combobox', { name: 'Data type', exact: true }).inputValue());
   await prop.getByRole('combobox', { name: 'Value', exact: true }).selectOption('list');
   await prop.getByLabel('Value: values').fill('1HR\n2HR');
+  check('giving the property a value writes the standard data type', (await prop.getByRole('combobox', { name: 'Data type', exact: true }).inputValue()).includes('IFCLABEL'), await prop.getByRole('combobox', { name: 'Data type', exact: true }).inputValue());
   await must1.getByRole('button', { name: 'Add an item to Must have' }).click();
   await must1.getByRole('button', { name: 'Attribute', exact: true }).click();
   const attr = must1.locator('li.facet').nth(1);
