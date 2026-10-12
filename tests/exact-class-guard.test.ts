@@ -145,6 +145,27 @@ describe('where the exact class cannot be proved the result is withheld: Not che
     expect(appliedTo(result.specs[0])).toEqual(['IFCDOOR', 'IFCDOORSTANDARDCASE']);
   });
 
+  // The guard reads a pattern the way the library does (the whole pattern between the two ends, in the language of XML
+  // Schema). Read as a JavaScript pattern with the ends put straight around it, "IFCDOOR|IFCWALL" is "starts with IFCDOOR,
+  // or ends with IFCWALL", which IFCDOORSTANDARDCASE meets as well: the guard then saw no difference and let the library
+  // apply the specification to the standard case doors.
+  const restriction = (...patterns: string[]) => `<entity><name><xs:restriction base="xs:string">${patterns.map((p) => `<xs:pattern value="${p}"/>`).join('')}</xs:restriction></name></entity>`;
+  const control = ifcText(body(['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCDISTRIBUTIONELEMENT', 'IFCWALL']), 'IFC4');
+  const parentOnly: [string, string, string, string][] = [
+    ['two names with a bar between them, the parent first', restriction('IFCDOOR|IFCWALL'), door, 'IFCDOORSTANDARDCASE'],
+    ['two patterns in one restriction, the parent first', restriction('IFCDOOR', 'IFCWALL'), door, 'IFCDOORSTANDARDCASE'],
+    ['a class of letters written the XML Schema way (\\p{L})', restriction('IFC\\p{L}{0,4}DOOR'), door, 'IFCDOORSTANDARDCASE'],
+    ['name characters written the XML Schema way (\\c) after the parent', restriction('IFCDISTRIBUTIONELEMENT\\c*'), control, 'IFCDISTRIBUTIONCONTROLELEMENT'],
+  ];
+  for (const [what, applicability, model, cls] of parentOnly) {
+    it(`a pattern that names the parent and not the subtype is withheld: ${what}`, async () => {
+      const result = await runText(idsText(spec('p', applicability)), model);
+      expect(result.specs[0].withheld).toBe(withheldSentence([cls]));
+      expect(result.specs[0].state).toBe('unchecked');
+      expect(result.specs[0].applicable).toBe(0);
+    });
+  }
+
   it('a pattern on a model that has none of the ten classes is run as it always was', async () => {
     const result = await runText(idsText(spec('p', '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOORSTANDARDCASE"/></xs:restriction></name></entity>')), ifcText(body(['IFCDOOR', 'IFCWALL']), 'IFC4'));
     expect(result.specs[0].withheld).toBeUndefined();

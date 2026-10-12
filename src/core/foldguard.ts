@@ -23,6 +23,7 @@
 // A model without one of the ten classes, and a specification whose outcome the fold does not change (it names the
 // subtype and the parent both, or neither), are left exactly as they were. The whole file goes when the library is
 // fixed: tests/engine-version.test.ts fails once @ifc-lite/ids 3.3.0 or later is installed.
+import { matchConstraint } from '@ifc-lite/ids';
 import type { IDSConstraint, IDSEntityFacet, IDSFacet, IDSSpecification } from '@ifc-lite/ids';
 
 /** The ten classes the library folds, in capitals, and the class each is read as. */
@@ -64,7 +65,10 @@ function matches(c: IDSConstraint, cls: string): Match {
   if (c.type === 'enumeration' && !c.and) return c.values.some((v) => v.toUpperCase() === cls);
   if (c.type === 'pattern' && !c.and) {
     if (c.pattern.length > 200 || RISKY.test(c.pattern)) return 'unknown';
-    try { return new RegExp(`^${c.pattern}$`, 'i').test(cls); } catch { return false; }
+    // Read by the library's own matcher, with the options its entity facet gives it: the question is what the library
+    // will answer for this name. A pattern is in the language of XML Schema (the whole pattern stands between the two ends,
+    // so "IFCDOOR|IFCWALL" is one name or the other; \p{L}, \c and \i are its own), which a JavaScript pattern is not.
+    try { return matchConstraint(c, CLASS_NAME[cls] ?? cls, { caseInsensitive: true }); } catch { return 'unknown'; }
   }
   return 'unknown';
 }
