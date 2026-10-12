@@ -150,6 +150,32 @@ describe('where the exact class cannot be proved the result is withheld: Not che
     });
   });
 
+  it('failed, withheld and otherwise not checked in one result: the page, the CSV and the report count the same rows of each kind', async () => {
+    const noApplicability = `<specification name="none" ifcVersion="IFC4"><applicability minOccurs="0" maxOccurs="unbounded"></applicability>${never}</specification>`;
+    const result = await runText(idsText(
+      spec('withheld', entity(['IFCDOORSTANDARDCASE'], '<predefinedType><simpleValue>DOOR</simpleValue></predefinedType>')),
+      spec('walls', entity(['IFCWALL'])),
+      spec('slabs', entity(['IFCSLAB'])), // required and nothing matches: failed as a whole
+      spec('doors', entity(['IFCDOOR'])), // run with the declared class: the door fails, the standard case door is not its business
+      noApplicability,
+      spec('fine', entity(['IFCWALL']), ''),
+    ), door);
+    expect(result.specs.map((r) => r.state)).toEqual(['unchecked', 'fail', 'fail', 'fail', 'unchecked', 'pass']);
+    expect(result.counts).toEqual({ specifications: 6, passed: 1, failed: 3, notChecked: 2, nothingToCheck: 0 });
+    expect(result.headline).toBe('1 of 6 specifications passed. 3 failed. 2 could not be checked.');
+    const rows = parseCsv(failuresCsvParts(result).join('')).slice(1);
+    // Every specification that is not a Pass is in the CSV, under its own marker, and "Not checked" is as many rows as the headline counts.
+    expect(rows.map((r) => [r[0], r[1]])).toEqual([[ROW_KINDS.notChecked, 'withheld'], [ROW_KINDS.element, 'walls'], [ROW_KINDS.specification, 'slabs'], [ROW_KINDS.element, 'doors'], [ROW_KINDS.notChecked, 'none']]);
+    expect(rows.filter((r) => r[0] === ROW_KINDS.notChecked).length).toBe(result.counts.notChecked);
+    expect(rows[4][3]).toBe(result.specs[4].note);
+    expect(rows.filter((r) => r[0] === ROW_KINDS.element).map((r) => r[6])).toEqual(['IFCWALL', 'IFCDOOR']);
+    expect(afterRun(result)).toMatch(/has a row marked Not checked/);
+    const report = JSON.parse(reportParts(result).join(''));
+    expect(report.counts).toEqual(result.counts);
+    expect(report.specs.map((r: { state: string }) => r.state)).toEqual(result.specs.map((r) => r.state));
+    expect(report.specs.map((r: { withheld?: string }) => r.withheld !== undefined)).toEqual([true, false, false, false, false, false]);
+  });
+
   it('the other specifications of the same file are still checked, and the headline does not say that all passed', async () => {
     const result = await runText(idsText(
       spec('pattern', entity(['IFCDOORSTANDARDCASE'], '<predefinedType><simpleValue>DOOR</simpleValue></predefinedType>')),
