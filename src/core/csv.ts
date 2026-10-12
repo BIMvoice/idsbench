@@ -4,8 +4,8 @@
 // The hand-over for the people who model: every failing element of a result as one CSV file that Excel opens correctly.
 import type { FailingElement, RunResult, SpecRow } from './types';
 
-/** What a row of the file is about: one element, or a whole specification that failed with no single element to blame. */
-export const ROW_KINDS = { element: 'Element', specification: 'Whole specification' } as const;
+/** What a row of the file is about: one element, a whole specification that failed with no single element to blame, or a specification that has no result (it was not checked: nothing failed). */
+export const ROW_KINDS = { element: 'Element', specification: 'Whole specification', notChecked: 'Not checked' } as const;
 export const CSV_COLUMNS = ['Row about', 'Specification', 'Requirement', 'Why it failed', 'What to fix', 'IFC class', 'Name', 'GlobalId', 'Storey or space', 'Model', 'IDS file'] as const;
 
 const PLAIN_NUMBER = /^[+-]?(\d+([.,]\d+)?|[.,]\d+)$/;
@@ -35,10 +35,14 @@ export const elementCsvRow = (specName: string, f: FailingElement, ifcFile: stri
 export const wholeCsvRow = (specName: string, why: string, ifcFile: string, idsFile: string, requirement = '', toFix = '') =>
   rowOf([ROW_KINDS.specification, specName, requirement, why, toFix, '', '', '', '', ifcFile, idsFile]);
 
+/** The row of a specification that has no result (see SpecRow.withheld): why, and no element. It is not a failure. */
+export const notCheckedCsvRow = (specName: string, why: string, ifcFile: string, idsFile: string, requirement = '', toFix = '') =>
+  rowOf([ROW_KINDS.notChecked, specName, requirement, why, toFix, '', '', '', '', ifcFile, idsFile]);
+
 /** How many failing elements a row holds, whatever of them the row keeps in memory. */
 export const failureTotalOf = (s: Pick<SpecRow, 'failures' | 'failureTotal'>): number => s.failureTotal ?? s.failures.length;
 
-/** How many specifications have no result because the engine would answer them wrongly for this model (see SpecRow.withheld); each has a row of its own in the CSV. */
+/** How many specifications have no result because the engine would answer them wrongly for this model (see SpecRow.withheld); each has a row of its own, marked Not checked, in a CSV that is made. */
 export function withheldCount(result: Pick<RunResult, 'specs'>): number {
   return result.specs.filter((s) => s.withheld).length;
 }
@@ -48,19 +52,25 @@ export function wholeFailureCount(result: Pick<RunResult, 'specs'>): number {
   return result.specs.filter((s) => s.wholeFailure).length;
 }
 
+/** True when the result has something that failed to hand over: a failing element or a specification that failed as a whole. A specification that was not checked is not one. */
+export function offersFailingDownload(result: Pick<RunResult, 'specs'>): boolean {
+  return failureCount(result) + wholeFailureCount(result) > 0;
+}
+
 /**
  * The CSV in pieces (strings and, for a result made in the worker, blobs; one run of pieces per specification, so a
  * very large result is never one enormous string). It starts with a UTF-8 byte order mark, which is what makes Excel
  * read names with accents correctly, and uses CRLF line ends. Every failing element is in it, not only those listed
  * on the page, and so is every specification that failed as a whole, as a row of its own marked "Whole specification"
- * in the first column (the element rows are marked "Element"), so that a filter on that column separates the two.
+ * in the first column (the element rows are marked "Element"), so that a filter on that column separates the two. A
+ * specification that has no result (withheld) has a row marked "Not checked": it did not fail.
  */
 export function failuresCsvParts(result: RunResult): BlobPart[] {
   const parts: BlobPart[] = [csvHeader()];
   result.specs.forEach((s, i) => {
     const mine: BlobPart[] = [];
     if (s.wholeFailure) mine.push(wholeCsvRow(s.name, s.wholeFailure, result.ifcFile, result.idsFile, s.requirement ?? '', s.wholeFix ?? ''));
-    else if (s.withheld) mine.push(wholeCsvRow(s.name, s.withheld, result.ifcFile, result.idsFile, s.requirement ?? '', 'Wait for the fixed engine, or check this specification with another tool'));
+    else if (s.withheld) mine.push(notCheckedCsvRow(s.name, s.withheld, result.ifcFile, result.idsFile, s.requirement ?? '', 'Wait for the fixed engine, or check this specification with another tool'));
     const spilled = result.spilled?.[i];
     if (spilled) mine.push(...spilled.csv);
     else if (s.failures.length) mine.push(s.failures.map((f) => elementCsvRow(s.name, f, result.ifcFile, result.idsFile, s.requirement ?? '')).join(''));
@@ -95,9 +105,10 @@ export function failuresCsvName(ifcName: string): string {
  */
 export function afterRun(result: Pick<RunResult, 'verdict' | 'specs'>): string {
   const elements = failureCount(result), whole = wholeFailureCount(result);
-  if (elements > 0 && whole > 0) return 'Send the failing elements to the people who model: Download failing elements gives the complete list, with a row for each specification that failed as a whole.';
-  if (elements > 0) return 'Send the failing elements to the people who model: Download failing elements gives the complete list.';
-  if (whole > 0) return 'No single element failed: a specification failed as a whole, and its row says why. Download failing elements gives it as a row, and Download report keeps a record.';
+  const skipped = withheldCount(result) > 0 ? ' A specification that could not be checked has a row marked Not checked.' : '';
+  if (elements > 0 && whole > 0) return `Send the failing elements to the people who model: Download failing elements gives the complete list, with a row for each specification that failed as a whole.${skipped}`;
+  if (elements > 0) return `Send the failing elements to the people who model: Download failing elements gives the complete list.${skipped}`;
+  if (whole > 0) return `No single element failed: a specification failed as a whole, and its row says why. Download failing elements gives it as a row, and Download report keeps a record.${skipped}`;
   if (result.verdict === 'pass') return 'Nothing failed. Download the report to keep a record.';
   if (result.verdict === 'fail') return 'The result is Fail without a failing element or a failed specification to list. Download the report to keep a record.';
   return 'No element failed, but not every specification could be checked: see the rows marked Not checked. Download the report to keep a record.';

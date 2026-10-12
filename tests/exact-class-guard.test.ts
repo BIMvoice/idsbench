@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { IfcParser } from '@ifc-lite/parser';
 import { loadSchema, type IfcVersion, type SchemaData } from '@idsbench/check/ifc';
-import { failuresCsvParts, parseCsv } from '../src/core/csv';
+import { afterRun, failuresCsvParts, offersFailingDownload, parseCsv, ROW_KINDS } from '../src/core/csv';
 import { reportParts } from '../src/core/format';
 import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, IFC2X3_OWN_ATTRIBUTES, withheldSentence } from '../src/core/foldguard';
 import { readIds } from '../src/core/validate';
@@ -120,12 +120,37 @@ describe('where the exact class cannot be proved the result is withheld: Not che
       expect(result.allPassed).toBe(false);
       expect(result.counts.notChecked).toBe(1);
       expect(row.withheld).toMatch(/IfcDoorStandardCase.*cannot tell.*IfcDoor.*withheld.*fixed engine version.*on its way/);
-      // The same sentence in the CSV, as a "Whole specification" row, and in the report.
+      // The same sentence in the CSV, as a "Not checked" row (not "Whole specification": nothing failed), and in the report.
       const rows = parseCsv(failuresCsvParts(result).join(''));
-      expect(rows.slice(1).map((r) => [r[0], r[1], r[3]])).toEqual([['Whole specification', 'p', row.withheld]]);
+      expect(rows.slice(1).map((r) => [r[0], r[1], r[3]])).toEqual([['Not checked', 'p', row.withheld]]);
       expect(JSON.parse(reportParts(result).join('')).specs[0].withheld).toBe(row.withheld);
     });
   }
+
+  describe('a withheld row is not a failure: screen, CSV and report say the same', () => {
+    const pattern = spec('pattern', '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFCDOOR"/></xs:restriction></name></entity>');
+    const walls = spec('walls', entity(['IFCWALL']), never, 'IFC4');
+
+    it('a model whose only rows that do not pass are withheld offers no Download failing elements, and says to download the report', async () => {
+      const result = await runText(idsText(pattern, spec('ok', entity(['IFCWALL']), '', 'IFC4')), door);
+      expect(result.specs.map((r) => r.state)).toEqual(['unchecked', 'pass']);
+      expect(offersFailingDownload(result)).toBe(false);
+      expect(afterRun(result)).toMatch(/Download the report/);
+      expect(afterRun(result)).not.toMatch(/Download failing elements/);
+      expect(JSON.parse(reportParts(result).join('')).specs.map((r: { state: string; wholeFailure?: string }) => [r.state, r.wholeFailure])).toEqual([['unchecked', undefined], ['pass', undefined]]);
+    });
+
+    it('with a failure beside it the CSV has both kinds of row, each with its own marker, and the marker "Whole specification" is only for a specification that failed', async () => {
+      const result = await runText(idsText(pattern, walls), door);
+      expect(result.specs.map((r) => r.state)).toEqual(['unchecked', 'fail']);
+      expect(offersFailingDownload(result)).toBe(true);
+      const rows = parseCsv(failuresCsvParts(result).join('')).slice(1);
+      expect(rows.map((r) => [r[0], r[1]])).toEqual([[ROW_KINDS.notChecked, 'pattern'], [ROW_KINDS.element, 'walls']]);
+      expect(ROW_KINDS.notChecked).toBe('Not checked');
+      expect(rows.filter((r) => r[0] === ROW_KINDS.specification)).toEqual([]);
+      expect(afterRun(result)).toMatch(/not checked/i);
+    });
+  });
 
   it('the other specifications of the same file are still checked, and the headline does not say that all passed', async () => {
     const result = await runText(idsText(
