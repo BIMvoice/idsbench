@@ -20,6 +20,9 @@
 //  - Any other specification the fold changes (a pattern, a predefined type, an entity facet among the requirements, a
 //    partOf facet, a name an IFC2X3 occurrence/type mapping answers for) is not run, and its row is "Not checked"
 //    with the sentence below. It is never shown as Pass or Fail.
+//  - The library also names the attributes of an element after the folded class. One attribute is lost by that:
+//    ControlElementId of an IFC2X3 IfcDistributionControlElement. A specification with an attribute facet that name
+//    answers to is not run either, in an IFC2X3 model that holds the class.
 // A model without one of the ten classes, and a specification whose outcome the fold does not change (it names the
 // subtype and the parent both, or neither), are left exactly as they were. The whole file goes when the library is
 // fixed: tests/engine-version.test.ts fails once @ifc-lite/ids 3.3.0 or later is installed.
@@ -48,6 +51,15 @@ export const CLASS_NAME: Readonly<Record<string, string>> = {
  */
 export const IFC2X3_ALIASES: Readonly<Record<string, readonly string[]>> = {
   IFCDISTRIBUTIONCONTROLELEMENT: ['IFCACTUATOR', 'IFCALARM', 'IFCCONTROLLER', 'IFCFLOWINSTRUMENT', 'IFCSENSOR'],
+};
+
+/**
+ * The attributes one of the ten has and its parent has not, in an IFC2X3 model (IFC4 and IFC4X3 have none; the test over
+ * the IFC tables in tests/exact-class-guard.test.ts fails if this list is not what they say). The library names the
+ * attributes of an element after the class it reads, so it never finds one of these on an element that has it.
+ */
+export const IFC2X3_OWN_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+  IFCDISTRIBUTIONCONTROLELEMENT: ['ControlElementId'],
 };
 
 /** The folded classes the model declares, in capitals. `countOf` is how many entities the file declares of exactly this class. */
@@ -114,6 +126,17 @@ export function foldEffect(spec: IDSSpecification, present: readonly string[], i
       hit.add(d);
       const simple = facet.name.type === 'simpleValue' || (facet.name.type === 'enumeration' && !facet.name.and);
       if (!plain || !simple || unknown || alias) correctable = false;
+    }
+  }
+  // An attribute facet, anywhere in the specification, whose name one of those attributes answers to: the library cannot
+  // read the attribute of the element, with the class the file declares or without, so the specification is not run.
+  if (ifc2x3) {
+    const attributeNames = [...spec.applicability.facets, ...spec.requirements.map((r) => r.facet)].flatMap((f) => (f.type === 'attribute' ? [f.name] : []));
+    for (const d of present) {
+      const named = (IFC2X3_OWN_ATTRIBUTES[d] ?? []).some((a) => attributeNames.some((n) => {
+        try { return matchConstraint(n, a, { caseInsensitive: true }); } catch { return true; }
+      }));
+      if (named) { hit.add(d); correctable = false; }
     }
   }
   return hit.size ? { classes: Object.keys(FOLDED_ONTO).filter((c) => hit.has(c)), correctable } : null;

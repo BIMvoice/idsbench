@@ -13,7 +13,7 @@ import { IfcParser } from '@ifc-lite/parser';
 import { loadSchema, type IfcVersion, type SchemaData } from '@idsbench/check/ifc';
 import { failuresCsvParts, parseCsv } from '../src/core/csv';
 import { reportParts } from '../src/core/format';
-import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, withheldSentence } from '../src/core/foldguard';
+import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, IFC2X3_OWN_ATTRIBUTES, withheldSentence } from '../src/core/foldguard';
 import { readIds } from '../src/core/validate';
 import { idsText, ifcText, line, NS, runText } from './helpers/small-model';
 
@@ -188,6 +188,49 @@ describe('where the exact class cannot be proved the result is withheld: Not che
     expect(withheldSentence(['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCDISTRIBUTIONFLOWELEMENT'])).toContain('from their parent class IfcDistributionElement');
     expect(Object.keys(CLASS_NAME).length).toBe(19);
   });
+});
+
+describe('an attribute the subtype has and its parent has not: the library names the attributes of an element after the parent', () => {
+  // An IFC2X3 IfcDistributionControlElement has a ninth attribute, ControlElementId. The library reads the element as an
+  // IfcDistributionElement, which has eight, and so never finds it: a requirement that the attribute is there failed an
+  // element that has it, and an applicability on it applied to nothing (IfcTester finds it in both).
+  const control = (schema: string) => ifcText(line(1, 'IFCDISTRIBUTIONCONTROLELEMENT', 'with', "$,$,$,$,'T','CE-1'") + line(2, 'IFCDISTRIBUTIONCONTROLELEMENT', 'without', '$,$,$,$,$,$') + line(3, 'IFCWALL', 'wall', '$,$,$,$,$'), schema);
+  const attribute = (name: string) => `<attribute><name><simpleValue>${name}</simpleValue></name></attribute>`;
+  const both = entity(['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCDISTRIBUTIONELEMENT']);
+  const cases: [string, string][] = [
+    ['the attribute is required of the class', spec('a', entity(['IFCDISTRIBUTIONCONTROLELEMENT']), `<requirements>${attribute('ControlElementId')}</requirements>`, 'IFC2X3')],
+    ['the attribute is required, and the entity facet names the class and its parent (the fold does not change that facet)', spec('a', both, `<requirements>${attribute('ControlElementId')}</requirements>`, 'IFC2X3')],
+    ['the attribute is what the specification applies to', spec('a', attribute('ControlElementId'), never, 'IFC2X3')],
+    ['the attribute is named by a pattern', spec('a', both, '<requirements><attribute><name><xs:restriction base="xs:string"><xs:pattern value="Control.*"/></xs:restriction></name></attribute></requirements>', 'IFC2X3')],
+  ];
+  for (const [what, xml] of cases) {
+    it(`IFC2X3, ${what}: withheld`, async () => {
+      const result = await runText(idsText(xml), control('IFC2X3'));
+      expect(result.specs[0].withheld).toBe(withheldSentence(['IFCDISTRIBUTIONCONTROLELEMENT']));
+      expect(result.specs[0].state).toBe('unchecked');
+    });
+  }
+  it('another attribute, a model without the class, and a model of another IFC version are run as they always were', async () => {
+    const tag = await runText(idsText(spec('t', both, `<requirements>${attribute('Tag')}</requirements>`, 'IFC2X3')), control('IFC2X3'));
+    expect(tag.specs[0]).toMatchObject({ state: 'fail', applicable: 2, failed: 1 });
+    expect(tag.specs[0].withheld).toBeUndefined();
+    const noControl = await runText(idsText(cases[2][1]), ifcText(line(1, 'IFCDISTRIBUTIONELEMENT', 'e', '$,$,$,$,$') + line(3, 'IFCWALL', 'wall', '$,$,$,$,$'), 'IFC2X3'));
+    expect(noControl.specs[0].withheld).toBeUndefined();
+    const ifc4 = await runText(idsText(cases[2][1]), ifcText(line(1, 'IFCDISTRIBUTIONCONTROLELEMENT', 'c', '$,$,$,$,$') + line(3, 'IFCWALL', 'wall', '$,$,$,$,$'), 'IFC4'));
+    expect(ifc4.specs[0].withheld).toBeUndefined();
+  });
+  for (const { v } of VERSIONS) {
+    it(`${v}: of the ten, the attributes a class has and its parent has not are exactly the ones the guard knows`, async () => {
+      const s = await loadSchema(v);
+      const own: Record<string, string[]> = {};
+      for (const sub of TEN.filter((c) => s.classes.has(c))) {
+        const extra = [...s.attributes.entries()].filter(([, a]) => a.classes.includes(sub) && !a.classes.includes(FOLDED_ONTO[sub])).map(([n]) => n);
+        if (extra.length) own[sub] = extra.sort();
+      }
+      expect(s.attributes.get('Name')!.classes).toContain('IFCDOOR');
+      expect(own).toEqual(v === 'IFC2X3' ? IFC2X3_OWN_ATTRIBUTES : {});
+    });
+  }
 });
 
 describe('what the guard looks at (foldEffect)', () => {
