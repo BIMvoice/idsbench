@@ -100,7 +100,7 @@ export interface RunResult {
   schema: string;
   /** Every record of the file: elements, but also geometry, properties and relationships. */
   entityCount: number;
-  /** Of those, the physical elements: IfcElement and its subtypes (walls, doors, slabs, equipment), openings left out. Absent when the IFC tables of the model's version could not be had. */
+  /** Of those, the physical elements: IfcElement and its subtypes (walls, doors, slabs, equipment), without the feature subtractions (openings) and IfcVirtualElement. Absent when the IFC tables of the model's version could not be had. */
   elementCount?: number;
   /** The spaces of the model (IfcSpace), which are not physical elements. Absent when `elementCount` is. */
   spaceCount?: number;

@@ -256,8 +256,10 @@ export function placeFinder(accessor: Accessor, isPlace: (entityType: string) =>
 type Tables = Awaited<ReturnType<typeof import('@idsbench/check/ifc').loadSchema>>;
 
 /**
- * What the model holds that can be built or fitted (IfcElement and its subtypes: walls, doors, slabs, equipment), with the
- * openings left out, because an opening is the hole in a wall and not a thing of its own; and, apart, the spaces. A site,
+ * What the model holds that can be built or fitted (IfcElement and its subtypes: walls, doors, slabs, equipment), with two
+ * kinds left out: the feature subtractions (IfcFeatureElementSubtraction: openings, which are the hole in a wall and not a
+ * thing of its own) and IfcVirtualElement (a boundary that has no substance). Feature additions (IfcProjectionElement,
+ * IfcSurfaceFeature) are counted. Apart from these, the spaces. A site,
  * a building, a storey and the other places are neither. Empty when the IFC tables of the model's version cannot be had.
  */
 function elementsIn(store: LoadedModel['store'], tables: Tables | null): { elementCount?: number; spaceCount?: number } {
@@ -266,7 +268,7 @@ function elementsIn(store: LoadedModel['store'], tables: Tables | null): { eleme
   let elements = 0, spaces = 0;
   for (const [type, ids] of byType) {
     const u = type.toUpperCase();
-    if (tables.isA(u, 'IFCELEMENT') && !tables.isA(u, 'IFCFEATUREELEMENTSUBTRACTION')) elements += ids.length;
+    if (tables.isA(u, 'IFCELEMENT') && !tables.isA(u, 'IFCFEATUREELEMENTSUBTRACTION') && !tables.isA(u, 'IFCVIRTUALELEMENT')) elements += ids.length;
     else if (tables.isA(u, 'IFCSPACE')) spaces += ids.length;
   }
   return { elementCount: elements, spaceCount: spaces };

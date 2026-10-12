@@ -121,4 +121,13 @@ describe('the record counts what it counts', () => {
     expect(r.elementCount).toBe(43);
     expect(r.spaceCount).toBe(8);
   });
+
+  it('a virtual element (a boundary with no substance of its own) is not a physical element, in the three IFC versions, and neither is an opening; a projection (a feature addition) is', async () => {
+    const body = (cls: string, n: number, from: number) => Array.from({ length: n }, (_, i) => line(from + i, cls, `${cls}${i}`)).join('');
+    for (const v of ['IFC2X3', 'IFC4', 'IFC4X3'] as const) {
+      const model = ifcText(body('IFCWALL', 4, 1) + body('IFCVIRTUALELEMENT', 3, 20) + body('IFCOPENINGELEMENT', 2, 30) + body('IFCPROJECTIONELEMENT', 2, 40), v === 'IFC4X3' ? 'IFC4X3' : v);
+      const r = await runText(idsText(specXml('S', 'IFCWALL', 'minOccurs="0" maxOccurs="unbounded"', nameIs('x'), v === 'IFC2X3' ? 'IFC2X3' : 'IFC4')), model);
+      expect(r.elementCount, v).toBe(6); // 4 walls and 2 projections; not the 3 virtual elements, not the 2 openings
+    }
+  });
 });

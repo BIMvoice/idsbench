@@ -34,6 +34,8 @@ With a model loaded, each specification has one of four states:
 | Nothing to check | An optional specification that matches nothing in the model. The standard counts this as a pass, and so does the headline, which says how many there are. |
 | Not checked | No verdict: the specification names no elements to apply to, uses a text pattern that is not safe to run, or has its result withheld (see Known limits). The headline then never says that all passed. |
 
+The record under the stamp counts "Records in the file" (every entity of the file), "Physical elements" and, when there are any, "Spaces". Physical elements are the entities of IfcElement and its subtypes (walls, doors, slabs, equipment, and the other feature elements such as IfcProjectionElement and IfcSurfaceFeature), except two kinds that are not counted: the feature subtractions (IfcFeatureElementSubtraction: IfcOpeningElement, IfcOpeningStandardCase in IFC4, IfcVoidingFeature in IFC4 and IFC4X3) and IfcVirtualElement. Spaces (IfcSpace) are counted apart, and the site, the building and the storey are neither. The count comes from the IFC tables of the model's version; where they cannot be had, it is not shown.
+
 The IFC version a specification lists (`ifcVersion`) does not decide whether it is checked. The official test cases treat it as metadata ("Specification version is purely metadata and does not impact pass or fail result"), so every specification is checked, and a row whose listed versions do not include the model's version says so.
 
 
