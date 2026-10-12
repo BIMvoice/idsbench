@@ -119,7 +119,8 @@ export function foldEffect(spec: IDSSpecification, present: readonly string[], i
     for (const d of present) {
       const asDeclared = matches(facet.name, d);
       const asRead = matches(facet.name, FOLDED_ONTO[d]);
-      const alias = ifc2x3 && (IFC2X3_ALIASES[d] ?? []).some((a) => matches(facet.name, a) !== false);
+      // The mapping only adds names that are met. A facet met by the class and by its parent alike is met either way.
+      const alias = ifc2x3 && !(asDeclared === true && asRead === true) && (IFC2X3_ALIASES[d] ?? []).some((a) => matches(facet.name, a) !== false);
       // A constraint this file cannot work out (a pattern that could take long, a combination) is never taken for "the same".
       const unknown = asDeclared === 'unknown' || asRead === 'unknown';
       if (asDeclared === asRead && !alias && !unknown) continue;

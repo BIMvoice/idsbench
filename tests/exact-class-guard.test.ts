@@ -183,6 +183,16 @@ describe('where the exact class cannot be proved the result is withheld: Not che
     expect(hasNot.specs[0].state).not.toBe('unchecked');
   });
 
+  it('IFC2X3: a name that reads the control element and its parent alike is not withheld for also reading IfcSensor', async () => {
+    // "IFC.*" is met by IfcDistributionControlElement and by the IfcDistributionElement the library reads it as; that it
+    // would be met by IfcSensor too changes nothing, so there is no reason to withhold.
+    const model = ifcText(body(['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCWALL']), 'IFC2X3');
+    const wide = '<entity><name><xs:restriction base="xs:string"><xs:pattern value="IFC.*"/></xs:restriction></name></entity>';
+    const result = await runText(idsText(spec('any', wide, never, 'IFC2X3'), spec('list', entity(['IFCSENSOR', 'IFCDISTRIBUTIONCONTROLELEMENT', 'IFCDISTRIBUTIONELEMENT']), never, 'IFC2X3')), model);
+    expect(result.specs.map((r) => r.withheld)).toEqual([undefined, undefined]);
+    expect(result.specs.map(appliedTo)).toEqual([['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCWALL'], ['IFCDISTRIBUTIONCONTROLELEMENT']]);
+  });
+
   it('the sentence names every class concerned, and the parent', () => {
     expect(withheldSentence(['IFCDOORSTANDARDCASE', 'IFCWINDOWSTANDARDCASE'])).toBe('This model has IfcDoorStandardCase and IfcWindowStandardCase elements, and the engine in this version cannot tell those classes from their parent classes IfcDoor and IfcWindow, so the result for this specification is withheld until a fixed engine version, which is on its way.');
     expect(withheldSentence(['IFCDISTRIBUTIONCONTROLELEMENT', 'IFCDISTRIBUTIONFLOWELEMENT'])).toContain('from their parent class IfcDistributionElement');

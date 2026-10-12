@@ -83,7 +83,9 @@ describe('the class and its subtypes, for every class the form offers and every 
           const reached = inModel.filter((u) => names.has(u));
           // An IFC2X3 model with IfcDistributionControlElement in it: a name the occurrence/type mapping answers for
           // (IfcSensor and the like) would need the class the file declares, and its result is withheld (core/foldguard.ts).
-          if (v === 'IFC2X3' && inModel.includes('IFCDISTRIBUTIONCONTROLELEMENT') && [...names].some((n) => IFC2X3_ALIASES.IFCDISTRIBUTIONCONTROLELEMENT.includes(n))) {
+          // A list that names the class and its parent both is met either way, mapped names or not: it is run.
+          const eitherWay = names.has('IFCDISTRIBUTIONCONTROLELEMENT') && names.has('IFCDISTRIBUTIONELEMENT');
+          if (v === 'IFC2X3' && inModel.includes('IFCDISTRIBUTIONCONTROLELEMENT') && !eitherWay && [...names].some((n) => IFC2X3_ALIASES.IFCDISTRIBUTIONCONTROLELEMENT.includes(n))) {
             expect(row.state, `${classes[i]} in a model of ${v}`).toBe('unchecked');
             expect(row.withheld, `${classes[i]} in a model of ${v}`).toMatch(/IfcDistributionControlElement/);
             return;
