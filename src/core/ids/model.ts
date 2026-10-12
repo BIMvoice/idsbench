@@ -201,9 +201,9 @@ export function withPropertyValue(f: PropertyFacet, value: Value | null, typeOf:
   const { autoDataType, ...rest } = f;
   if (!isValueGiven(value)) return autoDataType ? { ...rest, value, dataType: null } : { ...f, value };
   if ((f.dataType && !autoDataType) || (!f.dataType && f.withoutDataType)) return { ...f, value };
-  if (f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
-  // A data type written by the form follows the property: it is worked out again, so a property changed afterwards does not keep the old one.
-  const type = typeOf(f.propertySet.value, f.baseName.value);
+  // A data type written by the form follows the property: it is worked out again, so a property changed afterwards does
+  // not keep the old one. A set or a property written as a pattern or a list has none to work out.
+  const type = f.propertySet.kind === 'simple' && f.baseName.kind === 'simple' ? typeOf(f.propertySet.value, f.baseName.value) : null;
   return type ? { ...rest, value, dataType: type, autoDataType: true } : { ...rest, value, dataType: autoDataType ? null : f.dataType };
 }
 

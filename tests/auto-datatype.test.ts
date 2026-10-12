@@ -82,6 +82,19 @@ describe('a data type written because a value was given goes away with the value
     expect(withPropertyValue({ ...added, baseName: simple('MyOwn') }, added.value, typeOf)).toMatchObject({ dataType: null });
   });
 
+  it('it does not outlive the property it was worked out for: a property or a set that becomes a pattern or a list has no data type of the standard, so the one written goes', () => {
+    const { doc } = open(file(''));
+    const added = withPropertyValue(propertyOf(doc), simple('2HR'), typeOf);
+    // FireRating is IFCLABEL. With the set written as a pattern, IsExternal would have been left as IFCLABEL, written by nobody.
+    const anySet = withPropertyValue({ ...added, propertySet: fromPattern('Pset_.*Common', 'xs:string'), baseName: simple('IsExternal') }, added.value, typeOf);
+    expect(anySet.dataType).toBeNull();
+    expect(JSON.stringify(Object.keys(anySet))).not.toMatch(/auto/i);
+    expect(withPropertyValue({ ...added, baseName: fromList(['FireRating', 'IsExternal'], 'xs:string') }, added.value, typeOf).dataType).toBeNull();
+    // one a person chose is theirs and stays
+    const chosen = chooseDataType(added, 'IFCTEXT');
+    expect(withPropertyValue({ ...chosen, baseName: fromPattern('Fire.*', 'xs:string') }, chosen.value, typeOf).dataType).toBe('IFCTEXT');
+  });
+
   it('the record is not in the written XML', () => {
     const { doc } = open(file(''));
     const added = withPropertyValue(propertyOf(doc), simple('2HR'), typeOf);
