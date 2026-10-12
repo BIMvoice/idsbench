@@ -100,6 +100,33 @@ describe('states, through the real library', () => {
   });
 });
 
+describe('a class written twice in a list', () => {
+  // The library collects the elements of each name of a list one after the other, so a name written twice gave every
+  // element of the class twice: 4 walls counted in a model of 2, and each failing wall listed two times. IfcTester
+  // answers 2 for the same file and model.
+  const twice = (values: string[]) => `<applicability minOccurs="1" maxOccurs="unbounded"><entity><name><xs:restriction base="xs:string">${values.map((v) => `<xs:enumeration value="${v}"/>`).join('')}</xs:restriction></name></entity></applicability>`;
+  it('each wall is counted once, and listed once', async () => {
+    const result = await run(ids(spec({ applicability: twice(['IFCWALL', 'IFCWALL', 'IFCDOOR']), req: nameIs('no') })));
+    expect(result.specs[0].applicable).toBe(2);
+    expect(result.specs[0].failed).toBe(2);
+    expect(result.specs[0].failures.map((f) => f.globalId).sort()).toEqual(['1'.padStart(22, '0'), '2'.padStart(22, '0')]);
+  });
+  it('and when every wall passes, 2 pass', async () => {
+    const result = await run(ids(spec({ applicability: twice(['IFCWALL', 'IFCWALL']), req: nameIs('Waldo') })));
+    expect([result.specs[0].state, result.specs[0].applicable, result.specs[0].passed]).toEqual(['pass', 2, 2]);
+  });
+  it('a prohibited specification counts each wall once too', async () => {
+    const result = await run(ids(spec({ applicability: twice(['IFCWALL', 'IFCWALL']).replace('minOccurs="1" maxOccurs="unbounded"', 'minOccurs="0" maxOccurs="0"') })));
+    expect([result.specs[0].state, result.specs[0].applicable, result.specs[0].failures.length]).toEqual(['fail', 2, 2]);
+  });
+  it('the note beside the specification names the class once', async () => {
+    const model = ifc('IFC4', wall(1) + `#2=IFCWALLSTANDARDCASE('${'2'.padStart(22, '0')}',$,'S',$,$,$,$,$,$);\n`);
+    const result = await run(ids(spec({ applicability: twice(['IFCWALL', 'IFCWALL']), req: nameIs('no') })), model);
+    expect(result.specs[0].applicable).toBe(1);
+    expect(result.specs[0].coverage?.text).toMatch(/^This specification names IfcWall\. /);
+  });
+});
+
 describe('models that must not reach a verdict', () => {
   const good = ids(spec({ min: '0', req: nameIs('Waldo') }));
   it('a model cut off after its first wall: before the fix this said "The one specification passed."', async () => {

@@ -120,7 +120,7 @@ export async function loadModel(ifcBytes: ArrayBuffer, onTick?: () => void): Pro
  */
 export async function runValidation(input: RunInput): Promise<RunResult> {
   const t0 = performance.now();
-  const doc = input.ids;
+  const doc = namedOnce(input.ids);
   let loaded = input.loaded;
   if (!loaded) {
     input.onPhase?.('reading-ifc');
@@ -204,6 +204,24 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const m = mapError(e, 'validate');
     throw new AppError(m.kind, m.message);
   }
+}
+
+/**
+ * The same document, with a class that a list of an entity facet in the applicability names more than once named once.
+ * The library collects the elements of each name of the list in turn and does not look for one it already has, so every
+ * element of a class written twice was counted, and listed, twice. Names are compared as the library compares them, in
+ * capitals. A document without such a list is returned as it is.
+ */
+function namedOnce(doc: IDSDocument): IDSDocument {
+  const once = (values: string[]) => values.filter((v, i) => values.findIndex((w) => w.toUpperCase() === v.toUpperCase()) === i);
+  const repeats = (f: IDSDocument['specifications'][number]['applicability']['facets'][number]) => f.type === 'entity' && f.name.type === 'enumeration' && once(f.name.values).length !== f.name.values.length;
+  if (!doc.specifications.some((s) => s.applicability.facets.some(repeats))) return doc;
+  return {
+    ...doc,
+    specifications: doc.specifications.map((s) => (s.applicability.facets.some(repeats)
+      ? { ...s, applicability: { ...s.applicability, facets: s.applicability.facets.map((f) => (f.type === 'entity' && f.name.type === 'enumeration' ? { ...f, name: { ...f.name, values: once(f.name.values) } } : f)) } }
+      : s)),
+  };
 }
 
 /** The same accessor, answering for an element of one of the ten folded classes the class its STEP line declares (read from the entity index, which keeps it as written). */
