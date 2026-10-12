@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { afterRun, failureCount, failuresCsvName, failuresCsvParts, failureTotalOf, wholeFailureCount } from '../core/csv';
+import { afterRun, failureCount, failuresCsvName, failuresCsvParts, failureTotalOf, wholeFailureCount, withheldCount } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
 import { pageReportName, pageReportParts, sha256Of } from '../core/report';
@@ -29,7 +29,7 @@ export function App() {
   const [downloadNote, setDownloadNote] = useState<string | null>(null);
   const result = run && 'outcome' in run ? run.outcome.result : null;
   const failing = result ? failureCount(result) : 0;
-  const wholeFailed = result ? wholeFailureCount(result) : 0;
+  const wholeFailed = result ? wholeFailureCount(result) + withheldCount(result) : 0;
   // A result row is shown beside a specification only when the result is of exactly these specifications, in this order.
   const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
 

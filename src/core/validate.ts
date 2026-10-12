@@ -8,6 +8,7 @@ import { inspectIfc } from './ifcfile';
 import { assembleReport, hasNoApplicability, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
 import type { RunResult } from './types';
 import { coverageOf, namedByLibrarySpec, tableVersion } from './coverage';
+import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, withheldSentence } from './foldguard';
 
 export type Phase = 'reading-ids' | 'reading-ifc' | 'checking';
 
@@ -146,8 +147,16 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const placer: { find: (id: number) => string } = { find: () => '' };
     const place = (id: number) => placer.find(id);
     const sentences = input.sentences && input.sentences.length === doc.specifications.length ? input.sentences : null;
-    const accs = doc.specifications.map((s, i) => new SpecAccumulator<IDSRequirementResult>(s, (r) => translator.describeFailure(r), loaded.schema, { ...options, place, ...(sentences?.[i] ? { sentence: sentences[i]! } : {}) }));
-    const indexed = doc.specifications.map((s, i) => ({ s, i })).filter(({ s }) => !hasNoApplicability(s));
+    // The engine of this version reads ten classes as their parent (see core/foldguard.ts). A model that declares none of
+    // them is untouched. Otherwise a specification the fold changes is run with the class the file declares, or, where
+    // that cannot be proved, not run: its row is "Not checked".
+    const present = declaredFolded((u) => store.entityIndex?.byType?.get(u)?.length ?? 0);
+    const ifc2x3 = (store.schemaVersion ?? '').toUpperCase() === 'IFC2X3';
+    const effects = doc.specifications.map((s) => (hasNoApplicability(s) ? null : foldEffect(s, present, ifc2x3)));
+    const withheld = effects.map((e) => (e && !e.correctable ? withheldSentence(e.classes) : undefined));
+    const declared = new Set(effects.flatMap((e, i) => (e?.correctable ? [i] : [])));
+    const accs = doc.specifications.map((s, i) => new SpecAccumulator<IDSRequirementResult>(s, (r) => translator.describeFailure(r), loaded.schema, { ...options, place, ...(sentences?.[i] ? { sentence: sentences[i]! } : {}), ...(withheld[i] ? { withheld: withheld[i] } : {}) }));
+    const indexed = doc.specifications.map((s, i) => ({ s, i })).filter(({ s, i }) => !hasNoApplicability(s) && !withheld[i]);
     // The model is checked one range of express ids at a time, each with its own accessor and its own results, which are
     // let go of before the next range: a model with millions of applicable elements never has all their results (or all
     // the values read from them) in memory at once. A model of ordinary size is one range, as if there were no ranges.
@@ -157,12 +166,12 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       // Elements that pass are not needed for anything but a prohibited specification (every match of it is a failure
       // whatever its requirements say), so the library is asked to drop them from all the others: on a model with
       // millions of elements that is most of the memory of a run. The counts it reports are the same either way.
-      for (const keepPassing of [false, true]) {
-        const part = indexed.filter(({ s }) => (specKind(s) === 'prohibited') === keepPassing);
+      for (const [keepPassing, asDeclared] of [[false, false], [true, false], [false, true], [true, true]] as const) {
+        const part = indexed.filter(({ s, i }) => (specKind(s) === 'prohibited') === keepPassing && declared.has(i) === asDeclared);
         if (part.length === 0) continue;
         const report = await validateIDS(
           { ...doc, specifications: part.map(({ s }) => s) },
-          accessor,
+          asDeclared ? declaring(accessor, store.entityIndex?.byId) : accessor,
           modelInfo,
           { translator, includePassingEntities: keepPassing, onProgress },
         );
@@ -192,6 +201,18 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const m = mapError(e, 'validate');
     throw new AppError(m.kind, m.message);
   }
+}
+
+/** The same accessor, answering for an element of one of the ten folded classes the class its STEP line declares (read from the entity index, which keeps it as written). */
+function declaring(a: Accessor, byId: { get(id: number): { type: string } | undefined } | undefined): Accessor {
+  if (!byId) return a;
+  return {
+    ...a,
+    getEntityType: (id: number) => {
+      const declared = byId.get(id)?.type?.toUpperCase();
+      return declared && FOLDED_ONTO[declared] ? CLASS_NAME[declared] : a.getEntityType(id);
+    },
+  };
 }
 
 /** The classes that are a place in a model (a storey, a space, a building, a site, and what IFC4X3 adds to them), told by name where the IFC tables are not at hand. */

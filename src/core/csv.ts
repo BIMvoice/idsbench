@@ -35,6 +35,11 @@ export const wholeCsvRow = (specName: string, why: string, ifcFile: string, idsF
 /** How many failing elements a row holds, whatever of them the row keeps in memory. */
 export const failureTotalOf = (s: Pick<SpecRow, 'failures' | 'failureTotal'>): number => s.failureTotal ?? s.failures.length;
 
+/** How many specifications have no result because the engine would answer them wrongly for this model (see SpecRow.withheld); each has a row of its own in the CSV. */
+export function withheldCount(result: Pick<RunResult, 'specs'>): number {
+  return result.specs.filter((s) => s.withheld).length;
+}
+
 /** How many specifications failed as a whole (see SpecRow.wholeFailure). */
 export function wholeFailureCount(result: Pick<RunResult, 'specs'>): number {
   return result.specs.filter((s) => s.wholeFailure).length;
@@ -52,6 +57,7 @@ export function failuresCsvParts(result: RunResult): BlobPart[] {
   result.specs.forEach((s, i) => {
     const mine: BlobPart[] = [];
     if (s.wholeFailure) mine.push(wholeCsvRow(s.name, s.wholeFailure, result.ifcFile, result.idsFile, s.requirement ?? '', s.wholeFix ?? ''));
+    else if (s.withheld) mine.push(wholeCsvRow(s.name, s.withheld, result.ifcFile, result.idsFile, s.requirement ?? '', 'Wait for the fixed engine, or check this specification with another tool'));
     const spilled = result.spilled?.[i];
     if (spilled) mine.push(...spilled.csv);
     else if (s.failures.length) mine.push(s.failures.map((f) => elementCsvRow(s.name, f, result.ifcFile, result.idsFile, s.requirement ?? '')).join(''));

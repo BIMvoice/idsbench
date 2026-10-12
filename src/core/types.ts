@@ -68,6 +68,8 @@ export interface SpecRow {
   wholeFailure?: string;
   /** What to do about a failure of the whole specification, for the CSV. */
   wholeFix?: string;
+  /** Set on a row that is "Not checked" because the engine of this version would answer it wrongly for this model (see core/foldguard.ts): the sentence that says why. It is also the note of the row, a "Whole specification" row of the CSV and a field of the report. */
+  withheld?: string;
   /** The specification in words (its sentence), when the page could work it out. */
   requirement?: string;
   /** How many failing elements the page does not list. Absent in a row built by hand. */
