@@ -280,7 +280,7 @@ Three assertions of `scripts/browser-check.mjs` changed what they expect, becaus
 - "once it is edited the position is in the file as it will be saved, and the record says so": only the changed specification is written anew, so the finding is on line 4 of the saved text, not on a line of a file rewritten in full. The assertion now also reads the marked line of the excerpt and checks it is the line the position names.
 - "an unedited file is run from the opened file itself": the page reads the opened file as bytes (to honour its encoding), so whole reads as bytes are counted with whole reads as text.
 
-## scripts/review-check.mjs (56, all new)
+## scripts/review-check.mjs (58, all new; 56 are run when no large model is given, the two that name a large model need one)
 
 - each of the 319 valid official IDS files, opened and not changed, is downloaded byte for byte as it was opened
 - a change to a specification that holds a comment says, before Download, that this comment is not kept and that the rest of the file is
@@ -338,6 +338,8 @@ Three assertions of `scripts/browser-check.mjs` changed what they expect, becaus
 - no request to anywhere but the local server
 - no uncaught page errors
 - ...and the CSV holds that specification as a row marked "Whole specification", with the reason and no element
+- a result whose only row that is not a Pass is withheld: Incomplete, the row is Not checked, no Download failing elements, and the one primary action is Download report
+- with a failure beside it: Fail, the rows are Not checked, Fail, Fail, Pass; the CSV marks one row Not checked, one Element and one Whole specification; the report counts the same
 
 ## scripts/scale-check.mjs (25, all new)
 
@@ -457,3 +459,7 @@ Expectations changed because a rule or a wording changed on purpose:
 - The list a new specification writes holds the subtypes of every ticked IFC version, not only those all of them share. write-check ("In words", "a pattern arrives complete", acoustic rating) and proof-check ("a new every wall", "with IFC2X3 and IFC4 ticked"): the wall is "wall, including wall elemented case and wall standard case", the door "door, including door standard case", and with IFC2X3 and IFC4 ticked the action adds both subtypes of the wall. tests/subtypes.test.ts and tests/defaults.test.ts say the same (the entry above about IfcSlabElementedCase and IfcSlabStandardCase no longer holds: they are offered and added). The one kind still left out is a class that another ticked version has under a different class (IfcZone under IfcSystem), which the line names.
 - write-check, "typing number for a space offers Reference ... room number" became "typing type mark for a space offers Reference, with what it means (the reference of the type, not a room number)": the standard defines Reference as "Reference ID for this specified type in this project (e.g. type 'A-1')" in IFC2X3, IFC4 and IFC4X3. tests/meanings.test.ts the same; scripts/replay-job3.mjs finds Reference by "type mark".
 - proof-check, the abstract class in a new specification: the class stays at the head of its concrete subtypes (it was replaced by them), so that the sentence and the name are about that class; the assertion also reads the sentence and the name.
+
+## What the scripts print now
+
+The numbers above were written as the scripts grew. Run on the present code they print: `browser-check` 151, `write-check` 90 (89 after the review of the new defaults, and one more since: giving the property a value writes the standard data type), `review-check` 56 without a large model (the two assertions that need one are run only when it is given), `proof-check` 21. `scale-check` is listed with 25 and was not run again for this note.
