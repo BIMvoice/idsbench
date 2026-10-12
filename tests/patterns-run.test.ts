@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Each of the five starting patterns, with each choice the form offers next, against a small model that meets it and
 // one that does not: the verdict is the one the sentence promises, and the sentence says what the file tests.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

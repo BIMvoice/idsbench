@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // For every IDS file the Check engine rejects, under the directories given: which findings get a one-press fix, what
 // the fix does, and whether the engine accepts the file afterwards; and for the findings without one, where "Fix"
 // leads. It does what the page does (the same candidates, the same proof by the engine on the text the page would

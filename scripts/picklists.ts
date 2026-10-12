@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Everything the pick-lists offer, fed to the Check engine: for each IFC version and each combination of versions a
 // specification can tick, every class, every predefined type, every attribute name, and the property sets and
 // properties (with the data type the form fills in) offered for a class. Counts what the engine rejects, and why.

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Runs the five browser scripts against the built site (run `npm run build` first): writing and editing an IDS file;
 // checking it, running a model against it and fixing it in place; what the saved file is, what happens when
 // things change under a run, what survives a reload, odd input and the keyboard journeys; large models, the model kept

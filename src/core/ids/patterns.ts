@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The common shapes of a specification. Each one is a complete, valid specification with ordinary choices filled in,
 // so that changing two or three of them finishes it. tests/patterns.test.ts runs every one through the Check engine.
 import { newFacet, newSpecification, occursFor, simple, type Facet, type Specification } from './model';

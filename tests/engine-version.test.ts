@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The guard in core/foldguard.ts exists for @ifc-lite/ids 3.2.0 and goes with it. This fails, with the instructions,
 // the day a fixed engine version is installed while the guard is still in the code.
 import { existsSync, readFileSync } from 'node:fs';

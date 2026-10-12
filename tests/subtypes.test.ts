@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // IDS matches the exact class: "There is no automatic inheritance in IDS entity facet interpretation. In other words,
 // all the entities need to be listed explicitly." (user manual, entity facet, "Inheritance"). The page says so beside the
 // specification and offers the subtypes as a list.

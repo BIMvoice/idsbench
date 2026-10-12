@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The run library (@ifc-lite/ids 3.2.0 on @ifc-lite/parser 9.2.0) reads ten classes as their parent (their issue 7402).
 // core/foldguard.ts and core/validate.ts make a run answer as IDS requires (the exact class the STEP line declares) where
 // that can be proved, and withhold the result ("Not checked") where it cannot. The expectations below are the exact-class

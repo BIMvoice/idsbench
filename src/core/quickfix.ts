@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Fixes the engine's own finding already spells out, offered as one press. Each is a change to the document model,
 // the same one the forms make. A fix is only offered after the engine has been run on the changed file and no longer
 // reports that finding (see verifyFixes), so a button never leads to the same problem again.

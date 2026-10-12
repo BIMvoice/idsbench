@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // One run, with the parsed model kept between runs. Reading and parsing a model is most of the time of a run, and the
 // model does not change when the IDS does, so a run after an edit only needs to check again. The kept copy is used
 // only for the very file object it was read from, with the size and last-modified time it had then; for anything

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A known defect of the run library, @ifc-lite/ids 3.2.0 on @ifc-lite/parser 9.2.0 (their issue 7402, fixed in their pull
 // request 7412 and released after 3.2.0). The entity facet reads the class of an element from a table in which ten
 // classes are folded onto a parent: the library says "IfcDoor" of an IfcDoorStandardCase. IDS matches the exact class

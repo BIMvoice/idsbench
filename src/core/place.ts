@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Where a finding of the Check engine belongs on the page: a specification, "About this IDS", or the file as a whole;
 // and, when the document is open in the editor, which field of the form it concerns.
 import type { Finding } from '@idsbench/check';

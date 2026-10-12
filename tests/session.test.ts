@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The parsed model is kept between runs, and only for the very file it was read from.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ModelKeeper, runSession, sameModel, type ModelRef } from '../src/core/session';

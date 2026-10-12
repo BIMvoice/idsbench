@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Times and measures one run in Node, phase by phase, for models made by make-large-model.mjs.
 // Usage: node --max-old-space-size=<MB> node_modules/.bin/vite-node scripts/measure-run.ts <model.ifc> <spec.ids>
 import fs from 'node:fs';

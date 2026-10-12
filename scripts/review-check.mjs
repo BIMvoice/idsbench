@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A third browser script: what the file is that the user gets, what happens when things change under a run, what
 // survives a reload, what odd input does, and the three journeys by keyboard alone. Headless Chromium against dist/,
 // every request that is not to the local server blocked. scripts/ASSERTIONS.md lists what it asserts.

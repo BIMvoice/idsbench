@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Runs the same validation function the app uses over the official buildingSMART
 // IDS test cases and compares each verdict with the file-name prefix. The inputs
 // are used exactly as they are in the repository; nothing is rewritten.

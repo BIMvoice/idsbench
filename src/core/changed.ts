@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What an edit did to the result of the specification that was edited, in one line, so that a person who closes a form
 // does not have to find the changed row among the others.
 import { failureTotalOf } from './csv';

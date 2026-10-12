@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What Write emits must be a file Check accepts. Three parts:
 //   1. a varied set of documents (every facet kind, every cardinality, every way of matching a value, every
 //      occurrence) that Write allows to be downloaded: Check must report no error;

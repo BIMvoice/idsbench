@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Over every pass-/fail- pair of the official test cases: the result of a run that reads the model and the result of
 // the next run, which is served from the kept copy, must be the same result (except the time).
 // Usage: npx vite-node scripts/kept-model.ts <TestCases dir>

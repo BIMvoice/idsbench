@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Over every IDS file the forms can open: change the name of each specification to a different value (an edit that
 // changes no meaning), write it back the way Download does, and count what that leaves out of the file. Then prove that
 // nothing else was left out: the XML of the specification as it was, minus the items listed, must be the XML of the

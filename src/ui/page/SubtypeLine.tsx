@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import { subtypeAction, type SubtypeNote } from '../../core/subtypes';
 
 /** One calm line: this class is exactly this class, and what it leaves out (or: this class is abstract and matches nothing); with the action that adds what it leaves out as a list, when there is something to add. */

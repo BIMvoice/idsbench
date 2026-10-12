@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // IDS matches the exact IFC class. The user manual of the standard (Documentation/UserManual/entity-facet.md, "Inheritance"):
 // "There is no automatic inheritance in IDS entity facet interpretation. In other words, all the entities need to be
 // listed explicitly." A specification for IfcWall therefore does not reach an IfcWallStandardCase. This works out, from

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A specification for IfcWall does not apply to an IfcWallStandardCase (IDS has no inheritance). The result says so
 // from the model's own class counts, and never changes a count or the verdict.
 import fs from 'node:fs';

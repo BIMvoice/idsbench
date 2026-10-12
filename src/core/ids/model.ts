@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The editor's model of an IDS 1.0 document. It is deliberately close to the
 // XML (one field per element or attribute of ids.xsd) so that reading a file
 // and writing it back loses nothing. @ifc-lite/ids only reads IDS and its

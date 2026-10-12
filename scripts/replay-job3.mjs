@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The walk-through's third job, replayed on the page from an empty one: four requirements (every wall has a fire
 // rating; every door is classified in Uniclass 2015; every space has a name and a number; no building element proxies),
 // made with the starting shapes and their defaults, then the downloaded file run against three models. Counts the

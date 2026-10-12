@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // "Elements must have a property" asks that the property exists. IDS 1.0 (User Manual, property facet): "Both dataType
 // and value are optional, but if value is provided, it also requires dataType", and the requirement "Applicable objects
 // need to have the property My_Prop in the My_Set" is allowed with no data type. A starter that wrote IFCLABEL failed a

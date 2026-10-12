@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The result of a run lists its specifications in the order of the file that was run. The page shows each beside the
 // specification of the document it belongs to, and it only does so after checking that the two lists are the same
 // list: the same number of specifications, with the same names in the same order.

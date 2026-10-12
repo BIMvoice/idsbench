@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The page says "has not answered" when the worker has been silent for longer than it may. Reading a large model has
 // steps that cannot say anything until they are done, and they grow with the model: what is allowed grows with it too.
 import { describe, expect, it } from 'vitest';

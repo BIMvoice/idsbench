@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What the Check engine says, in the words of the people who use this page. The engine's sentences come from the XML
 // and the standard ("The element <specifications> is incomplete; it needs <specification>."); this layer, which is
 // the page's own and does not touch the engine, gives each finding a sentence in the user's terms, keyed by the

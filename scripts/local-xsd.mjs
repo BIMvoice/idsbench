@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Dev-time only. xmllint reads schemas from files, and the official ids.xsd imports the W3C schemas by web
 // address. This writes a copy of ids.xsd whose imports point at local files, so a check never goes online.
 // Usage: node scripts/local-xsd.mjs <official ids.xsd> <dir holding xml.xsd and XMLSchema.xsd> <output ids.xsd>

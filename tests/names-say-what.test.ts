@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A name this page works out is the label of the specification in the results and in the CSV sent to the people who
 // model. It must not be the name of another rule: "Walls have a fire rating" for a rule about walls and doors, about
 // external walls only, or about a fire rating of one value.

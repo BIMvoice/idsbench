@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Pick-lists for the names the IFC standard defines, built from the tables the Check engine ships (one per IFC
 // version, loaded when first needed). The value of an option is the form that goes into the IDS file.
 import type { SchemaData } from '@idsbench/check/ifc';

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import { IfcParser } from '@ifc-lite/parser';
 import { parseIDS, validateIDS, createTranslationService } from '@ifc-lite/ids';
 import type { IDSRequirementResult, IDSDocument } from '@ifc-lite/ids';

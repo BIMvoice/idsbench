@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A fifth browser script: the proof gaps and the small things of the last round. A class is the exact class (the line
 // on the specification and the action that adds the subtypes, run against a model that has both), a property set
 // named Pset_ that the standard does not define is flagged and stops Download, and a Download pressed again and again

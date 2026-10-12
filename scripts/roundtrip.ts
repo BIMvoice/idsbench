@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Reads every IDS 1.0 file under a directory into the editor's model, writes it back, and checks the result:
 //   1. it is valid against the official schema (xmllint, local files only),
 //   2. @ifc-lite/ids parses it to the same result as the original (whitespace normalised),

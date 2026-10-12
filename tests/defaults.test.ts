@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What a specification made by this page says before the person has changed anything: it applies to the class and its
 // subtypes, in every IFC version, and does not fail a model for having none of them; the starting shapes hold no value
 // that narrows the rule beyond its title; the name follows the content until a name is typed.

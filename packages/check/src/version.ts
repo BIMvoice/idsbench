@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 /**
  * The IDS version rule, kept apart from the engine so that code which only needs to say "this file is not IDS 1.0"
  * (the Write tab, when it opens a file) can use the very same decision and sentence without loading the engine.

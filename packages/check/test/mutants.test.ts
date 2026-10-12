@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Optional: compares checkIds with the official tool on altered copies of the valid corpus files.
 //   node scripts/make-mutants.mjs /tmp/mutants
 //   DOTNET_ROLL_FORWARD=Major node scripts/run-reference.mjs <ids-tool> /tmp/mutants-ref.json /tmp/mutants

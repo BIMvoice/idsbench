@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A model is checked one range of express ids at a time so that millions of elements are never held at once.
 // A result must not depend on how the model was cut: here with a range of 2 ids against the whole model.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

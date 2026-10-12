@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The file the user gets is the file they made: an opened file that is not changed comes out character for character,
 // and a change stays inside the specification (or the info section) it was made in.
 import { readdirSync, readFileSync, statSync } from 'node:fs';

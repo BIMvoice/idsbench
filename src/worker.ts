@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The worker: reads the model, keeps it between runs, checks it against the IDS, and tells the page that it is alive.
 import { mapError } from './core/errors';
 import { ModelKeeper, runSession, type ModelBytes, type ModelRef } from './core/session';

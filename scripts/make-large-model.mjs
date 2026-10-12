@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Writes an IFC4 model of many walls (streamed, so any size) for measuring how a run scales, and the IDS file to run it against.
 // Usage: node scripts/make-large-model.mjs <walls> <out.ifc> <pass|fail|filler> [<out.ids> [<name of the walls in pass mode, Waldo>]]
 //   pass:   every wall is named "Waldo"  (the IDS wants Name = Waldo)

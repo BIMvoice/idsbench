@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Lexical checks for the XML Schema base types an IDS restriction may use. The regular expressions follow the
 // IDS-Audit-tool (MIT, buildingSMART International): they are deliberately a little stricter than the XSD lexical
 // spaces so that a bad value is caught early.

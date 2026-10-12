@@ -88,7 +88,8 @@ The first two are from the ifc-lite project. How the interface looks and reads i
 ## Tests
 
 ```
-npm test                                          # the app's unit tests, then the Check package's tests
+npm test                                          # the MPL-2.0 notice on every source file, the app's unit tests, then the Check package's tests
+npm run lint:headers                              # only the notice: lists the source files that lack it (node scripts/check-headers.mjs --write adds it)
 npm run build && npm run check:browser -- <IDS clone> [a large .ifc]   # the five browser scripts in headless Chromium, network blocked (scripts/ASSERTIONS.md lists what they assert)
 npm run truth -- <TestCases dir>                  # every pass-/fail- pair of the buildingSMART IDS test cases through Check and Run
 npx vite-node scripts/roundtrip.ts <IDS clone> <ids.xsd with local imports> <out dir>   # read, write back and compare every IDS 1.0 file

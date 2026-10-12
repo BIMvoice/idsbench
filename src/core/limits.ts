@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What a browser tab can hold, as far as it can be known before it runs out. The numbers come from measuring the page
 // on a model of many walls (scripts/make-large-model.mjs, scripts/measure-browser.mjs): the parsed model takes a fixed
 // amount of memory per entity, and a tab that runs out of memory is ended by the browser without a word, so the

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Times one model through the real page in headless Chromium and reports time to the result, the longest freeze of the
 // page, and the peak memory of the browser (all its processes, from ps). Files go to .scratch/ and are the caller's.
 // Usage: node scripts/measure-browser.mjs <model.ifc> <spec.ids> [timeout seconds]   (CHROMIUM_PATH for an installed browser)

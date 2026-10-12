@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A name for a specification, worked out from what it says ("Walls have a fire rating"). A specification made by this
 // page carries `autoName` while its name is the one worked out here; the name then follows the content, and stops
 // following it the moment the person types a name of their own.

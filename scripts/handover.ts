@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The hand-over, counted over every pass-/fail- pair of the official test cases: the CSV of failing elements holds one
 // row per failing element the run counted, per specification; the groups by reason hold every element exactly once;
 // and the report holds the same elements. Also says how many specifications fail as a whole, with no element to list.

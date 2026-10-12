@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Runs every pass-/fail- pair of the official test cases and writes the results (without the time) as one JSON file,
 // so that two versions of the code can be compared result by result.
 // Usage: npx vite-node scripts/snapshot-results.ts <TestCases dir> <out.json>

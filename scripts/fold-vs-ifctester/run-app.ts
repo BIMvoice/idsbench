@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Writes the IDS files of the comparison with IfcTester (one per model of make-models.py, in the same directory) and the
 // answers of the page and of the unguarded library (app.json). See compare.py.
 import { readFileSync, writeFileSync } from 'node:fs';

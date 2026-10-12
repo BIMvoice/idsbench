@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Compares two files made by snapshot-results.ts, result by result (the fields added since the first version are ignored).
 // Usage: node scripts/compare-results.mjs <a.json> <b.json>
 import fs from 'node:fs';

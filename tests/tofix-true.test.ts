@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // "What to fix" is read by the person who models, who does what it says and sends the model back. The instruction has
 // to be true: doing it makes the element pass. Each case here fails a model, builds the model the instruction describes,
 // and runs it again. An instruction that leaves out the value asked for ("Add the property FireRating", when the

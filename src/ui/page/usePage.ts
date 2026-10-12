@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The one state of the page: the IDS document, the model, the check of the document and the run against the model.
 //
 // Two rules hold everywhere and are enforced here, not in the components:

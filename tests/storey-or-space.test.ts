@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The column "Storey or space" of the CSV tells the person who models where to look. It names the storey or the space
 // the model puts the element in, through each way a model can say so, and is empty when the model does not say: the
 // name of a curtain wall or of a stair is not a storey.

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // "This IDS in words": a short sentence per specification. It is small on purpose. When a specification is
 // outside what it can say truthfully, it lists the parts neutrally instead of guessing.
 import { specChoice, type Facet, type Specification, type Value } from './model';

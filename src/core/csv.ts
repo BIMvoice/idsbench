@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The hand-over for the people who model: every failing element of a result as one CSV file that Excel opens correctly.
 import type { FailingElement, RunResult, SpecRow } from './types';
 

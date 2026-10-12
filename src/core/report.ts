@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // "Download report": the check of the IDS file and, when a model was run, its result, as one JSON document.
 import type { CheckView } from './checkview';
 import { reportParts } from './format';

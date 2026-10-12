@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Serves the built demo from a local gzip-enabled server, opens it in headless Chromium with every request that
 // is not to that server blocked, and prints the result and the transferred sizes.
 // usage: node demo/run-playwright.mjs   (after `npx vite build --config demo/vite.config.ts`)

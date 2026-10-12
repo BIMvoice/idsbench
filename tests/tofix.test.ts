@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The modeller's CSV says what is wrong and what to do: a "What to fix" column built from the requirement and the
 // reason, the requirement in words, and the storey or space the model puts the element in.
 import fs from 'node:fs';

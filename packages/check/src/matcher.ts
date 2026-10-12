@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A "value" in an IDS facet is either a <simpleValue> or an <xs:restriction>. This module models both and
 // answers "which of these candidate strings can the value match?", which is how the audit tool tells that a
 // facet can never match anything in the stated IFC version.

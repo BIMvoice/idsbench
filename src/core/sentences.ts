@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Each specification of an IDS file in words, for the CSV a coordinator sends to the people who model: the column
 // "Requirement" says what was asked, in the same sentence the page shows beside the specification.
 import type { IfcVersion, SchemaData } from '@idsbench/check/ifc';

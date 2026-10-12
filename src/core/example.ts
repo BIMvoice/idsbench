@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A small IDS file and a small model that ship inside the app, for a first visit without files of one's own.
 // Three specifications, chosen so that the result shows three states: Fail, Pass and Nothing to check.
 export const EXAMPLE_IDS_NAME = 'example-requirements.ids';

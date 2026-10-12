@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Runs the official buildingSMART ids-tool over every corpus file and records its verdict.
 // usage: node scripts/run-reference.mjs <path-to-ids-tool> <out.json> [corpus-dir]
 // Needs a .NET runtime able to run the tool (set DOTNET_ROOT / DOTNET_ROLL_FORWARD=Major if only a newer one is installed).

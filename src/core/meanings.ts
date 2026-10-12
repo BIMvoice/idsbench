@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // An AID FOR SEARCHING, NOT THE STANDARD. People look for a property or an attribute by what it is for ("room
 // number", "fire resistance", "U value"), and the IFC names do not say. This is a short, hand-written table of search
 // words and a one-line plain meaning for the names people ask for most. The IFC tables the Check engine ships carry no

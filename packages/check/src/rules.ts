@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Rules beyond the XSD. Logic ported from the buildingSMART IDS-Audit-tool (MIT, C#); see README for the
 // rule-by-rule table. Every rule has a stable code. A facet that fails its own checks is "invalid" and
 // takes no part in the cross-facet type-coherence rule (as in the tool).

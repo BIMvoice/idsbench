@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Guard rails, not a validator: the things a form can stop as the user types without knowing the IFC tables.
 // "error" means the schema or the Check engine reports it as an error and Download is switched off, so the
 // writer never hands Check a file Check would reject (tests/writer-accepted-by-check.test.ts pins each rule

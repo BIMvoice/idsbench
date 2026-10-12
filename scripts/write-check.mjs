@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Drives writing and editing an IDS file on the one page, in headless Chromium with the network blocked.
 // scripts/ASSERTIONS.md lists every assertion and what became of those of the tabbed app.
 // Usage: node scripts/write-check.mjs <clone of buildingSMART/IDS> <ids.xsd with local imports> [screenshot dir]

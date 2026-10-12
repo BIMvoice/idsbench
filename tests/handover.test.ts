@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What leaves the page: the CSV for the people who model, the report, and the draft that survives a reload.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { decodeXml, NOT_UTF8, readForCheck } from '../src/core/checkview';

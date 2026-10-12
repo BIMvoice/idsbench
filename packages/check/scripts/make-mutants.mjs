@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Builds extra, deterministic test files from the valid corpus files: one with a different ifcVersion and one with a
 // single content mutation. Used to compare checkIds with the official tool on files neither was tuned on.
 // usage: node scripts/make-mutants.mjs <out-dir>     (writes <out-dir>/NNN.ids and manifest.json)

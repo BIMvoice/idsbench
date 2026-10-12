@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The app's own sentence for why an element failed one requirement, and what to do about it. The Check library gives a
 // reason in its words; two of them mislead people who model ("does not exist" for an attribute that is there and empty,
 // "Property set not found" without saying which property was needed), so they are put right here, at the one place the

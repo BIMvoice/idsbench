@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The failing elements of one specification, grouped by why they failed, so that the same sentence is read once.
 import type { FailingElement } from './types';
 

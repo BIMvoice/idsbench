@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // What a specification leaves out of THIS model. IDS matches the exact IFC class ("There is no automatic inheritance in
 // IDS entity facet interpretation"), so a specification for IfcWall does not apply to an IfcWallStandardCase, and a model
 // whose walls are all IfcWallStandardCase reports "no element matches it". This works out, from the model's own class

@@ -1,3 +1,6 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
 # Writes the models of the comparison with IfcTester (see compare.py): per IFC version (IFC2X3, IFC4, IFC4X3_ADD2) three
 # models, "all" (the ten folded classes, their parents and a wall), "parents" (the parents and the wall) and "subs" (the ten
 # only), two elements of each class, the Name of one the class itself and the Name of the other "plain-" and the class.

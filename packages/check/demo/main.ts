@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Not part of the product: loads the module in a browser, checks one valid and one invalid file, prints the result.
 import { checkIds } from '../src/index.ts';
 

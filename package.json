@@ -27,7 +27,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && npm test -w @idsbench/check",
+    "test": "node scripts/check-headers.mjs && vitest run && npm test -w @idsbench/check",
+    "lint:headers": "node scripts/check-headers.mjs",
     "truth": "vite-node scripts/truth.ts",
     "check:browser": "node scripts/check-browser.mjs"
   },

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A fourth browser script: large models, the model kept between runs, a worker that goes silent or is ended, and
 // models too large to open. Headless Chromium against dist/, every request that is not to the local server blocked.
 // Generated models go to .scratch/scale-check/ and are deleted at the end (the two "too large" files are sparse: they

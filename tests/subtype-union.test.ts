@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A specification made by this page applies to a class and its subtypes in every IFC version it ticks. With several
 // versions ticked the list holds the subtypes of each of them (IfcDoorStandardCase is a class of IFC4 alone, and an IFC4
 // model is exactly where a list without it would pass over the doors). This feeds every class the form offers, for every

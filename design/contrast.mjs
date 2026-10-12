@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Prints the WCAG contrast ratio of every text and state colour pair, read from src/styles.css.
 // Usage: node design/contrast.mjs   (exits 1 if any pair is under its minimum)
 import fs from 'node:fs';

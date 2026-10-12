@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Layer 1: validate the document against the official IDS XSD with libxml2 compiled to WebAssembly
 // (npm: xmllint-wasm). All schema files are bundled (see schemas.generated.ts); nothing is fetched at runtime.
 import { validateXML } from 'xmllint-wasm';

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 export const NS = 'http://standards.buildingsmart.org/IDS';
 
 export function ids(specBody: string, opts: { ifc?: string; version?: string; appAttrs?: string } = {}): string {

@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // A model is checked one range of entities at a time. What a specification says of the model as a whole (it needs at
 // least one match, it allows none, it is optional) and what a requirement finds on other entities (a storey, a group, a
 // classification, a material, a type) must not depend on where the ranges are cut. Every case here is run whole and cut,
