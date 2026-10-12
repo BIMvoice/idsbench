@@ -252,13 +252,21 @@ export function placeFinder(accessor: Accessor, isPlace: (entityType: string) =>
  */
 type Tables = Awaited<ReturnType<typeof import('@idsbench/check/ifc').loadSchema>>;
 
-/** How many of the model's entities are elements of the building (things with a place in it: walls, doors, spaces), against all the records of the file; empty when the tables of the model's version cannot be had. */
-function elementsIn(store: LoadedModel['store'], tables: Tables | null): { elementCount?: number } {
+/**
+ * What the model holds that can be built or fitted (IfcElement and its subtypes: walls, doors, slabs, equipment), with the
+ * openings left out, because an opening is the hole in a wall and not a thing of its own; and, apart, the spaces. A site,
+ * a building, a storey and the other places are neither. Empty when the IFC tables of the model's version cannot be had.
+ */
+function elementsIn(store: LoadedModel['store'], tables: Tables | null): { elementCount?: number; spaceCount?: number } {
   const byType = store.entityIndex?.byType;
   if (!tables || !byType) return {};
-  let n = 0;
-  for (const [type, ids] of byType) if (tables.isA(type.toUpperCase(), 'IFCPRODUCT')) n += ids.length;
-  return { elementCount: n };
+  let elements = 0, spaces = 0;
+  for (const [type, ids] of byType) {
+    const u = type.toUpperCase();
+    if (tables.isA(u, 'IFCELEMENT') && !tables.isA(u, 'IFCFEATUREELEMENTSUBTRACTION')) elements += ids.length;
+    else if (tables.isA(u, 'IFCSPACE')) spaces += ids.length;
+  }
+  return { elementCount: elements, spaceCount: spaces };
 }
 
 /** The IFC tables of a model's version; null when the version is not one of the three, or they cannot be had. */

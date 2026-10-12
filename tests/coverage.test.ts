@@ -100,9 +100,22 @@ describe('coverageOf, on its own', () => {
 });
 
 describe('the record counts what it counts', () => {
-  it('"records" are every entity of the file; "building elements" are the products among them (site, building, storey and the three walls)', async () => {
+  it('"records" are every entity of the file; the physical elements are the walls (the site, the building and the storey are places, not elements)', async () => {
     const r = await runText(idsText(specXml('S', 'IFCWALL', 'minOccurs="0" maxOccurs="unbounded"', nameIs('x'), 'IFC2X3')), standardCase);
     expect(r.entityCount).toBe(16);
-    expect(r.elementCount).toBe(6);
+    expect(r.elementCount).toBe(3);
+    expect(r.spaceCount).toBe(0);
+  });
+
+  it('a model with walls, doors, spaces, openings and places: the elements are IfcElement and its subtypes without the openings, the spaces are counted apart, and no place is either', async () => {
+    const body = (cls: string, n: number, from: number) => Array.from({ length: n }, (_, i) => line(from + i, cls, `${cls}${i}`)).join('');
+    const model = ifcText(
+      body('IFCWALL', 14, 1) + body('IFCDOOR', 10, 20) + body('IFCWINDOW', 6, 40) + body('IFCSLAB', 6, 50) + body('IFCCOLUMN', 4, 60) + body('IFCBUILDINGELEMENTPROXY', 3, 70)
+      + body('IFCOPENINGELEMENT', 5, 80) + body('IFCSPACE', 8, 90) + body('IFCSITE', 1, 100) + body('IFCBUILDING', 1, 101) + body('IFCBUILDINGSTOREY', 1, 102),
+      'IFC4');
+    const r = await runText(idsText(specXml('S', 'IFCWALL', 'minOccurs="0" maxOccurs="unbounded"', nameIs('x'))), model);
+    expect(r.entityCount).toBe(43 + 5 + 8 + 3);
+    expect(r.elementCount).toBe(43);
+    expect(r.spaceCount).toBe(8);
   });
 });
