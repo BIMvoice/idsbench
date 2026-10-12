@@ -44,7 +44,10 @@ interface Base { uid: string }
 export interface EntityFacet extends Base, EntityRef { kind: 'entity'; instructions: string | null }
 export interface AttributeFacet extends Base { kind: 'attribute'; name: Value; value: Value | null; cardinality: Cardinality; instructions: string | null }
 export interface ClassificationFacet extends Base { kind: 'classification'; value: Value | null; system: Value; uri: string | null; cardinality: Cardinality; instructions: string | null }
-export interface PropertyFacet extends Base { kind: 'property'; propertySet: Value; baseName: Value; dataType: string | null; value: Value | null; uri: string | null; cardinality: Cardinality; instructions: string | null }
+export interface PropertyFacet extends Base {
+  kind: 'property'; propertySet: Value; baseName: Value; dataType: string | null; value: Value | null;
+  /** True while the data type is one the form wrote by itself, because a value was given (see withPropertyValue). Never written to the file. */
+  autoDataType?: true; uri: string | null; cardinality: Cardinality; instructions: string | null }
 export interface MaterialFacet extends Base { kind: 'material'; value: Value | null; uri: string | null; cardinality: Cardinality; instructions: string | null }
 export interface PartOfFacet extends Base { kind: 'partOf'; relation: string | null; entity: EntityRef; cardinality: Cardinality; instructions: string | null }
 export type Facet = EntityFacet | AttributeFacet | ClassificationFacet | PropertyFacet | MaterialFacet | PartOfFacet;
@@ -181,12 +184,26 @@ export function isValueGiven(v: Value | null): boolean {
 }
 
 /**
- * A property item given a value. IDS asks for a data type with a value ("if `value` is provided, it also requires
- * `dataType`"), and for none when the item only asks that the property exists, so the data type the standard states for
- * the property is written at the moment a value is added, and only if the item has none. A property the standard does
- * not know keeps what it has: the person is told, at the field, that a value needs a data type.
+ * A property item given a value, or with its value taken away. IDS asks for a data type with a value ("if `value` is
+ * provided, it also requires `dataType`"), and for none when the item only asks that the property exists. So the data
+ * type the standard states for the property is written at the moment a value is given, and only if the item has none;
+ * the item then carries `autoDataType`. When the value is taken away again, a data type that was written that way goes
+ * with it, so that adding a value and removing it leaves the item as it was. A data type that was in the opened file or
+ * that a person chose (chooseDataType) has no `autoDataType` and is never removed. A property the standard does not
+ * know keeps what it has: the person is told, at the field, that a value needs a data type.
  */
 export function withPropertyValue(f: PropertyFacet, value: Value | null, typeOf: (propertySet: string, baseName: string) => string | null): PropertyFacet {
-  if (!isValueGiven(value) || f.dataType || f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
-  return { ...f, value, dataType: typeOf(f.propertySet.value, f.baseName.value) };
+  const { autoDataType, ...rest } = f;
+  if (!isValueGiven(value)) return autoDataType ? { ...rest, value, dataType: null } : { ...f, value };
+  if (f.dataType && !autoDataType) return { ...f, value };
+  if (f.propertySet.kind !== 'simple' || f.baseName.kind !== 'simple') return { ...f, value };
+  // A data type written by the form follows the property: it is worked out again, so a property changed afterwards does not keep the old one.
+  const type = typeOf(f.propertySet.value, f.baseName.value);
+  return type ? { ...rest, value, dataType: type, autoDataType: true } : { ...rest, value, dataType: autoDataType ? null : f.dataType };
+}
+
+/** The data type a person typed or picked: it is theirs, so the form does not take it away with the value. Empty means none. */
+export function chooseDataType(f: PropertyFacet, dataType: string): PropertyFacet {
+  const { autoDataType: _auto, ...rest } = f;
+  return { ...rest, dataType: dataType === '' ? null : dataType };
 }

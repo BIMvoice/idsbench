@@ -81,8 +81,8 @@ describe('the data type appears when a value is added', () => {
     expect(withPropertyValue(p, simple(''), typeOf).dataType).toBeNull();
     expect(withPropertyValue({ ...p, dataType: 'IFCTEXT' }, simple('x'), typeOf).dataType).toBe('IFCTEXT');
     expect(withPropertyValue({ ...p, baseName: simple('MyOwn') }, simple('x'), typeOf).dataType).toBeNull();
-    // A value taken away leaves the data type that was written.
-    expect(withPropertyValue(withPropertyValue(p, simple('x'), typeOf), null, typeOf).dataType).toBe('IFCLABEL');
+    // A value taken away takes with it the data type that was written with it (tests/auto-datatype.test.ts).
+    expect(withPropertyValue(withPropertyValue(p, simple('x'), typeOf), null, typeOf).dataType).toBeNull();
   });
 
   it('the other starters are untouched, and none of them writes a data type', () => {

@@ -14,10 +14,13 @@ import { fromList, fromPattern } from '../src/core/ids/value';
 import { PATTERNS } from '../src/core/ids/patterns';
 import { listsFor, type Lists } from '../src/core/picks';
 
-const seen = vi.hoisted(() => ({ text: new Map<string, { onChange: (v: string) => void }>(), value: new Map<string, { onChange: (v: unknown) => void }>() }));
+const seen = vi.hoisted(() => ({ combo: new Map<string, { onChange: (v: string) => void }>(), text: new Map<string, { onChange: (v: string) => void }>(), value: new Map<string, { onChange: (v: unknown) => void }>() }));
 vi.mock('../src/ui/write/fields', async (original) => ({
   ...(await original<typeof import('../src/ui/write/fields')>()),
   TextField: (p: { dataKey?: string; onChange: (v: string) => void }) => { if (p.dataKey) seen.text.set(p.dataKey, p); return null; },
+}));
+vi.mock('../src/ui/write/Combo', () => ({
+  Combo: (p: { dataKey?: string; onChange: (v: string) => void }) => { if (p.dataKey) seen.combo.set(p.dataKey, p); return null; },
 }));
 vi.mock('../src/ui/write/ValueField', () => ({
   ValueField: (p: { dataKey?: string; onChange: (v: unknown) => void }) => { if (p.dataKey) seen.value.set(p.dataKey, p); return null; },
@@ -91,5 +94,24 @@ describe('choosing a standard property in the form', () => {
     fieldOf(property, 'baseName', (f) => got.push(f as PropertyFacet)).onChange(simple('FireRating'));
     expect(got[0].baseName).toEqual(simple('FireRating'));
     expect(got[0].dataType).toBeNull();
+  });
+});
+
+describe('the Data type field of a property in the form', () => {
+  it('a data type chosen there is the person\'s: the value taken away afterwards leaves it', () => {
+    const got: PropertyFacet[] = [];
+    const render = (facet: PropertyFacet) => {
+      renderToStaticMarkup(createElement(FacetFields, { facet, requirement: true, issues: [], onChange: (f) => got.push(f as PropertyFacet), lists, several: false, appliesTo: 'IFCWALL' }));
+    };
+    const property = starter().requirements[0] as PropertyFacet;
+    render(property);
+    (seen.value.get(`${property.uid}.value`)! as { onChange: (v: Value | null) => void }).onChange(simple('2HR'));
+    expect(got[0]).toMatchObject({ dataType: 'IFCLABEL', autoDataType: true });
+    render(got[0]);
+    seen.combo.get(`${property.uid}.dataType`)!.onChange('IFCLABEL');
+    expect(got[1].autoDataType).toBeUndefined();
+    render(got[1]);
+    (seen.value.get(`${property.uid}.value`)! as { onChange: (v: Value | null) => void }).onChange(null);
+    expect(got[2].dataType).toBe('IFCLABEL');
   });
 });

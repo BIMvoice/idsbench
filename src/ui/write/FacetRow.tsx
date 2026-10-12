@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { Combo } from './Combo';
 import { SelectField, TextField } from './fields';
 import { ValueField } from './ValueField';
-import { allowedCardinalities, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple, withPropertyValue } from '../../core/ids/model';
+import { allowedCardinalities, chooseDataType, type Cardinality, type Facet, type FacetKind, type Value, PARTOF_RELATIONS, simple, withPropertyValue } from '../../core/ids/model';
 import { baseForDataType, fromPattern, modeOf } from '../../core/ids/value';
 import type { Issue } from '../../core/ids/check';
 import { onlySomeNote, plainName, type Lists, type Option } from '../../core/picks';
@@ -114,7 +114,7 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
         {vf('Code', 'value', f.value, true, (v) => set({ value: v }))}
       </>}
       {f.kind === 'property' && <>
-        {vf('Property set', 'propertySet', f.propertySet, false, (v) => set({ propertySet: v ?? simple() }), { options: psets, extraOptions: psetsPartial, customNote: appliesTo || several ? 'A custom property set: not one the IFC standard defines for this class and the IFC versions ticked.' : 'A custom property set: it is not one the IFC standard defines.' })}
+        {vf('Property set', 'propertySet', f.propertySet, false, (v) => onChange(withPropertyValue({ ...f, propertySet: v ?? simple() }, f.value, (set_, name) => lists?.dataTypeFor(set_, name) ?? null)), { options: psets, extraOptions: psetsPartial, customNote: appliesTo || several ? 'A custom property set: not one the IFC standard defines for this class and the IFC versions ticked.' : 'A custom property set: it is not one the IFC standard defines.' })}
         {vf('Property', 'baseName', f.baseName, false, (v) => {
           // Choosing a property writes no data type: a requirement that only asks for the property to exist has none. The standard's
           // data type is written when a value is given, which includes a value that is already there.
@@ -127,7 +127,7 @@ export function FacetFields({ facet: f, requirement, issues, onChange, lists, se
           </p>
         )}
         <Combo label="Data type" dataKey={`${f.uid}.dataType`} value={f.dataType ?? ''} options={dataTypes} hint="Needed when you give a value."
-          error={err('dataType')} advice={adv('dataType')} onChange={(v) => set({ dataType: v === '' ? null : v })} />
+          error={err('dataType')} advice={adv('dataType')} onChange={(v) => onChange(chooseDataType(f, v))} />
         {vf('Value', 'value', f.value, true, (v) => onChange(withPropertyValue(f, v, (set_, name) => lists?.dataTypeFor(set_, name) ?? null)), { base: baseForDataType(f.dataType ?? standardType) ?? 'xs:string' })}
       </>}
       {f.kind === 'material' && vf('Material', 'value', f.value, true, (v) => set({ value: v }))}
