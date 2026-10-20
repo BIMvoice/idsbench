@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Finding } from '@idsbench/check';
 import { chooseDropped, type DroppedKind } from '../../core/align';
-import { checkText, readForCheck, type CheckView } from '../../core/checkview';
+import { checkText, readForCheck, startCheck, type Checked, type CheckView } from '../../core/checkview';
 import { keepSource, sameContent, wholeLoss, writeKept, type Kept, type LostPart } from '../../core/ids/keep';
 import { leftOutSentence, sayLost, type LeftOut, type LostItem } from '../../core/ids/lost';
 import { AppError, UNEXPECTED } from '../../core/errors';
@@ -50,7 +50,6 @@ export interface Source {
   /** Set when the file is in another encoding than UTF-8: its name. A changed file is saved as UTF-8. */
   encoding: string | null;
 }
-type Checked = { text: string; view: CheckView } | { text: string; failed: string };
 type Ran = { text: string; model: File; nonce: number } & ({ outcome: RunOutcome } | { error: AppErrorInfo });
 export type Report = Extract<CheckView, { kind: 'report' }>;
 export interface Undo { doc: IdsDocument; label: string }
@@ -138,13 +137,9 @@ export function usePage() {
   checkedRef.current = checked;
   useEffect(() => {
     if (settled === null || checkedRef.current?.text === settled) return;
-    let live = true;
-    checkText(settled).then(
-      (view) => { if (live) setChecked({ text: settled, view }); },
-      // A check that did not answer (see CheckStalled) says so; anything else is unexpected. Both offer "Check again".
-      (e) => { console.error(e); if (live) setChecked({ text: settled, failed: e instanceof AppError ? e.message : UNEXPECTED }); },
-    );
-    return () => { live = false; };
+    // A check that is no longer wanted (the text changed, "Check again", the page went) is stopped, not only no longer
+    // listened to. A failed check says why and offers "Check again".
+    return startCheck(settled, setChecked);
   }, [settled, checkNonce]);
   const check = checked !== null && checked.text === text ? checked : null;
   const report: Report | null = check && 'view' in check && check.view.kind === 'report' ? check.view : null;

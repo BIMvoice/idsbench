@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import type { Finding } from '@idsbench/check';
-import { AppError } from './errors';
+import { AppError, UNEXPECTED } from './errors';
 
 /** How many finding rows the page lists. The downloaded report holds all of them. */
 export const ROW_CAP = 200;
@@ -173,21 +173,51 @@ export class CheckIncomplete extends AppError {
  * engine has not answered within checkAllowed of being loaded (an engine that answers later is not listened to), and CheckIncomplete
  * when the schema validator could not finish.
  */
-export async function checkText(xml: string): Promise<CheckView> {
+export async function checkText(xml: string, options: { signal?: AbortSignal } = {}): Promise<CheckView> {
+  const { signal } = options;
   const early = sentenceForText(xml);
   if (early) return { kind: 'sentence', text: early };
   // The time allowed is counted from when the engine is there: a slow download of it is not a check that stalled.
   const engine = await import('@idsbench/check');
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const stalled = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new CheckStalled()), checkAllowed(xml.length)); });
+  signal?.throwIfAborted();
+  // One stop for both ends of a check: the time allowed running out, and the caller no longer wanting it. Either ends
+  // the schema validator's Worker at once, so that a check given up on does not go on beside the next one.
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(new CheckStalled()), checkAllowed(xml.length));
+  const passOn = () => stop.abort(signal!.reason);
+  signal?.addEventListener('abort', passOn, { once: true });
+  const stopped = new Promise<never>((_, reject) => stop.signal.addEventListener('abort', () => reject(stop.signal.reason), { once: true }));
   try {
-    const result = await Promise.race([engine.checkIds(xml), stalled]).catch((e: unknown) => {
+    const result = await Promise.race([engine.checkIds(xml, { signal: stop.signal }), stopped]).catch((e: unknown) => {
       throw e instanceof engine.ValidatorFailed ? new CheckIncomplete(e.outOfMemory) : e;
     });
     return describeResult(xml, result);
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener('abort', passOn);
   }
+}
+
+/** The check of a text as the page keeps it: the engine's answer, or why there is none. */
+export type Checked = { text: string; view: CheckView } | { text: string; failed: string };
+
+/**
+ * Check `text` and hand what came of it to `done`, unless the returned function was called first: it stops the check
+ * (its validator's Worker is ended) and nothing is handed on. What the page calls when the text changes, when the page
+ * goes, and when "Check again" asks for a new check.
+ */
+export function startCheck(text: string, done: (c: Checked) => void): () => void {
+  const stop = new AbortController();
+  checkText(text, { signal: stop.signal }).then(
+    (view) => { if (!stop.signal.aborted) done({ text, view }); },
+    // A check that did not answer or could not finish (an AppError) says why; anything else is unexpected.
+    (e: unknown) => {
+      if (stop.signal.aborted) return;
+      console.error(e);
+      done({ text, failed: e instanceof AppError ? e.message : UNEXPECTED });
+    },
+  );
+  return () => stop.abort();
 }
 
 export const NOT_UTF8 =

@@ -23,6 +23,7 @@ function useFixes(page: Page): { fixes: Map<Finding, Fix[]>; ready: boolean } {
   useEffect(() => {
     if (!report || report.valid && report.warnings === 0 || !doc) return;
     let live = true;
+    const stop = new AbortController();
     void (async () => {
       const fixes = new Map<Finding, Fix[]>();
       let tried = 0;
@@ -32,7 +33,7 @@ function useFixes(page: Page): { fixes: Map<Finding, Fix[]>; ready: boolean } {
         if (candidates.length === 0 || tried++ >= FIX_TRIES) continue;
         const ok = await verifyFixes(f, candidates, doc, report.errors, async (d) => {
           // The engine judges the text this page would write for the changed document, not another rendering of it.
-          const view = await checkText(textOf(d));
+          const view = await checkText(textOf(d), { signal: stop.signal });
           return view.kind === 'report' ? view.findings : null;
         }).catch(() => []);
         if (!live) return;
@@ -40,7 +41,8 @@ function useFixes(page: Page): { fixes: Map<Finding, Fix[]>; ready: boolean } {
       }
       if (live) setFound({ report, fixes });
     })();
-    return () => { live = false; };
+    // The check being tried is stopped with the list it was for, so that it does not go on beside the next one.
+    return () => { live = false; stop.abort(); };
   }, [report, doc, targets, schema, textOf, asInFile, hasKept]);
   return found && found.report === report ? { fixes: found.fixes, ready: true } : { fixes: new Map(), ready: false };
 }

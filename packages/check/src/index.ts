@@ -18,8 +18,10 @@ export { declaredVersion, versionProblem, LOCATION_1_0 } from './version.ts';
  * Checks an IDS file (as text) against the official IDS schema and the additional rules of the buildingSMART
  * IDS audit tool. Runs entirely in the browser or in Node; makes no network calls. Throws ValidatorFailed when the
  * schema validator could not finish (it ran out of memory, most often): there is then no verdict on the file.
+ * `signal` stops the check: the validator's Worker is ended and the call rejects with the signal's reason.
  */
-export async function checkIds(input: string): Promise<CheckResult> {
+export async function checkIds(input: string, options: { signal?: AbortSignal } = {}): Promise<CheckResult> {
+  const { signal } = options;
   const xml = input.replace(/^\uFEFF/, ''); // a byte-order mark is allowed and ignored
   const findings: Finding[] = [];
   const finish = (idsVersion?: string): CheckResult => {
@@ -30,7 +32,7 @@ export async function checkIds(input: string): Promise<CheckResult> {
   const parsed = parseTree(xml);
   if (!parsed.root) {
     // Let libxml2 describe the parse problem (it reports line and column precisely).
-    const out = await validateAgainstXsd(xml);
+    const out = await validateAgainstXsd(xml, undefined, { signal });
     const wf = out.findings.filter((f) => f.code === 'xml-not-well-formed');
     findings.push(
       ...(wf.length ? wf : [{ severity: 'error' as const, code: 'xml-not-well-formed', message: `The file is not well-formed XML: ${parsed.error ?? 'no content'}.` }]),
@@ -57,7 +59,8 @@ export async function checkIds(input: string): Promise<CheckResult> {
   }
   const version = '1.0';
 
-  const xsd = await validateAgainstXsd(xml, root);
+  const xsd = await validateAgainstXsd(xml, root, { signal });
+  signal?.throwIfAborted();
   findings.push(...xsd.findings);
   if (xsd.notWellFormed) return finish(version);
 

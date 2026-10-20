@@ -55,14 +55,46 @@ const OUT_OF_MEMORY = /out of memory|\bOOM\b|cannot enlarge memory|allocation fa
 export interface XsdOptions {
   /** The memory ceiling, in WebAssembly pages; by default memoryPagesFor the document. */
   maxMemoryPages?: number;
+  /** Stops the validation: its Worker is ended at once and the call rejects with the signal's reason. */
+  signal?: AbortSignal;
 }
 
-/** Throws ValidatorFailed when the validator could not finish. */
+type Validation = ReturnType<typeof validateXML>;
+
+/**
+ * validateXML, with its Worker ended when `signal` aborts. xmllint-wasm starts a Worker for each call and ends it only
+ * when the call settles, so a validation the page no longer waits for (given up, or replaced by a newer check) would
+ * go on working, and holding its memory, beside the next one. The Worker is made synchronously inside validateXML, so
+ * it is caught by putting a subclass in place of the global Worker for the length of that one synchronous call. In
+ * Node, where xmllint-wasm takes its Worker from worker_threads, there is nothing to catch: the call still rejects at
+ * once, and the Worker ends when it is done.
+ */
+function validateStoppable(options: Parameters<typeof validateXML>[0], signal?: AbortSignal): Validation {
+  if (!signal) return validateXML(options);
+  signal.throwIfAborted();
+  const scope = globalThis as { Worker?: typeof Worker };
+  const Original = scope.Worker;
+  let started: { terminate(): void } | undefined;
+  if (Original) {
+    scope.Worker = class extends Original {
+      constructor(...args: ConstructorParameters<typeof Worker>) { super(...args); started = this; }
+    };
+  }
+  let running: Validation;
+  try { running = validateXML(options); } finally { if (Original) scope.Worker = Original; }
+  return new Promise((resolve, reject) => {
+    const stop = () => { started?.terminate(); reject(signal.reason); };
+    signal.addEventListener('abort', stop, { once: true });
+    running.then(resolve, reject).finally(() => signal.removeEventListener('abort', stop));
+  });
+}
+
+/** Throws ValidatorFailed when the validator could not finish, and the signal's reason when it was stopped. */
 export async function validateAgainstXsd(xml: string, tree?: XNode, options: XsdOptions = {}): Promise<XsdOutcome> {
   const schema = localise(ids10);
   let raw: string;
   try {
-    const res = await validateXML({
+    const res = await validateStoppable({
       xml: [{ fileName: 'document.xml', contents: xml }],
       schema: [{ fileName: 'ids.xsd', contents: schema }],
       preload: [
@@ -72,9 +104,10 @@ export async function validateAgainstXsd(xml: string, tree?: XNode, options: Xsd
       ],
       initialMemoryPages: memoryPages.defaultInitialMemoryPages,
       maxMemoryPages: options.maxMemoryPages ?? memoryPagesFor(xml.length),
-    });
+    }, options.signal);
     raw = res.rawOutput;
   } catch (e) {
+    if (options.signal?.aborted) throw options.signal.reason;
     // xmllint ended with another exit code than valid (0) or not valid (3, 4). 9 is its code for "out of memory": its
     // message is then sometimes only a piece of the file, because there was no memory left to write the sentence. In a
     // browser a Worker that failed hands over an ErrorEvent, whose message says what happened.
