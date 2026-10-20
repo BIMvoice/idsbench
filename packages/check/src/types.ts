@@ -11,6 +11,11 @@ export type Finding = {
   column?: number;
   /** Position of the element in the document, for example `ids/specifications/specification[2]/applicability/entity/name`. */
   path?: string;
+  /**
+   * Set when the schema check could not say which element the finding is about (it gives only a line, and that line
+   * does not tell): why it is not placed. `line` and `path` are then absent, so the finding is about the file.
+   */
+  unplaced?: string;
 };
 
 export type CheckResult = {

@@ -164,16 +164,26 @@ function plainList(s: string): string {
 export function interpret(raw: string, tree?: XNode): XsdOutcome {
   const lines = raw.split('\n');
   const findings: Finding[] = [];
+  /** The line libxml2 gave each schema finding (a finding it cannot place has none of its own). */
+  const reportedAt = new Map<Finding, number>();
   let notWellFormed = false;
-  // For each line, its first element and its first element of each name: what a finding at that line is placed on.
+  // For each line, its first element and its elements of each name (the first, and how many): what a finding at that
+  // line is placed on. And for each name, the first element of it in the file and how many there are.
   const byLine = new Map<number, OnLine>();
+  const byName = new Map<string, Counted>();
+  const count = (m: Map<string, Counted>, n: XNode) => {
+    const c = m.get(n.name);
+    if (c) c.count++; else m.set(n.name, { node: n, count: 1 });
+  };
   if (tree) {
     walk(tree, (n) => {
-      const at = byLine.get(n.line);
-      if (!at) byLine.set(n.line, { first: n, named: new Map([[n.name, n]]) });
-      else if (!at.named.has(n.name)) at.named.set(n.name, n);
+      let at = byLine.get(n.line);
+      if (!at) byLine.set(n.line, (at = { first: n, named: new Map() }));
+      count(at.named, n);
+      count(byName, n);
     });
   }
+  const index: Index = { byLine, byName };
 
   for (let i = 0; i < lines.length; i++) {
     const m = /^[^:]+:(\d+): (parser error|Schemas validity error|Schemas parser error|Schemas parser warning|[a-z ]+error) : (.*)$/.exec(lines[i]);
@@ -199,33 +209,67 @@ export function interpret(raw: string, tree?: XNode): XsdOutcome {
       findings.push({ severity: 'error', code: 'xsd-other', message: `The schema check reported: ${text}`, line });
       continue;
     }
-    findings.push(mapValidity(text, line, byLine));
+    const f = mapValidity(text, line, index);
+    reportedAt.set(f, line);
+    findings.push(f);
   }
   // The attribute list type repeats the enumeration error just above it: it goes when another invalid-value finding is
-  // on its line. Counted once per line, not looked for once per finding, which took seconds for 80,000 findings.
+  // on the line libxml2 gave it. Counted once per line, not looked for once per finding, which took seconds for 80,000
+  // findings.
+  const at = (f: Finding) => reportedAt.get(f) ?? f.line;
   const invalidValues = new Map<number | undefined, number>();
-  for (const f of findings) if (f.code === 'xsd-invalid-value') invalidValues.set(f.line, (invalidValues.get(f.line) ?? 0) + 1);
+  for (const f of findings) if (f.code === 'xsd-invalid-value') invalidValues.set(at(f), (invalidValues.get(at(f)) ?? 0) + 1);
   const dedup = findings.filter(
-    (f) => !(f.message.includes('is not a valid value of the local list type') && (invalidValues.get(f.line) ?? 0) - (f.code === 'xsd-invalid-value' ? 1 : 0) > 0),
+    (f) => !(f.message.includes('is not a valid value of the local list type') && (invalidValues.get(at(f)) ?? 0) - (f.code === 'xsd-invalid-value' ? 1 : 0) > 0),
   );
   return { notWellFormed, findings: dedup };
 }
 
-interface OnLine { first: XNode; named: Map<string, XNode> }
+interface Counted { node: XNode; count: number }
+interface OnLine { first: XNode; named: Map<string, Counted> }
+interface Index { byLine: Map<number, OnLine>; byName: Map<string, Counted> }
 
-function mapValidity(text: string, line: number, byLine: Map<number, OnLine>): Finding {
+/**
+ * libxml2 keeps the line of an element in 16 bits: from line 65,535 on, the line it gives for a schema error is not the
+ * element's (65,535 itself, or the line of a text node near it), and a line there may belong to the next specification.
+ */
+const FIRST_UNSURE_LINE = 65_535;
+const FAR_IN_FILE =
+  'The schema check cannot say where in the file this is: past line 65,534 the line numbers it gives are not reliable.';
+const SAME_LINE = (line: number, name: string) =>
+  `The schema check gives only the line, and line ${line} holds more than one <${name}>, so which one it is cannot be said.`;
+
+/**
+ * The element a schema error at `line` is about. libxml2 gives only the line, so it is the element of that name on that
+ * line, or the only one of that name in the file. When neither says which element it is (several of that name on the
+ * line, as in a file written on one line, or a line libxml2 cannot count), the finding is not placed on any element or
+ * line, and its `unplaced` says why: placing it on a guess would point at the wrong specification.
+ */
+function locate(elementName: string | undefined, line: number, index: Index): { node?: XNode; line?: number; unsure?: string } {
+  const only = elementName ? index.byName.get(elementName) : undefined;
+  if (only?.count === 1) return { node: only.node, line: line < FIRST_UNSURE_LINE ? line : only.node.line };
+  if (line >= FIRST_UNSURE_LINE) return { unsure: FAR_IN_FILE };
+  if (!elementName) return { line };
+  const at = index.byLine.get(line);
+  if (!at) return { line };
+  const named = at.named.get(elementName);
+  if (named && named.count > 1) return { unsure: SAME_LINE(line, elementName) };
+  return { node: named?.node ?? at.first, line };
+}
+
+function mapValidity(text: string, reported: number, index: Index): Finding {
   const el = /^Element '([^']+)'(?:, attribute '([^']+)')?: (.*)$/.exec(text);
   const elementName = el ? localName(el[1]) : undefined;
   const attrName = el?.[2];
   const rest = el ? el[3] : text;
-  const at = byLine.get(line);
-  const node = elementName && at ? at.named.get(elementName) ?? at.first : undefined;
+  const { node, line, unsure } = locate(elementName, reported, index);
   const where = (f: Omit<Finding, 'line' | 'column' | 'path' | 'severity'>): Finding => ({
     severity: 'error',
     ...f,
     line,
     column: node?.column || undefined,
     path: node ? pathOf(node) : undefined,
+    ...(unsure ? { unplaced: unsure } : {}),
   });
   let m: RegExpExecArray | null;
   if ((m = /^This element is not expected\. Expected is (?:one of )?(\(.*\))\.?$/.exec(rest))) {

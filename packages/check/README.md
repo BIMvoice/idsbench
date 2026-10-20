@@ -8,12 +8,15 @@ import { checkIds } from '@idsbench/check';
 
 const result = await checkIds(xmlText);
 // { valid: boolean, idsVersion?: string, findings: Finding[] }
-// Finding = { severity: 'error' | 'warning', code, message, line?, column?, path? }
+// Finding = { severity: 'error' | 'warning', code, message, line?, column?, path?, unplaced? }
 ```
 
 `valid` is `false` as soon as one finding has severity `error`. `message` is one plain sentence saying what is wrong and
 what is expected. `line`/`column` point into the input (1-based). `path` names the element, for example
-`ids/specifications/specification/applicability/entity/name`. `code` is a stable identifier (list below).
+`ids/specifications/specification/applicability/entity/name`. `code` is a stable identifier (list below). `unplaced`
+is set on a schema finding whose element cannot be told (libxml2 gives only a line: past line 65,534 that line is not
+reliable, and a line may hold several elements of the name, as in a file written on one line); it says why, and `line`
+and `path` are then absent.
 
 ## Two layers
 
@@ -57,7 +60,7 @@ empty stand-in (libxml2 handles `xsi:` natively).
 | Size | `xmllint.wasm` 779 KB raw, 272 KB gzip; worker script 26 KB raw, 10 KB gzip |
 | Worker | yes: it starts a module `Worker` per call (`new Worker(new URL('./xmllint-browser.mjs', import.meta.url))`), so the bundler must be able to emit that URL (Vite does; exclude the package from dependency pre-bundling, see `demo/vite.config.ts`) |
 | Offline imports | yes, from memory via `preload` |
-| Position info | line only (no column); the column is looked up from our own element tree |
+| Position info | line only (no column), not reliable from line 65,535 on; the element, and its column, are looked up from our own element tree by the line and the element's name |
 | Cost | the 38 documents of `test/rules.test.ts` take 1.8 s in Node, so roughly 50 ms per call |
 
 ## Bundle impact (gzip, measured with `npm run demo:build`)

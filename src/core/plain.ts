@@ -212,9 +212,11 @@ export function codeCoverage(): { total: number; translated: number; fallback: s
 }
 
 /** The finding in the user's terms, with the engine's sentence kept beside it. */
-export function plainFinding(f: Pick<Finding, 'code' | 'message'>): Plain {
+export function plainFinding(f: Pick<Finding, 'code' | 'message' | 'unplaced'>): Plain {
   const rule = RULES[f.code];
   let plain: string | null = null;
   try { plain = rule ? rule(f.message, f as Finding) : null; } catch { plain = null; }
-  return plain ? { plain, technical: f.message, translated: true } : { plain: f.message, technical: f.message, translated: false };
+  // Why the finding is not placed on a specification is said with it, in either words.
+  const why = f.unplaced ? ` ${f.unplaced}` : '';
+  return plain ? { plain: plain + why, technical: f.message + why, translated: true } : { plain: f.message + why, technical: f.message + why, translated: false };
 }
