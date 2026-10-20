@@ -198,9 +198,12 @@ export function interpret(raw: string, tree?: XNode): XsdOutcome {
     }
     findings.push(mapValidity(text, line, byLine));
   }
-  // The attribute list type repeats the enumeration error just above it.
+  // The attribute list type repeats the enumeration error just above it: it goes when another invalid-value finding is
+  // on its line. Counted once per line, not looked for once per finding, which took seconds for 80,000 findings.
+  const invalidValues = new Map<number | undefined, number>();
+  for (const f of findings) if (f.code === 'xsd-invalid-value') invalidValues.set(f.line, (invalidValues.get(f.line) ?? 0) + 1);
   const dedup = findings.filter(
-    (f, idx) => !(f.message.includes('is not a valid value of the local list type') && findings.some((g, j) => j !== idx && g.line === f.line && g.code === 'xsd-invalid-value')),
+    (f) => !(f.message.includes('is not a valid value of the local list type') && (invalidValues.get(f.line) ?? 0) - (f.code === 'xsd-invalid-value' ? 1 : 0) > 0),
   );
   return { notWellFormed, findings: dedup };
 }
