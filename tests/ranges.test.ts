@@ -44,10 +44,10 @@ describe('the result does not depend on how the model is cut into ranges', () =>
     const whole = await run(ids(...specs), body);
     const cut = await run(ids(...specs), body, 2);
     expect(strip(cut)).toEqual(strip(whole));
-    // The cases are real ones: failing elements, a prohibited specification that matches, one that fails by its count, one that matches nothing.
+    // The cases are real ones: failing elements, a prohibited specification that matches, one that matches nothing, two whose number of matches IDS 1.0 does not have.
     expect(whole.specs.map((s) => [s.name, s.state, s.failureTotal])).toEqual([
-      ['walls named Waldo', 'fail', 6], ['all pass', 'pass', 0], ['at most two doors', 'fail', 0], ['no doors', 'fail', 3],
-      ['at least one window', 'fail', 0], ['optional windows', 'nothing', 0], ['exactly four walls named Waldo or not', 'fail', 0],
+      ['walls named Waldo', 'fail', 6], ['all pass', 'pass', 0], ['at most two doors', 'unchecked', 0], ['no doors', 'fail', 3],
+      ['at least one window', 'fail', 0], ['optional windows', 'nothing', 0], ['exactly four walls named Waldo or not', 'unchecked', 0],
     ]);
   });
   it('gives the same downloads', async () => {

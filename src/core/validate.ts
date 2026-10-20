@@ -8,7 +8,7 @@ import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { AppError, mapError } from './errors';
 import { checkIdsDocument, precheckIdsText } from './idsfile';
 import { inspectIfc } from './ifcfile';
-import { assembleReport, hasNoApplicability, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
+import { assembleReport, hasIdsOccurs, hasNoApplicability, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
 import type { RunResult } from './types';
 import { coverageOf, namedByLibrarySpec, tableVersion } from './coverage';
 import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, withheldSentence } from './foldguard';
@@ -159,7 +159,8 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const withheld = effects.map((e) => (e && !e.correctable ? withheldSentence(e.classes) : undefined));
     const declared = new Set(effects.flatMap((e, i) => (e?.correctable ? [i] : [])));
     const accs = doc.specifications.map((s, i) => new SpecAccumulator<IDSRequirementResult>(s, (r) => translator.describeFailure(r), loaded.schema, { ...options, place, ...(sentences?.[i] ? { sentence: sentences[i]! } : {}), ...(withheld[i] ? { withheld: withheld[i] } : {}) }));
-    const indexed = doc.specifications.map((s, i) => ({ s, i })).filter(({ s, i }) => !hasNoApplicability(s) && !withheld[i]);
+    // A number of matching elements IDS 1.0 does not have is not run either (see hasIdsOccurs): its row is "Not checked".
+    const indexed = doc.specifications.map((s, i) => ({ s, i })).filter(({ s, i }) => !hasNoApplicability(s) && hasIdsOccurs(s) && !withheld[i]);
     // The model is checked one range of express ids at a time, each with its own accessor and its own results, which are
     // let go of before the next range: a model with millions of applicable elements never has all their results (or all
     // the values read from them) in memory at once. A model of ordinary size is one range, as if there were no ranges.

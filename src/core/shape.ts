@@ -75,6 +75,22 @@ export function hasNoApplicability(spec: SpecResult['specification']): boolean {
   return spec.applicability !== undefined && spec.applicability.facets.length === 0;
 }
 
+/**
+ * True when the specification allows one of the three numbers of matching elements IDS 1.0 has: at least one
+ * (minOccurs 1, maxOccurs unbounded), any (0, unbounded) or none (0, 0). A missing minOccurs is read as 1 by the library.
+ * Any other number is not allowed by the standard ("Other configurations of minOccurs and maxOccurs are currently not
+ * allowed", developer guide), and the library and IfcTester read it differently (the library fails "at most 2" for 3
+ * matches; IfcTester looks only at whether each is 0), so such a specification gets no result.
+ */
+export function hasIdsOccurs(spec: SpecResult['specification']): boolean {
+  const min = spec.minOccurs ?? 1;
+  const max = spec.maxOccurs ?? 'unbounded';
+  return max === 'unbounded' ? min === 0 || min === 1 : max === 0 && min === 0;
+}
+
+export const OCCURS_NOT_IDS =
+  'This specification was not checked: it allows a number of matching elements that IDS 1.0 does not have. IDS allows only three choices: at least one, any number including none, or none. Choose one of them in the IDS file.';
+
 export const NO_APPLICABILITY =
   'This specification does not say which elements it applies to, so it was not checked. Add an applicability to it in the IDS file.';
 const NOT_CHECKED = 'This specification could not be checked, so it has no result.';
@@ -251,6 +267,7 @@ export class SpecAccumulator<R extends { status: string }> {
     const raw = { specification: spec } as SpecResult;
     const no = (note: string) => ({ row: unchecked(raw, kind, note, modelSchema), spilled: null });
     if (hasNoApplicability(spec)) return no(NO_APPLICABILITY);
+    if (!hasIdsOccurs(spec)) return no(OCCURS_NOT_IDS);
     if (this.options.withheld) return { row: { ...unchecked(raw, kind, this.options.withheld, modelSchema), withheld: this.options.withheld, ...(this.options.sentence ? { requirement: this.options.sentence } : {}) }, spilled: null };
     if (this.error) return no(/pattern|regex/i.test(this.error) ? PATTERN_REJECTED : NOT_CHECKED);
     // One part of the model: the library's own cardinality and status. Several: the same rules over the added-up counts.
@@ -294,17 +311,8 @@ export class SpecAccumulator<R extends { status: string }> {
         if (state === 'fail') { note = 'This specification needs at least one matching element, and the model has none.'; wholeFailure = note; wholeFix = 'Add the elements this specification applies to, or change the specification'; }
         else note = 'This specification is optional and no element in this model matches it, so there was nothing to check. If you expected matches, look at how the IDS file names the elements.';
       } else {
+        // A specification with matches cannot fail by their number: it allows at least one or any (see hasIdsOccurs).
         summary = `Applied to ${plural(applicable, 'element')}: ${passed.toLocaleString('en')} passed, ${failed.toLocaleString('en')} failed.`;
-        if (cardinalityFailed) {
-          const { minOccurs: min, maxOccurs: max } = spec;
-          const allowed =
-            typeof max === 'number' && applicable > max
-              ? `at most ${max.toLocaleString('en')}`
-              : `at least ${(min ?? 1).toLocaleString('en')}`;
-          note = `This specification allows ${allowed} matching ${allowed.endsWith(' 1') ? 'element' : 'elements'}, and the model has ${applicable.toLocaleString('en')}.`;
-          wholeFailure = note;
-          wholeFix = 'Change the number of matching elements in the model, or change the specification';
-        }
       }
     }
 

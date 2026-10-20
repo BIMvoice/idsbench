@@ -76,13 +76,16 @@ describe('shapeSpec: the table of states', () => {
     );
     expect(r.failures[0].reasons).toEqual(['This element must not be in the model.']);
   });
-  it('more matches than maxOccurs allows: fail with the two numbers in words', () => {
-    const r = shapeSpec(
-      spec({ specification: { ...optional, maxOccurs: 1 }, status: 'fail', cardinalityResult: { passed: false, message: 'Expected at most 1, found 2' }, entityResults: [entity(1, true), entity(2, true)] }),
-      describeFn,
-    );
-    expect(r.state).toBe('fail');
-    expect(r.note).toBe('This specification allows at most 1 matching element, and the model has 2.');
+  it('a number of matching elements IDS 1.0 does not have: "unchecked", whatever the library reports for it', () => {
+    for (const specification of [{ ...optional, maxOccurs: 1 }, { ...optional, minOccurs: 2, maxOccurs: 'unbounded' as const }, { ...prohibited, minOccurs: 1 }]) {
+      const r = shapeSpec(
+        spec({ specification, status: 'fail', cardinalityResult: { passed: false, message: 'Expected at most 1, found 2' }, entityResults: [entity(1, true), entity(2, true)] }),
+        describeFn,
+      );
+      expect(r.state).toBe('unchecked');
+      expect(r.note).toMatch(/^This specification was not checked: it allows a number of matching elements that IDS 1.0 does not have\./);
+      expect(r.wholeFailure).toBeUndefined();
+    }
   });
   it('a specification the library could not evaluate is "unchecked", and the library wording is not shown', () => {
     const r = shapeSpec(
