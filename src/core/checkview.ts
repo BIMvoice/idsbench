@@ -170,16 +170,17 @@ export class CheckIncomplete extends AppError {
  * it there; it is left for when a real file needs it.
  *
  * Check the text with the engine, loaded on first use so the first paint never pays for it. Throws CheckStalled when the
- * engine has not answered within checkAllowed (an engine that answers later is not listened to), and CheckIncomplete
+ * engine has not answered within checkAllowed of being loaded (an engine that answers later is not listened to), and CheckIncomplete
  * when the schema validator could not finish.
  */
 export async function checkText(xml: string): Promise<CheckView> {
   const early = sentenceForText(xml);
   if (early) return { kind: 'sentence', text: early };
+  // The time allowed is counted from when the engine is there: a slow download of it is not a check that stalled.
+  const engine = await import('@idsbench/check');
   let timer: ReturnType<typeof setTimeout> | undefined;
   const stalled = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new CheckStalled()), checkAllowed(xml.length)); });
   try {
-    const engine = await Promise.race([import('@idsbench/check'), stalled]);
     const result = await Promise.race([engine.checkIds(xml), stalled]).catch((e: unknown) => {
       throw e instanceof engine.ValidatorFailed ? new CheckIncomplete(e.outOfMemory) : e;
     });
