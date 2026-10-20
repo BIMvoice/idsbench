@@ -289,7 +289,7 @@ describe('the section on the page', () => {
   it('while the earlier delivery runs, and when it cannot be read', () => {
     const working = renderToStaticMarkup(createElement(Compare, { comparison: null, earlierBytes: null, laterBytes: null, working: true, error: null, onDownload: () => {}, onRunAgain: () => {} }));
     expect(working).toContain('Checking the earlier delivery');
-    const failed = renderToStaticMarkup(createElement(Compare, { comparison: null, earlierBytes: null, laterBytes: null, working: false, error: 'The file is zipped.', onDownload: () => {}, onRunAgain: () => {} }));
+    const failed = renderToStaticMarkup(createElement(Compare, { comparison: null, earlierBytes: null, laterBytes: null, working: false, error: { side: 'earlier', message: 'The file is zipped.' }, onDownload: () => {}, onRunAgain: () => {} }));
     expect(failed).toContain('The earlier delivery could not be checked. The file is zipped.');
     expect(failed).toContain('Run again');
   });

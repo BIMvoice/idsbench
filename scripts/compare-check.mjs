@@ -51,6 +51,12 @@ try {
     if (u.startsWith(origin + '/') || u.startsWith('blob:') || u.startsWith('data:')) return route.continue();
     blocked.push(u); return route.abort();
   });
+  // Every run the page asks of the worker, with which model slot and whether it collects (the page's own code is not changed for this).
+  await ctx.addInitScript(() => {
+    window.__runs = [];
+    const post = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function (m, ...rest) { if (m && m.type === 'run') window.__runs.push(`${m.slot ?? 'model'}${m.collect ? '+collect' : ''}`); return post.call(this, m, ...rest); };
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -67,12 +73,21 @@ try {
   check('one model: the offer to compare is in the IFC box', (await page.getByRole('button', { name: 'Compare with an earlier delivery' }).count()) === 1);
 
   // ---- the earlier delivery, chosen from the keyboard ----
+  // Watch the verdict and its record while the earlier delivery is chosen and removed: they must never go.
+  await page.evaluate(() => {
+    window.__verdicts = new Set();
+    const note = () => window.__verdicts.add(`${document.querySelector('.title-block')?.getAttribute('data-kind')}|${document.querySelector('.verdict-word')?.textContent}`);
+    new MutationObserver(note).observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+    window.__runs.length = 0;
+  });
   const offer = page.getByRole('button', { name: 'Compare with an earlier delivery' });
   await offer.focus();
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.keyboard.press('Enter')]);
   await chooser.setFiles(files.v1);
   await page.locator('#compare-headline').waitFor();
   const headline = await page.locator('#compare-headline').innerText();
+  const chosenRuns = await page.evaluate(() => window.__runs.join(','));
+  check('choosing the earlier delivery leaves the run of the model alone: one pass of the model that collects, then the earlier delivery', chosenRuns === 'model+collect,earlier+collect', chosenRuns);
   check('the headline counts the changes', headline === 'building-v2.ifc against building-v1.ifc: 2 specifications now fail and 1 still fails.', headline);
   const elementLine = await page.locator('#compare-elements').innerText();
   check('the element line counts the element changes', elementLine === 'Failing elements: 1 fixed, 1 removed from the model and 3 new failures (2 of them new elements).', elementLine);
@@ -118,8 +133,14 @@ try {
   // Removing the earlier delivery leaves the page as it was with one model.
   const remove = page.getByRole('button', { name: 'Remove the earlier delivery' });
   await remove.focus();
+  await page.evaluate(() => { window.__runs.length = 0; });
   await page.keyboard.press('Enter');
   await page.locator('#compare').waitFor({ state: 'detached' });
+  await page.waitForTimeout(800);
+  const removedRuns = await page.evaluate(() => window.__runs.join(','));
+  check('removing the earlier delivery runs nothing again', removedRuns === '', removedRuns);
+  const verdicts = await page.evaluate(() => [...window.__verdicts].join(' ; '));
+  check('the verdict of the model never left the page while the earlier delivery was chosen and removed', verdicts === 'run|Fail', verdicts);
   check('removing the earlier delivery leaves the page as it was with one model', (await word()) === single.word && (await states()).join(',') === single.states && (await page.getByRole('button', { name: 'Compare with an earlier delivery' }).count()) === 1);
   const [plainReport] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download report' }).click()]);
   const plainPath = path.join(out, `plain-${plainReport.suggestedFilename()}`);

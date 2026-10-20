@@ -56,8 +56,8 @@ interface Props {
   laterBytes: ModelBytes | null;
   /** Set while the earlier delivery is being run. */
   working: boolean;
-  /** Why the earlier delivery could not be run, when it could not. */
-  error: string | null;
+  /** Why one of the two runs of the comparison could not be made, when one could not: the model's own pass, or the earlier delivery. */
+  error: { side: 'model' | 'earlier'; message: string } | null;
   onDownload: () => void;
   onRunAgain: () => void;
 }
@@ -71,7 +71,7 @@ export function Compare({ comparison: c, earlierBytes, laterBytes, working, erro
       <div aria-live="polite">
         {error ? (
           <div className="model-refusal" role="alert">
-            <p className="error">The earlier delivery could not be checked. {error}</p>
+            <p className="error">{error.side === 'earlier' ? 'The earlier delivery could not be checked.' : 'The comparison could not be made: this model could not be checked again.'} {error.message}</p>
             <p className="refusal-action"><button type="button" className="btn small" onClick={onRunAgain}>Run again</button></p>
           </div>
         ) : !c ? (

@@ -53,8 +53,12 @@ export interface Source {
 }
 type Checked = { text: string; view: CheckView } | { text: string; failed: string };
 type Ran = { text: string; model: File; nonce: number } & ({ outcome: RunOutcome } | { error: AppErrorInfo });
-/** The run of the earlier delivery a comparison is made with, kept with the text, the model and the earlier model it was made for. */
-type Compared = { text: string; model: File; earlier: File; nonce: number } & ({ outcome: RunOutcome } | { error: AppErrorInfo });
+/**
+ * The two runs a comparison is made of, kept with the text, the model and the earlier model they were made for: the
+ * model checked once more to collect what a comparison needs (`later`; the result on the page is not touched by it),
+ * and the earlier delivery (`outcome`). `side` says which of the two could not be made, when one could not.
+ */
+type Compared = { text: string; model: File; earlier: File; nonce: number } & ({ later: RunOutcome; outcome: RunOutcome } | { error: AppErrorInfo; side: 'model' | 'earlier' });
 export type Report = Extract<CheckView, { kind: 'report' }>;
 export interface Undo { doc: IdsDocument; label: string }
 
@@ -167,15 +171,13 @@ export function usePage() {
     [text, asOpened, source],
   );
   const runnable = valid && model !== null && text !== null && text === settled && !blank;
-  const comparing = earlier !== null;
   useEffect(() => {
     if (!runnable || !idsFile || !model || text === null) return;
     const live = { on: true };
     setPhase('reading-ids');
     const fresh = freshNext.current;
     freshNext.current = false;
-    // With an earlier delivery to compare with, the run also collects what the comparison needs; without one it is the run it always was.
-    const run = runInWorker({ ids: idsFile, ifc: model }, (p) => { if (live.on) setPhase(p); }, { fresh, ...(comparing ? { collect: true } : {}) });
+    const run = runInWorker({ ids: idsFile, ifc: model }, (p) => { if (live.on) setPhase(p); }, { fresh });
     run.promise.then(
       (outcome) => { if (live.on) setRan({ text, model, nonce, outcome }); },
       (e) => {
@@ -186,7 +188,7 @@ export function usePage() {
     );
     return () => { live.on = false; run.cancel(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runnable, idsFile, model, nonce, comparing]);
+  }, [runnable, idsFile, model, nonce]);
   useEffect(() => onSilence(setSilent), []);
   // The model the worker has read is let go when the page no longer has that model: when the model is removed, and
   // also when another is chosen while no run can start (the IDS file is not valid just then), so that a model that
@@ -196,28 +198,37 @@ export function usePage() {
   const running = runnable && run === null;
 
   // ---- the comparison: the earlier delivery is run after the model, against the same text, in the same worker ----
-  // One run is waited for at a time, so it starts only once the model's run is there (with what a comparison needs).
+  // One run is waited for at a time, so it starts only once the model's own run is there, and it never replaces that
+  // run: the model is checked once more in a pass of its own (the worker keeps it, so this only checks again) to collect
+  // what a comparison needs, then the earlier delivery is. Choosing or removing the earlier delivery leaves the result
+  // on the page as it is.
   const laterResult = run && 'outcome' in run ? run.outcome.result : null;
   useEffect(() => {
-    if (!earlier || !model || !laterResult?.keys || !idsFile || text === null) return;
+    if (!earlier || !model || !laterResult || !idsFile || text === null) return;
     const live = { on: true };
-    const r = runInWorker({ ids: idsFile, ifc: earlier }, () => {}, { slot: 'earlier', collect: true });
-    r.promise.then(
-      (outcome) => { if (live.on) setCompared({ text, model, earlier, nonce, outcome }); },
-      (e) => {
-        if (!live.on || e instanceof RunCancelled) return;
-        console.error(e);
-        setCompared({ text, model, earlier, nonce, error: e instanceof RunFailed ? e.info : { kind: 'unexpected', message: UNEXPECTED } });
-      },
-    );
-    return () => { live.on = false; r.cancel(); };
+    let current: { cancel: () => void } | null = null;
+    const made = { text, model, earlier, nonce };
+    const fail = (side: 'model' | 'earlier') => (e: unknown) => {
+      if (!live.on || e instanceof RunCancelled) return;
+      console.error(e);
+      setCompared({ ...made, side, error: e instanceof RunFailed ? e.info : { kind: 'unexpected', message: UNEXPECTED } });
+    };
+    const a = runInWorker({ ids: idsFile, ifc: model }, () => {}, { collect: true });
+    current = a;
+    a.promise.then((later) => {
+      if (!live.on) return;
+      const b = runInWorker({ ids: idsFile, ifc: earlier }, () => {}, { slot: 'earlier', collect: true });
+      current = b;
+      b.promise.then((outcome) => { if (live.on) setCompared({ ...made, later, outcome }); }, fail('earlier'));
+    }, fail('model'));
+    return () => { live.on = false; current?.cancel(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [laterResult, earlier]);
   useEffect(() => { forgetModel(earlier, 'earlier'); }, [earlier]);
-  const earlierRun = compared !== null && earlier !== null && compared.earlier === earlier && compared.text === text && compared.model === model && compared.nonce === nonce && laterResult?.keys ? compared : null;
+  const earlierRun = compared !== null && earlier !== null && compared.earlier === earlier && compared.text === text && compared.model === model && compared.nonce === nonce && laterResult ? compared : null;
   const comparison: Comparison | null = useMemo(
-    () => (earlierRun && 'outcome' in earlierRun && laterResult ? compareDeliveries(earlierRun.outcome.result, laterResult) : null),
-    [earlierRun, laterResult],
+    () => (earlierRun && 'outcome' in earlierRun ? compareDeliveries(earlierRun.outcome.result, earlierRun.later.result) : null),
+    [earlierRun],
   );
   /** True while an earlier delivery is chosen and its comparison is not there yet (and has not failed). */
   const comparingNow = earlier !== null && runnable && earlierRun === null;
