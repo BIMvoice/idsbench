@@ -74,7 +74,7 @@ describe('the path of each finding', () => {
       // What libxml2 prints for each: the line, and the element it did not expect.
       const raw = bogus.map((b) => `document.xml:${b.line}: Schemas validity error : Element '{${NS}}bogus': This element is not expected.`).join('\n');
       const t = performance.now();
-      const out = interpret(raw, root);
+      const out = interpret(raw, root, xml);
       const ms = performance.now() - t;
       expect(out.findings).toHaveLength(N);
       if (!oneLine) expect(out.findings[N - 1].path).toBe(`ids/specifications/specification[${N}]/bogus`);

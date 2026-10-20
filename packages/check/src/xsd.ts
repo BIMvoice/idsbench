@@ -135,7 +135,7 @@ export async function validateAgainstXsd(xml: string, tree?: XNode, options: Xsd
     const outOfMemory = failedForWantOfMemory(e);
     throw new ValidatorFailed(outOfMemory ? 'it ran out of memory' : text.split('\n')[0], outOfMemory);
   }
-  return interpret(raw, tree);
+  return interpret(raw, tree, xml);
 }
 
 function localName(q: string): string {
@@ -150,29 +150,37 @@ function plainList(s: string): string {
     .join(', ');
 }
 
-export function interpret(raw: string, tree?: XNode): XsdOutcome {
+/** `xml`, the document itself, tells on which line each start tag ends; without it a start tag is taken to end anywhere up to where the next element begins. */
+export function interpret(raw: string, tree?: XNode, xml?: string): XsdOutcome {
   const lines = raw.split('\n');
   const findings: Finding[] = [];
   /** The line libxml2 gave each schema finding (a finding it cannot place has none of its own). */
   const reportedAt = new Map<Finding, number>();
   let notWellFormed = false;
-  // For each line, its first element and its elements of each name (the first, and how many): what a finding at that
-  // line is placed on. And for each name, the first element of it in the file and how many there are.
+  // For each line, its elements of each name (the first, and how many): what a finding at that line is placed on. For
+  // each name, the first element of it in the file and how many there are, and its elements in order (see Span).
   const byLine = new Map<number, OnLine>();
   const byName = new Map<string, Counted>();
+  const spans = new Map<string, Span[]>();
   const count = (m: Map<string, Counted>, n: XNode) => {
     const c = m.get(n.name);
     if (c) c.count++; else m.set(n.name, { node: n, count: 1 });
   };
   if (tree) {
+    // Elements in the order their start tags come: each start tag ends at the latest on the line the next one begins.
+    let last: Span | undefined;
     walk(tree, (n) => {
       let at = byLine.get(n.line);
-      if (!at) byLine.set(n.line, (at = { first: n, named: new Map() }));
+      if (!at) byLine.set(n.line, (at = { named: new Map() }));
       count(at.named, n);
       count(byName, n);
+      if (last) last.to = n.line;
+      last = { node: n, to: Infinity };
+      const s = spans.get(n.name);
+      if (s) s.push(last); else spans.set(n.name, [last]);
     });
   }
-  const index: Index = { byLine, byName };
+  const index: Index = { byLine, byName, spans, tagEnd: xml === undefined ? undefined : tagEndLine(xml) };
 
   for (let i = 0; i < lines.length; i++) {
     const m = /^[^:]+:(\d+): (parser error|Schemas validity error|Schemas parser error|Schemas parser warning|[a-z ]+error) : (.*)$/.exec(lines[i]);
@@ -235,8 +243,41 @@ function quotesUnfinished(text: string): boolean {
 }
 
 interface Counted { node: XNode; count: number }
-interface OnLine { first: XNode; named: Map<string, Counted> }
-interface Index { byLine: Map<number, OnLine>; byName: Map<string, Counted> }
+interface OnLine { named: Map<string, Counted> }
+/** An element, and the last line its start tag may end on: the line where the next element begins. */
+interface Span { node: XNode; to: number }
+interface Index { byLine: Map<number, OnLine>; byName: Map<string, Counted>; spans: Map<string, Span[]>; tagEnd?: (n: XNode) => number }
+
+/**
+ * The element of this name that begins before `line` and whose start tag may end on it. There is at most one: the start
+ * tag of each ends at the latest where the next element begins, so at or before where the next of its name begins.
+ */
+function endingOn(spans: Span[] | undefined, line: number, tagEnd?: (n: XNode) => number): XNode | undefined {
+  if (!spans) return undefined;
+  let lo = 0, hi = spans.length; // the first that begins on or after `line`
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (spans[mid].node.line < line) lo = mid + 1; else hi = mid; }
+  const before = spans[lo - 1];
+  if (!before || before.to < line) return undefined;
+  return !tagEnd || tagEnd(before.node) === line ? before.node : undefined;
+}
+
+/** The line on which the start tag of an element ends, read from the document; the line starts are found on first use. */
+function tagEndLine(xml: string): (n: XNode) => number {
+  let starts: number[] | undefined;
+  return (n) => {
+    if (!starts) { starts = [0]; for (let i = xml.indexOf('\n'); i !== -1; i = xml.indexOf('\n', i + 1)) starts.push(i + 1); }
+    let line = n.line;
+    let quote = '';
+    for (let i = (starts[n.line - 1] ?? 0) + Math.max(0, n.column - 1); i < xml.length; i++) {
+      const c = xml[i];
+      if (c === '\n') line++;
+      else if (quote) { if (c === quote) quote = ''; }
+      else if (c === '"' || c === "'") quote = c;
+      else if (c === '>') break;
+    }
+    return line;
+  };
+}
 
 /**
  * libxml2 keeps the line of an element in 16 bits: from line 65,535 on, the line it gives for a schema error is not the
@@ -247,23 +288,28 @@ const FAR_IN_FILE =
   'The schema check cannot say where in the file this is: past line 65,534 the line numbers it gives are not reliable.';
 const SAME_LINE = (line: number, name: string) =>
   `The schema check gives only the line, and line ${line} holds more than one <${name}>, so which one it is cannot be said.`;
+const NONE_ON_LINE = (line: number, name: string) =>
+  `The schema check gives only the line, and no <${name}> is on line ${line}, so which one it is cannot be said.`;
 
 /**
- * The element a schema error at `line` is about. libxml2 gives only the line, so it is the element of that name on that
- * line, or the only one of that name in the file. When neither says which element it is (several of that name on the
- * line, as in a file written on one line, or a line libxml2 cannot count), the finding is not placed on any element or
- * line, and its `unplaced` says why: placing it on a guess would point at the wrong specification.
+ * The element a schema error at `line` is about. libxml2 gives only the line, the one where the element's start tag
+ * ends, so it is the element of that name whose start tag may end on that line, or the only one of that name in the
+ * file. When neither says which element it is (several of that name on the line, as in a file written on one line or
+ * a start tag that ends where the next begins; none; or a line libxml2 cannot count), the finding is not placed on any
+ * element or line, and its `unplaced` says why: placing it on a guess would point at the wrong specification.
  */
 function locate(elementName: string | undefined, line: number, index: Index): { node?: XNode; line?: number; unsure?: string } {
   const only = elementName ? index.byName.get(elementName) : undefined;
   if (only?.count === 1) return { node: only.node, line: line < FIRST_UNSURE_LINE ? line : only.node.line };
   if (line >= FIRST_UNSURE_LINE) return { unsure: FAR_IN_FILE };
-  if (!elementName) return { line };
-  const at = index.byLine.get(line);
-  if (!at) return { line };
-  const named = at.named.get(elementName);
-  if (named && named.count > 1) return { unsure: SAME_LINE(line, elementName) };
-  return { node: named?.node ?? at.first, line };
+  if (!elementName || !index.byName.size) return { line };
+  const named = index.byLine.get(line)?.named.get(elementName);
+  const ending = endingOn(index.spans.get(elementName), line, index.tagEnd);
+  const count = (named?.count ?? 0) + (ending ? 1 : 0);
+  if (count > 1) return { unsure: SAME_LINE(line, elementName) };
+  const node = named?.node ?? ending;
+  if (!node) return { unsure: NONE_ON_LINE(line, elementName) };
+  return { node, line };
 }
 
 function mapValidity(text: string, reported: number, index: Index): Finding {

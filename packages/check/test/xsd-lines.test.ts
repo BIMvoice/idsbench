@@ -5,7 +5,9 @@
 // cases put it on the wrong specification: past line 65,534 libxml2's line is not the element's (it said 65,535 for an
 // error on line 68,001), and in a file written on one line every element is on line 1, so every finding went to the
 // first specification. Here such a finding is placed by the element's name when only one element has it, and otherwise
-// on no element and no line, saying why (`unplaced`): never on the wrong specification.
+// on no element and no line, saying why (`unplaced`): never on the wrong specification. And libxml2's line is the one
+// where the start tag ends: a self-closing specification whose tag ended on the line where the next one begins had its
+// findings put on the next one. Here an element that begins earlier and whose start tag ends on that line counts too.
 import { describe, expect, it } from 'vitest';
 import { checkIds } from '../src/index.ts';
 import { parseTree } from '../src/xml.ts';
@@ -46,6 +48,23 @@ describe('a schema error in a file written on one line', () => {
   it('is placed as before when the line says which element it is', async () => {
     const found = await xsd(`${head}\n${spec(1)}\n${spec(2, { bad: true })}\n${spec(3, { bad: true })}\n${tail}`);
     expect(found.filter((f) => f.code === 'xsd-invalid-value').map((f) => [f.line, f.path])).toEqual([[3, 'ids/specifications/specification[2]'], [4, 'ids/specifications/specification[3]']]);
+  });
+});
+
+describe('a schema error on the line where a start tag ends', () => {
+  // libxml2 gives the line where an element's start tag ends: A2's ends on the line where B begins.
+  it('is not placed on the specification that begins on that line', async () => {
+    const found = await xsd(`${head}\n<specification name="A2" ifcVersion="IFC9"\n/>${spec(2)}\n${tail}`);
+    expect(found.map((f) => f.code).sort()).toEqual(['xsd-invalid-value', 'xsd-missing-element']);
+    for (const f of found) {
+      expect(f).toMatchObject({ line: undefined, path: undefined });
+      expect(f.unplaced).toBe('The schema check gives only the line, and line 3 holds more than one <specification>, so which one it is cannot be said.');
+    }
+  });
+
+  it('is placed on the element whose start tag ends there, when it is the only one of its name to', async () => {
+    const found = await xsd(`${head}\n${spec(1)}\n<specification name="A2"\n ifcVersion="IFC9"><applicability minOccurs="1" maxOccurs="unbounded"><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability></specification>\n${tail}`);
+    expect(found.map((f) => [f.code, f.line, f.path])).toEqual([['xsd-invalid-value', 4, 'ids/specifications/specification[2]']]);
   });
 });
 
