@@ -50,7 +50,33 @@ export function memoryPagesFor(chars: number): number {
   return Math.min(memoryPages.max, 2 * memoryPages.defaultInitialMemoryPages + Math.ceil((chars * 16) / (64 * 1024)));
 }
 
-const OUT_OF_MEMORY = /out of memory|\bOOM\b|cannot enlarge memory|allocation failed/i;
+/**
+ * libxml2's own out-of-memory error, as xmllint prints it: `document.xml:54464: error: libxml2: out of memory`, or the
+ * message alone. Matched as a whole line, because the rest of what the validator prints quotes the file: a value
+ * (`ifcVersion="OOM"`), and after a parser error a line of the file itself.
+ */
+const LIBXML2_OUT_OF_MEMORY = /^(?:[^\s:]+:\d+: (?:[a-z ]+ )?error ?: )?libxml2: out of memory$/;
+/**
+ * The WebAssembly runtime's own: memory for the validator could not be had (V8's RangeError, as a failed Worker's
+ * ErrorEvent states it), or the runtime gave up for want of it (Emscripten's `Aborted(OOM)`). Matched at the start of
+ * the message, which these errors write themselves; never in xmllint's output.
+ */
+const RUNTIME_OUT_OF_MEMORY = /^(?:Uncaught )?(?:RangeError: (?:WebAssembly\.(?:Memory|Memory\.grow|Instance|instantiate)\(\)|Out of memory: Cannot allocate Wasm memory)|(?:RuntimeError: )?Aborted\(OOM\))/;
+
+/** True when one of the lines of xmllint's output is libxml2 saying it ran out of memory. A line of the file that libxml2 quotes (it is followed by a caret line) is not. */
+export function libxml2OutOfMemory(output: string): boolean {
+  const lines = output.split('\n');
+  return lines.some((l, i) => LIBXML2_OUT_OF_MEMORY.test(l) && !/^\s*\^\s*$/.test(lines[i + 1] ?? ''));
+}
+
+/** True when the validator's failure `e` is its running out of memory: xmllint's exit code 9, libxml2's own message, or the runtime's. */
+export function failedForWantOfMemory(e: unknown): boolean {
+  const code = (e as { code?: unknown })?.code;
+  if (code === 9) return true;
+  const text = String((e as { message?: unknown })?.message ?? e);
+  // An exit code means the text is xmllint's output, which quotes the file: only libxml2's own line counts there.
+  return typeof code === 'number' ? libxml2OutOfMemory(text) : RUNTIME_OUT_OF_MEMORY.test(text) || libxml2OutOfMemory(text);
+}
 
 export interface XsdOptions {
   /** The memory ceiling, in WebAssembly pages; by default memoryPagesFor the document. */
@@ -112,12 +138,11 @@ export async function validateAgainstXsd(xml: string, tree?: XNode, options: Xsd
     // message is then sometimes only a piece of the file, because there was no memory left to write the sentence. In a
     // browser a Worker that failed hands over an ErrorEvent, whose message says what happened.
     const text = String((e as { message?: unknown })?.message ?? e);
-    const outOfMemory = (e as { code?: unknown })?.code === 9 || OUT_OF_MEMORY.test(text);
+    const outOfMemory = failedForWantOfMemory(e);
     throw new ValidatorFailed(outOfMemory ? 'it ran out of memory' : text.split('\n')[0], outOfMemory);
   }
   // A validator that ran out of memory part of the way has not looked at the rest of the file.
-  const short = raw.split('\n').find((l) => OUT_OF_MEMORY.test(l));
-  if (short) throw new ValidatorFailed(short, true);
+  if (libxml2OutOfMemory(raw)) throw new ValidatorFailed('it ran out of memory', true);
   return interpret(raw, tree);
 }
 
