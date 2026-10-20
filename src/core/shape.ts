@@ -156,12 +156,16 @@ export interface ShapeOptions {
   place?: (expressId: number) => string;
   /** Set when the result of this specification is not given because the engine would answer it wrongly (see core/foldguard.ts): the sentence that says so. The row is then "Not checked". */
   withheld?: string;
+  /** Also keep every failing element, whatever the page lists or the downloads hold, for comparing two deliveries. */
+  collect?: boolean;
 }
 
 /** Takes failing elements one at a time: counts them exactly, groups them by reason, holds what the page lists, and (if asked) writes the rest to the downloads. */
 class Failures {
   total = 0;
   readonly held: FailingElement[] = [];
+  /** Every failing element, kept only when ShapeOptions.collect is set. */
+  readonly all: FailingElement[] = [];
   readonly groups = new GroupAccumulator(FAILURE_CAP);
   private csv: Chunks | null;
   private json: Chunks | null;
@@ -177,6 +181,7 @@ class Failures {
     } else {
       this.held.push(f);
     }
+    if (this.options.collect) this.all.push(f);
     this.total++;
     this.groups.add(f);
   }
@@ -260,6 +265,9 @@ export class SpecAccumulator<R extends { status: string }> {
       this.fails.add(el);
     }
   }
+
+  /** Every failing element fed so far; empty unless ShapeOptions.collect was set. */
+  collected(): FailingElement[] { return this.fails.all; }
 
   finish(): { row: SpecRow; spilled: Spilled | null } {
     const { spec, modelSchema, fails } = this;

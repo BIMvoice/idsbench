@@ -20,6 +20,7 @@ import { leftOutSentence, sayLost, type LeftOut, type LostItem } from '../../cor
 import { AppError, UNEXPECTED } from '../../core/errors';
 import { EXAMPLE_IDS, EXAMPLE_IDS_NAME, EXAMPLE_IFC, EXAMPLE_IFC_NAME } from '../../core/example';
 import { checkDocument, type Issue } from '../../core/ids/check';
+import { compareDeliveries, type Comparison } from '../../core/compare';
 import { blankDocument, type IdsDocument } from '../../core/ids/model';
 import { readIdsText } from '../../core/ids/read';
 import { writeIds } from '../../core/ids/write';
@@ -52,6 +53,8 @@ export interface Source {
 }
 type Checked = { text: string; view: CheckView } | { text: string; failed: string };
 type Ran = { text: string; model: File; nonce: number } & ({ outcome: RunOutcome } | { error: AppErrorInfo });
+/** The run of the earlier delivery a comparison is made with, kept with the text, the model and the earlier model it was made for. */
+type Compared = { text: string; model: File; earlier: File; nonce: number } & ({ outcome: RunOutcome } | { error: AppErrorInfo });
 export type Report = Extract<CheckView, { kind: 'report' }>;
 export interface Undo { doc: IdsDocument; label: string }
 
@@ -94,7 +97,14 @@ export function usePage() {
   const [unreadable, setUnreadable] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(() => restored?.fileName ?? null);
   const [savedXml, setSavedXml] = useState<string>(() => restored?.savedXml ?? BLANK_XML);
-  const [model, setModel] = useState<File | null>(null);
+  const [model, setModelOnly] = useState<File | null>(null);
+  /** An earlier delivery of the model, to compare the model with. Only while there is a model. */
+  const [earlier, setEarlier] = useState<File | null>(null);
+  const [compared, setCompared] = useState<Compared | null>(null);
+  /** A file chosen as the earlier delivery that is not a model, and why. */
+  const [earlierRefusal, setEarlierRefusal] = useState<string | null>(null);
+  /** Without a model there is nothing to compare an earlier delivery with: it goes with the model. */
+  const setModel = useCallback((f: File | null) => { setModelOnly(f); if (!f) { setEarlier(null); setEarlierRefusal(null); } }, []);
   /** A file that was not taken, and why. It never replaces what is on the page. */
   const [refusal, setRefusal] = useState<{ name: string; text: string } | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -157,13 +167,15 @@ export function usePage() {
     [text, asOpened, source],
   );
   const runnable = valid && model !== null && text !== null && text === settled && !blank;
+  const comparing = earlier !== null;
   useEffect(() => {
     if (!runnable || !idsFile || !model || text === null) return;
     const live = { on: true };
     setPhase('reading-ids');
     const fresh = freshNext.current;
     freshNext.current = false;
-    const run = runInWorker({ ids: idsFile, ifc: model }, (p) => { if (live.on) setPhase(p); }, { fresh });
+    // With an earlier delivery to compare with, the run also collects what the comparison needs; without one it is the run it always was.
+    const run = runInWorker({ ids: idsFile, ifc: model }, (p) => { if (live.on) setPhase(p); }, { fresh, ...(comparing ? { collect: true } : {}) });
     run.promise.then(
       (outcome) => { if (live.on) setRan({ text, model, nonce, outcome }); },
       (e) => {
@@ -174,7 +186,7 @@ export function usePage() {
     );
     return () => { live.on = false; run.cancel(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runnable, idsFile, model, nonce]);
+  }, [runnable, idsFile, model, nonce, comparing]);
   useEffect(() => onSilence(setSilent), []);
   // The model the worker has read is let go when the page no longer has that model: when the model is removed, and
   // also when another is chosen while no run can start (the IDS file is not valid just then), so that a model that
@@ -182,6 +194,33 @@ export function usePage() {
   useEffect(() => { forgetModel(model); }, [model]);
   const run = ran !== null && ran.text === text && ran.model === model && ran.nonce === nonce && runnable ? ran : null;
   const running = runnable && run === null;
+
+  // ---- the comparison: the earlier delivery is run after the model, against the same text, in the same worker ----
+  // One run is waited for at a time, so it starts only once the model's run is there (with what a comparison needs).
+  const laterResult = run && 'outcome' in run ? run.outcome.result : null;
+  useEffect(() => {
+    if (!earlier || !model || !laterResult?.keys || !idsFile || text === null) return;
+    const live = { on: true };
+    const r = runInWorker({ ids: idsFile, ifc: earlier }, () => {}, { slot: 'earlier', collect: true });
+    r.promise.then(
+      (outcome) => { if (live.on) setCompared({ text, model, earlier, nonce, outcome }); },
+      (e) => {
+        if (!live.on || e instanceof RunCancelled) return;
+        console.error(e);
+        setCompared({ text, model, earlier, nonce, error: e instanceof RunFailed ? e.info : { kind: 'unexpected', message: UNEXPECTED } });
+      },
+    );
+    return () => { live.on = false; r.cancel(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [laterResult, earlier]);
+  useEffect(() => { forgetModel(earlier, 'earlier'); }, [earlier]);
+  const earlierRun = compared !== null && earlier !== null && compared.earlier === earlier && compared.text === text && compared.model === model && compared.nonce === nonce && laterResult?.keys ? compared : null;
+  const comparison: Comparison | null = useMemo(
+    () => (earlierRun && 'outcome' in earlierRun && laterResult ? compareDeliveries(earlierRun.outcome.result, laterResult) : null),
+    [earlierRun, laterResult],
+  );
+  /** True while an earlier delivery is chosen and its comparison is not there yet (and has not failed). */
+  const comparingNow = earlier !== null && runnable && earlierRun === null;
 
   // ---- the draft and the leave prompt ----
   useEffect(() => {
@@ -299,6 +338,15 @@ export function usePage() {
     if (taken.left) setNotice(taken.left);
   };
 
+  /** The earlier delivery to compare the model with. A file that is an IDS file is not taken: it is said, and nothing on the page changes. */
+  const chooseEarlier = async (f: File) => {
+    let head = '';
+    try { head = await f.slice(0, 4096).text(); } catch { /* an unreadable file is reported by the run that reads it */ }
+    if (kindOfFile(f.name, head, 'ifc') !== 'ifc') { setEarlierRefusal(`${f.name} was not taken: it is an IDS file, not an IFC model. Choose the earlier delivery of the model to compare with.`); return; }
+    setEarlierRefusal(null);
+    setEarlier(f);
+  };
+
   const startNew = () => {
     if (!discardOk()) return;
     show({ doc: blankDocument(), source: null, fileName: null });
@@ -310,6 +358,7 @@ export function usePage() {
     const d = readIdsText(EXAMPLE_IDS);
     show({ doc: d, source: { ...sourceOf(EXAMPLE_IDS_NAME, EXAMPLE_IDS, false, keepSource(EXAMPLE_IDS, d)), example: true }, fileName: EXAMPLE_IDS_NAME });
     setModel(new File([EXAMPLE_IFC], EXAMPLE_IFC_NAME));
+    setEarlier(null);
   };
   const closeAll = () => {
     if (!discardOk()) return;
@@ -434,6 +483,7 @@ export function usePage() {
     notice, clearNotice: () => setNotice(null), draftKept, saveNote, leftOut,
     check, report, valid, checking: text !== null && !blank && check === null,
     run, running, phase, runnable,
+    earlier, chooseEarlier, removeEarlier: () => { setEarlier(null); setEarlierRefusal(null); }, earlierRefusal, earlierRun, comparison, comparingNow,
     placed, targets, issues, guardErrors, extraGuard, lines,
     editing, setEditing, focusKey, undo, saveProblem, downloadBlocked,
     openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, goToIssue, save, idsBlob, textOf, asInFile, kept,

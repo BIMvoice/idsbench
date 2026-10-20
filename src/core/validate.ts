@@ -32,6 +32,8 @@ export interface RunInput {
   loaded?: LoadedModel;
   /** Each specification in words, in the order of the IDS file, for the CSV (see core/sentences.ts); null where there is none. */
   sentences?: (string | null)[] | null;
+  /** Also collect every failing element and the GlobalIds of the model (RunResult.keys), for comparing two deliveries. */
+  collect?: boolean;
 }
 
 /** How many entities one range of the check holds at most. A model of no more entities than this is checked as one range. */
@@ -145,7 +147,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const known = await tablesFor(loaded.schema);
     // Said only of a class and an attribute the tables know; of anything else nothing is claimed.
     const reasons = known ? { hasAttribute: (cls: string, attribute: string) => (known.classes.has(cls.toUpperCase()) ? known.attributes.get(attribute)?.classes.includes(cls.toUpperCase()) : undefined) } : undefined;
-    const options: ShapeOptions = { ...(input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {}), ...(reasons ? { reasons } : {}) };
+    const options: ShapeOptions = { ...(input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {}), ...(reasons ? { reasons } : {}), ...(input.collect ? { collect: true } : {}) };
     // The storey or space of a failing element is read from the part of the model being checked (the accessor of its range).
     const placer: { find: (id: number) => string } = { find: () => '' };
     const place = (id: number) => placer.find(id);
@@ -194,17 +196,32 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     }
     const done = accs.map((a) => a.finish());
     const tables = await addCoverage(done.map((d) => d.row), doc, store, loaded.schema);
-    return assembleReport(
+    const result = assembleReport(
       done.map((d) => d.row),
       input.spill ? done.map((d) => d.spilled) : null,
       { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, ...elementsIn(store, tables), seconds: (performance.now() - t0) / 1000 },
     );
+    if (input.collect) result.keys = { globalIds: globalIdsOf(store, input.onTick), failing: accs.map((a) => a.collected()) };
+    return result;
   } catch (e) {
     if (e instanceof RunStopped) throw e;
     console.error('Validation failed', e);
     const m = mapError(e, 'validate');
     throw new AppError(m.kind, m.message);
   }
+}
+
+/** The GlobalId of every entity of the model that has one (for comparing two deliveries: an element not among them is not in the model). */
+export function globalIdsOf(store: LoadedModel['store'], onTick?: () => void): string[] {
+  const accessor = createDataAccessor(store);
+  const out: string[] = [];
+  const ids = accessor.getAllEntityIds();
+  for (let i = 0; i < ids.length; i++) {
+    const g = accessor.getGlobalId(ids[i]);
+    if (g) out.push(g);
+    if (onTick && i % 100_000 === 99_999) onTick();
+  }
+  return out;
 }
 
 /**

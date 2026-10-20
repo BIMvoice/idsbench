@@ -89,7 +89,21 @@ export interface Spilled {
   failures: Blob[];
 }
 
+/**
+ * What a comparison of two deliveries needs of a run, beyond what the page lists: every failing element of each
+ * specification (not only the first FAILURE_CAP) and the GlobalId of every entity of the model that has one, so that an
+ * element that no longer fails can be told from one that is no longer in the model. Made only when asked for.
+ */
+export interface CompareKeys {
+  /** The GlobalIds of the model, every entity that has one. */
+  globalIds: string[];
+  /** Per specification (same order as `specs`), every failing element. */
+  failing: FailingElement[][];
+}
+
 export interface RunResult {
+  /** Present only on a run asked to collect them, for comparing two deliveries (see core/compare.ts). Not part of the report. */
+  keys?: CompareKeys;
   /**
    * Per specification (same order as `specs`), the complete failing elements as pieces of the two downloads. Present
    * only on a run made in the worker, where holding millions of elements would not fit; null where there are none.

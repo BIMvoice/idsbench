@@ -28,8 +28,10 @@ export async function sha256Of(blob: Blob): Promise<string | null> {
  * The JSON in pieces. `edited` is true when the IDS that was checked holds changes that are not in a file yet.
  * `ids` and `model` say exactly which bytes were judged, so that a report cannot be taken for the report of another
  * file with the same name: `ids` is the text that was checked (and run), `model` the model file, null without one.
+ * `compared`, when the model was compared with an earlier delivery, names the earlier model's bytes in the same way
+ * (`earlierModel`, beside `model`) and adds the comparison; without it the report is as it was before comparisons existed.
  */
-export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null, leftOut: { part: 'info' | 'file' | number; name: string; items: string[] }[] = []): BlobPart[] {
+export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null, leftOut: { part: 'info' | 'file' | number; name: string; items: string[] }[] = [], compared: { earlierModel: FileIdentity; comparison: unknown } | null = null): BlobPart[] {
   const head = JSON.stringify({
     idsFile,
     edited,
@@ -37,7 +39,9 @@ export function pageReportParts(idsFile: string, edited: boolean, check: Report,
     writingAgainLeavesOut: leftOut,
     ids,
     model,
+    ...(compared ? { earlierModel: compared.earlierModel } : {}),
     check: { valid: check.valid, idsVersion: check.version, errors: check.errors, warnings: check.warnings, findings: check.findings },
+    ...(compared ? { comparison: compared.comparison } : {}),
   }, null, 2).replace(/\n\}$/, '');
   if (!run) return [`${head},\n  "run": null\n}\n`];
   const run_ = reportParts(run);

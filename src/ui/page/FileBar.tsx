@@ -11,6 +11,7 @@ interface Props { page: Page; primary: string; onDownloadIds: () => void }
 export function FileBar({ page, primary, onDownloadIds }: Props) {
   const idsPicker = useRef<HTMLInputElement>(null);
   const ifcPicker = useRef<HTMLInputElement>(null);
+  const earlierPicker = useRef<HTMLInputElement>(null);
   const cls = (id: string) => (primary === id ? 'btn small primary' : 'btn small');
   const has = page.doc !== null || page.source !== null;
   return (
@@ -47,8 +48,22 @@ export function FileBar({ page, primary, onDownloadIds }: Props) {
           <button type="button" className={cls('model')} onClick={() => ifcPicker.current?.click()}>{page.model ? 'Choose another model' : 'Choose a model'}</button>
           {page.model && <button type="button" className="btn small quiet" onClick={() => page.setModel(null)}>Remove the model</button>}
         </span>
+        {page.model && (
+          <span className="drop-hint earlier" id="earlier-status">
+            {page.earlier
+              ? <>Compared with the earlier delivery <strong className="fname">{page.earlier.name}</strong> <span className="fsize">({formatSize(page.earlier.size)})</span>.{' '}</>
+              : 'Received a new version of this model? Compare it with the one delivered before. '}
+            <span className="drop-actions">
+              <button type="button" className="btn small" onClick={() => earlierPicker.current?.click()}>{page.earlier ? 'Choose another earlier delivery' : 'Compare with an earlier delivery'}</button>
+              {page.earlier && <button type="button" className="btn small quiet" onClick={page.removeEarlier}>Remove the earlier delivery</button>}
+            </span>
+          </span>
+        )}
+        {page.earlierRefusal && <span className="drop-hint" role="alert" id="earlier-refusal">{page.earlierRefusal}</span>}
         <input ref={ifcPicker} type="file" accept=".ifc" tabIndex={-1} aria-label="Choose an IFC model" className="file-input"
           onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void page.addFiles(f, 'ifc'); }} />
+        <input ref={earlierPicker} type="file" accept=".ifc" tabIndex={-1} aria-label="Choose the earlier delivery of the model" className="file-input"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void page.chooseEarlier(f); }} />
       </div>
     </div>
   );

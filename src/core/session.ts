@@ -55,6 +55,8 @@ export interface SessionRequest {
   spill?: boolean;
   /** Each specification in words, for the CSV. */
   sentences?: (string | null)[] | null;
+  /** Also collect what a comparison of two deliveries needs (RunResult.keys). */
+  collect?: boolean;
 }
 
 export async function runSession(keeper: ModelKeeper, req: SessionRequest): Promise<{ result: RunResult; reused: boolean; model: ModelBytes }> {
@@ -88,7 +90,7 @@ export async function runSession(keeper: ModelKeeper, req: SessionRequest): Prom
   try {
     const result = await runValidation({
       ids: req.ids, idsName: req.idsName, ifcBytes: new ArrayBuffer(0), ifcName: req.model.name,
-      loaded, onPhase: req.onPhase, onTick: req.onTick, spill: req.spill, sentences: req.sentences,
+      loaded, onPhase: req.onPhase, onTick: req.onTick, spill: req.spill, sentences: req.sentences, collect: req.collect,
     });
     // The time of this run: with the reading of the model when it was read, without it when the kept copy was used.
     return { result: { ...result, seconds: (performance.now() - t0) / 1000 }, reused, model: of };

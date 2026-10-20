@@ -9,7 +9,9 @@ import { pageReportName, pageReportParts, sha256Of } from '../core/report';
 import { alignResults, NOT_ALIGNED } from '../core/align';
 import { changeLine, snapshotOf, type Snapshot } from '../core/changed';
 import { ROW_CAP } from '../core/checkview';
+import { comparisonCsvName, comparisonCsvParts, comparisonForReport } from '../core/compare';
 import { About } from './page/About';
+import { Compare } from './page/Compare';
 import { saveFile } from './page/draft';
 import { FileBar } from './page/FileBar';
 import { Findings } from './page/Findings';
@@ -181,7 +183,7 @@ export function App() {
   // A press waits its turn, and the page can change while it waits (an edit, another model, a new result). A file is
   // only ever of what is on the page: a press whose turn comes after such a change gives a sentence, not a file of what was there.
   // (A result is told by the text, the model and the run it was made for, not by the object that holds it: the page may make the same result again.)
-  const shown = { ranText: result ? run?.text : null, ranModel: result ? run?.model : null, ranNonce: result ? run?.nonce : null, text: page.text, xml: page.xml };
+  const shown = { ranText: result ? run?.text : null, ranModel: result ? run?.model : null, ranNonce: result ? run?.nonce : null, text: page.text, xml: page.xml, cmp: page.comparison };
   const onPage = useRef(shown);
   onPage.current = shown;
   const outdated = (what: string, was: Partial<typeof shown>) => {
@@ -214,7 +216,15 @@ export function App() {
     const ids = { name: idsName, bytes: blob.size, sha256: await sha256Of(blob) };
     // The model is named by the bytes the worker parsed, hashed there and then: the file on disk may have changed since.
     const ran = result && run && 'outcome' in run ? { name: result.ifcFile, ...run.outcome.model } : null;
-    return guarded('The report', () => { const name = pageReportName(idsName, result); saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : []), name, 'application/json'); return name; });
+    // With a comparison on the page, the report names the earlier model's bytes too, and holds the comparison.
+    const cmp = page.comparison, er = page.earlierRun;
+    const compared = cmp && er && 'outcome' in er ? { earlierModel: { name: er.outcome.result.ifcFile, ...er.outcome.model }, comparison: comparisonForReport(cmp) } : null;
+    return guarded('The report', () => { const name = pageReportName(idsName, result); saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : [], compared), name, 'application/json'); return name; });
+  });
+  const downloadComparison = () => download('The comparison', async () => {
+    const cmp = page.comparison, idsName = page.name;
+    if (!cmp || !idsName || outdated('The comparison', { ranText: shown.ranText, ranModel: shown.ranModel, ranNonce: shown.ranNonce, cmp })) return null;
+    return guarded('The comparison', () => { const name = comparisonCsvName(cmp); saveFile(comparisonCsvParts(cmp, idsName), name, 'text/csv;charset=utf-8'); return name; });
   });
   const downloadCsv = () => download('The list', async () => {
     if (!result || outdated('The list', { ranText: shown.ranText, ranModel: shown.ranModel, ranNonce: shown.ranNonce })) return null;
@@ -300,6 +310,17 @@ export function App() {
               {result && hasFailures && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={() => void downloadCsv()}>Download failing elements</button>}
               {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
+          )}
+          {page.earlier && model && result && (
+            <Compare
+              comparison={page.comparison}
+              earlierBytes={page.earlierRun && 'outcome' in page.earlierRun ? page.earlierRun.outcome.model : null}
+              laterBytes={run && 'outcome' in run ? run.outcome.model : null}
+              working={page.comparingNow}
+              error={page.earlierRun && 'error' in page.earlierRun ? page.earlierRun.error.message : null}
+              onDownload={() => void downloadComparison()}
+              onRunAgain={page.runAgain}
+            />
           )}
           {page.undo && (
             <p className="notice-box undo" role="status">

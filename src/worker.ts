@@ -9,10 +9,16 @@ import type { IDSDocument } from '@ifc-lite/ids';
 import type { AppErrorInfo, RunResult } from './core/types';
 
 export type WorkerRequest =
-  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean; sentences: string[] | null }
+  /**
+   * `slot` 'earlier' is the earlier delivery a comparison is made with: it is read and kept apart from the page's model,
+   * so that neither pushes the other out. `collect` asks for what a comparison needs (RunResult.keys).
+   */
+  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean; sentences: string[] | null; slot?: Slot; collect?: boolean }
   | { type: 'cancel'; id: number }
-  /** The page no longer needs the model the worker holds, unless it is the one of file `except`: let go of its memory. */
-  | { type: 'forget'; except: number | null };
+  /** The page no longer needs the model the worker holds in `slot` (the page's model when absent), unless it is the one of file `except`: let go of its memory. */
+  | { type: 'forget'; except: number | null; slot?: Slot };
+/** Which model a run is of: the page's model, or the earlier delivery it is compared with. */
+export type Slot = 'model' | 'earlier';
 export type WorkerMessage =
   | { type: 'alive'; lock: string | null }
   | { type: 'beat' }
@@ -23,6 +29,8 @@ export type WorkerMessage =
 
 const post = (m: WorkerMessage) => (self as unknown as Worker).postMessage(m);
 const keeper = new ModelKeeper();
+/** The earlier delivery of a comparison, kept apart from the page's model. */
+const earlierKeeper = new ModelKeeper();
 const cancelled = new Set<number>();
 let queue: Promise<void> = Promise.resolve();
 
@@ -48,7 +56,7 @@ if (typeof navigator !== 'undefined' && navigator.locks) {
 async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
   if (cancelled.delete(m.id)) { post({ type: 'cancelled', id: m.id }); return; }
   try {
-    const { result, reused, model } = await runSession(keeper, {
+    const { result, reused, model } = await runSession(m.slot === 'earlier' ? earlierKeeper : keeper, {
       ids: m.ids,
       idsName: m.idsName,
       model: m.model,
@@ -56,6 +64,7 @@ async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
       fresh: m.fresh,
       spill: true,
       sentences: m.sentences,
+      collect: m.collect === true,
       onPhase: (phase) => post({ type: 'phase', id: m.id, phase }),
       onTick: () => { beat(); if (cancelled.has(m.id)) throw new RunStopped(); },
     });
@@ -71,7 +80,7 @@ async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
 self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
   const m = ev.data;
   if (m.type === 'cancel') { cancelled.add(m.id); return; }
-  if (m.type === 'forget') { queue = queue.then(() => keeper.forgetOthers(m.except)); return; }
+  if (m.type === 'forget') { queue = queue.then(() => (m.slot === 'earlier' ? earlierKeeper : keeper).forgetOthers(m.except)); return; }
   // Runs go one after the other; a run asked for while another is going waits, and finds the model kept if it is the same.
   queue = queue.then(() => run(m));
 };

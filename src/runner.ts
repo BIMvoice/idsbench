@@ -8,7 +8,7 @@ import { checkSize } from './core/limits';
 import { sentencesFor } from './core/sentences';
 import type { AppErrorInfo, RunResult } from './core/types';
 import type { ModelBytes, ModelRef } from './core/session';
-import type { WorkerMessage, WorkerRequest } from './worker';
+import type { Slot, WorkerMessage, WorkerRequest } from './worker';
 
 export class RunFailed extends Error {
   info: AppErrorInfo;
@@ -121,8 +121,8 @@ export function stopWorker(): void {
  * let go. The message names the page's model, so the copy of that model is kept whichever the worker handles first,
  * this message or the run for that model.
  */
-export function forgetModel(current: File | null = null): void {
-  worker?.postMessage({ type: 'forget', except: current ? tokenOf(current) : null } satisfies WorkerRequest);
+export function forgetModel(current: File | null = null, slot?: Slot): void {
+  worker?.postMessage({ type: 'forget', except: current ? tokenOf(current) : null, ...(slot ? { slot } : {}) } satisfies WorkerRequest);
 }
 
 /** Be told when the worker has said nothing for longer than it may during a run (see silenceAllowed), and when it speaks again. */
@@ -139,8 +139,12 @@ const watchdog = setInterval(() => {
 // Not kept alive for tests that import this module in Node.
 (watchdog as unknown as { unref?: () => void }).unref?.();
 
-/** Run the check in a Web Worker so the page stays responsive. `fresh` reads the model again even if the worker holds a copy. */
-export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase) => void, options: { fresh?: boolean } = {}): Run {
+/**
+ * Run the check in a Web Worker so the page stays responsive. `fresh` reads the model again even if the worker holds a
+ * copy. `slot` 'earlier' runs the earlier delivery of a comparison, kept apart from the page's model; `collect` asks for
+ * what a comparison needs (RunResult.keys). One run is waited for at a time: the two runs of a comparison go one after the other.
+ */
+export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase) => void, options: { fresh?: boolean; slot?: Slot; collect?: boolean } = {}): Run {
   let cancelled = false;
   let myId = 0;
   let rejectRun: (e: Error) => void = () => {};
@@ -205,7 +209,7 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
           modelBytes: files.ifc.size,
         };
         heardAt = Date.now();
-        worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true, sentences } satisfies WorkerRequest);
+        worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true, sentences, ...(options.slot ? { slot: options.slot } : {}), ...(options.collect ? { collect: true } : {}) } satisfies WorkerRequest);
       } catch (e) {
         console.error(e);
         pending = null;
