@@ -301,6 +301,30 @@ export function comparisonCsvName(c: Pick<Comparison, 'earlierFile' | 'laterFile
   return `${base(c.laterFile)}-compared-with-${base(c.earlierFile)}.csv`;
 }
 
+/** How many changed elements one piece of the report holds. */
+const ELEMENTS_PER_PIECE = 5000;
+
+/**
+ * The comparison for the report as JSON text in pieces: the JSON of comparisonForReport, with the changed elements of
+ * each specification written a block at a time, so a comparison with millions of changes is never one string.
+ */
+export function comparisonReportParts(c: Comparison): BlobPart[] {
+  const head = { earlierModel: c.earlierFile, model: c.laterFile, headline: c.headline, counts: c.counts, elements: c.elements };
+  const parts: BlobPart[] = [`${JSON.stringify(head).slice(0, -1)},"specs":[`];
+  c.specs.forEach((s, i) => {
+    const { elements: _elements, ...own } = specForReport(s);
+    parts.push(`${i ? ',' : ''}${JSON.stringify(own).slice(0, -1)},"elements":[`);
+    for (let k = 0; k < s.elements.length; k += ELEMENTS_PER_PIECE) {
+      parts.push(`${k ? ',' : ''}${s.elements.slice(k, k + ELEMENTS_PER_PIECE).map((e) => JSON.stringify(elementForReport(e))).join(',')}`);
+    }
+    parts.push(']}');
+  });
+  parts.push(']}');
+  return parts;
+}
+
+const elementForReport = (e: ChangedElement) => ({ change: e.change, ifcClass: e.element.ifcClass, name: e.element.name, globalId: e.element.globalId });
+
 /** The comparison for the report: the headline, and per specification its change, counts and changed elements. */
 export function comparisonForReport(c: Comparison) {
   return {
@@ -309,16 +333,20 @@ export function comparisonForReport(c: Comparison) {
     headline: c.headline,
     counts: c.counts,
     elements: c.elements,
-    specs: c.specs.map((s) => ({
-      name: s.name,
-      change: s.change,
-      failedBefore: s.failedBefore,
-      failedAfter: s.failedAfter,
-      counts: s.counts,
-      noGlobalId: s.noGlobalId,
-      duplicateGlobalId: s.duplicateGlobalId,
-      summary: s.summary,
-      elements: s.elements.map((e) => ({ change: e.change, ifcClass: e.element.ifcClass, name: e.element.name, globalId: e.element.globalId })),
-    })),
+    specs: c.specs.map(specForReport),
+  };
+}
+
+function specForReport(s: SpecComparison) {
+  return {
+    name: s.name,
+    change: s.change,
+    failedBefore: s.failedBefore,
+    failedAfter: s.failedAfter,
+    counts: s.counts,
+    noGlobalId: s.noGlobalId,
+    duplicateGlobalId: s.duplicateGlobalId,
+    summary: s.summary,
+    elements: s.elements.map(elementForReport),
   };
 }

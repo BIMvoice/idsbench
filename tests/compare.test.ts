@@ -6,7 +6,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { COMPARE_LIMIT, compareDeliveries, tooManyToCompare, comparisonCsvName, comparisonCsvParts, comparisonForReport, diffElements, specChange, COMPARE_COLUMNS, type Comparison } from '../src/core/compare';
+import { COMPARE_LIMIT, compareDeliveries, tooManyToCompare, comparisonReportParts, comparisonCsvName, comparisonCsvParts, comparisonForReport, diffElements, specChange, COMPARE_COLUMNS, type Comparison } from '../src/core/compare';
 import { parseCsv } from '../src/core/csv';
 import { EXAMPLE_IDS, EXAMPLE_IFC } from '../src/core/example';
 import { reportParts } from '../src/core/format';
@@ -266,7 +266,7 @@ describe('the hand-over', () => {
   it('the CSV name names both models', () => expect(comparisonCsvName(c)).toBe('v2-compared-with-v1.csv'));
   it('the report names both models by name, size and SHA-256, and holds the comparison', () => {
     const check = { kind: 'report', valid: true, version: '1.0', errors: 0, warnings: 0, findings: [], headline: '' } as unknown as Parameters<typeof pageReportParts>[2];
-    const text = pageReportParts('req.ids', false, check, v2, null, { name: 'v2.ifc', bytes: 20, sha256: 'bb' }, [], { earlierModel: { name: 'v1.ifc', bytes: 10, sha256: 'aa' }, comparison: comparisonForReport(c) }).join('');
+    const text = pageReportParts('req.ids', false, check, v2, null, { name: 'v2.ifc', bytes: 20, sha256: 'bb' }, [], { earlierModel: { name: 'v1.ifc', bytes: 10, sha256: 'aa' }, comparison: comparisonReportParts(c) }).join('');
     const json = JSON.parse(text);
     expect(json.model).toEqual({ name: 'v2.ifc', bytes: 20, sha256: 'bb' });
     expect(json.earlierModel).toEqual({ name: 'v1.ifc', bytes: 10, sha256: 'aa' });
@@ -477,4 +477,26 @@ describe('what a comparison sends to the page is bounded', () => {
     expect(() => compareDeliveries(over, within)).toThrow();
   });
   it('the limit in the page is half a million keys a model', () => expect(COMPARE_LIMIT).toBe(500_000));
+});
+
+// ---- review finding 5: the comparison in the report is written in pieces ----
+describe('the comparison in the report is written in pieces', () => {
+  const many = 30_000;
+  const before = Array.from({ length: many }, (_, i) => el(`G${i}`, `Wall with a long name to make the piece large ${i}`));
+  const earlier = result('v1.ifc', [row('All walls', 'fail', before)], before.map((e) => e.globalId!));
+  const later = result('v2.ifc', [row('All walls', 'pass')], before.map((e) => e.globalId!));
+  const c = compareDeliveries(earlier, later);
+  const check = { kind: 'report', valid: true, version: '1.0', errors: 0, warnings: 0, findings: [], headline: '' } as unknown as Parameters<typeof pageReportParts>[2];
+  const parts = pageReportParts('req.ids', false, check, null, null, null, [], { earlierModel: { name: 'v1.ifc', bytes: 1, sha256: null }, comparison: comparisonReportParts(c) });
+  it('no piece holds more than a block of elements', () => {
+    expect(c.elements.fixed).toBe(many);
+    const longest = Math.max(...parts.map((p) => (typeof p === 'string' ? p.length : 0)));
+    expect(longest).toBeLessThan(1_500_000);
+  });
+  it('joined, it is the comparison', () => {
+    const json = JSON.parse(parts.join(''));
+    expect(json.comparison).toEqual(JSON.parse(JSON.stringify(comparisonForReport(c))));
+    expect(json.run).toBeNull();
+    expect(json.earlierModel.name).toBe('v1.ifc');
+  });
 });

@@ -31,7 +31,7 @@ export async function sha256Of(blob: Blob): Promise<string | null> {
  * `compared`, when the model was compared with an earlier delivery, names the earlier model's bytes in the same way
  * (`earlierModel`, beside `model`) and adds the comparison; without it the report is as it was before comparisons existed.
  */
-export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null, leftOut: { part: 'info' | 'file' | number; name: string; items: string[] }[] = [], compared: { earlierModel: FileIdentity; comparison: unknown } | null = null): BlobPart[] {
+export function pageReportParts(idsFile: string, edited: boolean, check: Report, run: RunResult | null, ids: FileIdentity | null = null, model: FileIdentity | null = null, leftOut: { part: 'info' | 'file' | number; name: string; items: string[] }[] = [], compared: { earlierModel: FileIdentity; comparison: BlobPart[] } | null = null): BlobPart[] {
   const head = JSON.stringify({
     idsFile,
     edited,
@@ -41,13 +41,19 @@ export function pageReportParts(idsFile: string, edited: boolean, check: Report,
     model,
     ...(compared ? { earlierModel: compared.earlierModel } : {}),
     check: { valid: check.valid, idsVersion: check.version, errors: check.errors, warnings: check.warnings, findings: check.findings },
-    ...(compared ? { comparison: compared.comparison } : {}),
   }, null, 2).replace(/\n\}$/, '');
-  if (!run) return [`${head},\n  "run": null\n}\n`];
+  // The comparison (see comparisonReportParts) comes in pieces, after the check, so a large one is never one string.
+  if (compared) return [head, ',\n  "comparison": ', ...compared.comparison, ...tail(run)];
+  return [head, ...tail(run)];
+}
+
+/** The run's part of the report, and the end of the document. */
+function tail(run: RunResult | null): BlobPart[] {
+  if (!run) return [',\n  "run": null\n}\n'];
   const run_ = reportParts(run);
   // The run's own closing line end is dropped: the document closes after it.
   const last = run_[run_.length - 1];
-  return [`${head},\n  "run": `, ...run_.slice(0, -1), typeof last === 'string' ? last.replace(/\n$/, '') : last, '\n}\n'];
+  return [',\n  "run": ', ...run_.slice(0, -1), typeof last === 'string' ? last.replace(/\n$/, '') : last, '\n}\n'];
 }
 
 export function pageReportName(idsName: string, run: RunResult | null): string {

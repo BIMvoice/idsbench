@@ -9,7 +9,7 @@ import { pageReportName, pageReportParts, sha256Of } from '../core/report';
 import { alignResults, NOT_ALIGNED } from '../core/align';
 import { changeLine, snapshotOf, type Snapshot } from '../core/changed';
 import { ROW_CAP } from '../core/checkview';
-import { comparisonCsvName, comparisonCsvParts, comparisonForReport } from '../core/compare';
+import { comparisonCsvName, comparisonCsvParts, comparisonReportParts } from '../core/compare';
 import { About } from './page/About';
 import { Compare } from './page/Compare';
 import { saveFile } from './page/draft';
@@ -218,7 +218,7 @@ export function App() {
     const ran = result && run && 'outcome' in run ? { name: result.ifcFile, ...run.outcome.model } : null;
     // With a comparison on the page, the report names the earlier model's bytes too, and holds the comparison.
     const cmp = page.comparison, er = page.earlierRun;
-    const compared = cmp && er && 'outcome' in er ? { earlierModel: { name: er.outcome.result.ifcFile, ...er.outcome.model }, comparison: comparisonForReport(cmp) } : null;
+    const compared = cmp && er && 'outcome' in er ? { earlierModel: { name: er.outcome.result.ifcFile, ...er.outcome.model }, comparison: comparisonReportParts(cmp) } : null;
     return guarded('The report', () => { const name = pageReportName(idsName, result); saveFile(pageReportParts(idsName, edited, report, result, ids, ran, edited ? page.leftOut : [], compared), name, 'application/json'); return name; });
   });
   const downloadComparison = () => download('The comparison', async () => {
