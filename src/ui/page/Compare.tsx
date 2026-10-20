@@ -5,6 +5,7 @@ import { capGroups, groupFailures, ownValues } from '../../core/groups';
 import { ELEMENT_CHANGE_WORDS, ELEMENT_CHANGES, elementsOf, NO_LONGER_FAILING, SPEC_CHANGE_WORDS, type Comparison, type ElementChange, type SpecChange, type SpecComparison } from '../../core/compare';
 import { formatSize } from '../../core/format';
 import type { ModelBytes } from '../../core/session';
+import type { Phase } from '../../core/validate';
 import { plural } from '../../core/shape';
 import { FAILURE_CAP, type SpecState } from '../../core/types';
 
@@ -49,6 +50,18 @@ function ChangeGroup({ spec, change }: { spec: SpecComparison; change: ElementCh
   );
 }
 
+const EARLIER_PHASE: Record<Phase, string> = {
+  'reading-ids': 'Checking the IDS file before the earlier delivery...',
+  'reading-ifc': 'Reading the earlier delivery. Large models take a while...',
+  checking: 'Checking the earlier delivery against the specifications...',
+};
+/** What the comparison is doing, in words. Before either run says anything, the plain sentence. */
+function progressText(p: { which: 'model' | 'earlier'; phase: Phase } | null): string {
+  if (!p) return 'Checking the earlier delivery against the same IDS file...';
+  if (p.which === 'earlier') return EARLIER_PHASE[p.phase];
+  return p.phase === 'reading-ifc' ? 'Reading this model again for the comparison. Large models take a while...' : 'Collecting what the comparison needs from this model...';
+}
+
 interface Props {
   comparison: Comparison | null;
   /** The bytes each run was read from. */
@@ -56,6 +69,8 @@ interface Props {
   laterBytes: ModelBytes | null;
   /** Set while the earlier delivery is being run. */
   working: boolean;
+  /** How far the runs of the comparison are, while they run: this model checked once more, or the earlier delivery. */
+  progress?: { which: 'model' | 'earlier'; phase: Phase } | null;
   /** Why the two runs are not compared on the page, when they are not (too many elements). */
   problem?: string | null;
   /** Why one of the two runs of the comparison could not be made, when one could not: the model's own pass, or the earlier delivery. */
@@ -65,7 +80,7 @@ interface Props {
 }
 
 /** The model against the earlier delivery: the two files, one sentence, and per specification what changed and which elements. */
-export function Compare({ comparison: c, earlierBytes, laterBytes, working, problem, error, onDownload, onRunAgain }: Props) {
+export function Compare({ comparison: c, earlierBytes, laterBytes, working, progress, problem, error, onDownload, onRunAgain }: Props) {
   const sha = (b: ModelBytes | null) => b?.sha256 ?? 'not available in this browser';
   return (
     <section className="spec-section compare" aria-labelledby="compare-title" id="compare">
@@ -79,7 +94,7 @@ export function Compare({ comparison: c, earlierBytes, laterBytes, working, prob
         ) : problem ? (
           <p className="notice-box" id="compare-problem">{problem}</p>
         ) : !c ? (
-          working ? <p className="working">Checking the earlier delivery against the same IDS file...</p> : null
+          working ? <p className="working" id="compare-progress">{progressText(progress ?? null)}</p> : null
         ) : (
           <>
             <p className="compare-headline" id="compare-headline">{c.headline}</p>

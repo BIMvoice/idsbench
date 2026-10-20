@@ -500,3 +500,12 @@ describe('the comparison in the report is written in pieces', () => {
     expect(json.earlierModel.name).toBe('v1.ifc');
   });
 });
+
+// ---- review finding 6: the runs of a comparison say how far they are ----
+describe('the comparison says how far its runs are', () => {
+  const render = (progress: { which: 'model' | 'earlier'; phase: 'reading-ids' | 'reading-ifc' | 'checking' } | null) =>
+    renderToStaticMarkup(createElement(Compare, { comparison: null, earlierBytes: null, laterBytes: null, working: true, progress, error: null, onDownload: () => {}, onRunAgain: () => {} } as never));
+  it('reading the earlier delivery', () => expect(render({ which: 'earlier', phase: 'reading-ifc' })).toContain('Reading the earlier delivery. Large models take a while...'));
+  it('checking the earlier delivery', () => expect(render({ which: 'earlier', phase: 'checking' })).toContain('Checking the earlier delivery against the specifications...'));
+  it('checking this model again for the comparison', () => expect(render({ which: 'model', phase: 'checking' })).toContain('Collecting what the comparison needs from this model...'));
+});

@@ -105,6 +105,8 @@ export function usePage() {
   /** An earlier delivery of the model, to compare the model with. Only while there is a model. */
   const [earlier, setEarlier] = useState<File | null>(null);
   const [compared, setCompared] = useState<Compared | null>(null);
+  /** How far the runs of the comparison are: which of the two, and its phase. */
+  const [compareProgress, setCompareProgress] = useState<{ which: 'model' | 'earlier'; phase: Phase } | null>(null);
   /** A file chosen as the earlier delivery that is not a model, and why. */
   const [earlierRefusal, setEarlierRefusal] = useState<string | null>(null);
   /** Without a model there is nothing to compare an earlier delivery with: it goes with the model. */
@@ -213,11 +215,12 @@ export function usePage() {
       console.error(e);
       setCompared({ ...made, side, error: e instanceof RunFailed ? e.info : { kind: 'unexpected', message: UNEXPECTED } });
     };
-    const a = runInWorker({ ids: idsFile, ifc: model }, () => {}, { collect: true });
+    setCompareProgress(null);
+    const a = runInWorker({ ids: idsFile, ifc: model }, (phase) => { if (live.on) setCompareProgress({ which: 'model', phase }); }, { collect: true });
     current = a;
     a.promise.then((later) => {
       if (!live.on) return;
-      const b = runInWorker({ ids: idsFile, ifc: earlier }, () => {}, { slot: 'earlier', collect: true });
+      const b = runInWorker({ ids: idsFile, ifc: earlier }, (phase) => { if (live.on) setCompareProgress({ which: 'earlier', phase }); }, { slot: 'earlier', collect: true });
       current = b;
       b.promise.then((outcome) => { if (live.on) setCompared({ ...made, later, outcome }); }, fail('earlier'));
     }, fail('model'));
@@ -496,7 +499,7 @@ export function usePage() {
     notice, clearNotice: () => setNotice(null), draftKept, saveNote, leftOut,
     check, report, valid, checking: text !== null && !blank && check === null,
     run, running, phase, runnable,
-    earlier, chooseEarlier, removeEarlier: () => { setEarlier(null); setEarlierRefusal(null); }, earlierRefusal, earlierRun, comparison, comparisonProblem, comparingNow,
+    earlier, chooseEarlier, removeEarlier: () => { setEarlier(null); setEarlierRefusal(null); }, earlierRefusal, earlierRun, comparison, comparisonProblem, comparingNow, compareProgress,
     placed, targets, issues, guardErrors, extraGuard, lines,
     editing, setEditing, focusKey, undo, saveProblem, downloadBlocked,
     openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, goToIssue, save, idsBlob, textOf, asInFile, kept,

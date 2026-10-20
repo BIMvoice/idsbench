@@ -76,7 +76,12 @@ try {
   // Watch the verdict and its record while the earlier delivery is chosen and removed: they must never go.
   await page.evaluate(() => {
     window.__verdicts = new Set();
-    const note = () => window.__verdicts.add(`${document.querySelector('.title-block')?.getAttribute('data-kind')}|${document.querySelector('.verdict-word')?.textContent}`);
+    window.__progress = new Set();
+    const note = () => {
+      window.__verdicts.add(`${document.querySelector('.title-block')?.getAttribute('data-kind')}|${document.querySelector('.verdict-word')?.textContent}`);
+      const p = document.querySelector('#compare-progress')?.textContent;
+      if (p) window.__progress.add(p);
+    };
     new MutationObserver(note).observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
     window.__runs.length = 0;
   });
@@ -87,6 +92,8 @@ try {
   await page.locator('#compare-headline').waitFor();
   const headline = await page.locator('#compare-headline').innerText();
   const chosenRuns = await page.evaluate(() => window.__runs.join(','));
+  const progress = await page.evaluate(() => [...window.__progress]);
+  check('while the comparison runs it says how far it is, the earlier delivery\'s own steps included', progress.some((p) => /earlier delivery against the specifications|Reading the earlier delivery/.test(p)), progress.join(' ; '));
   check('choosing the earlier delivery leaves the run of the model alone: one pass of the model that collects, then the earlier delivery', chosenRuns === 'model+collect,earlier+collect', chosenRuns);
   check('the headline counts the changes', headline === 'building-v2.ifc against building-v1.ifc: 2 specifications now fail and 1 still fails.', headline);
   const elementLine = await page.locator('#compare-elements').innerText();
