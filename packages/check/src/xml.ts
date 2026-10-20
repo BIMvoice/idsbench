@@ -77,13 +77,26 @@ function convert(el: DomEl, parent: XNode | undefined, index: number): XNode {
   return node;
 }
 
+/** For each element whose children were counted: how many of its children bear each name. */
+const sameNamed = new WeakMap<XNode, Map<string, number>>();
+
+/**
+ * The element's path from the root, with "[n]" where it has siblings of the same name. The children of an element are
+ * counted once, on first use, so that a path costs as much as the element is deep: a file of 20,000 specifications
+ * with a finding in each would otherwise count 20,000 siblings for every one of them.
+ */
 export function pathOf(n: XNode): string {
   const parts: string[] = [];
   for (let cur: XNode | undefined = n; cur; cur = cur.parent) {
-    const same = cur.parent ? cur.parent.children.filter((c) => c.name === cur!.name).length : 1;
-    parts.unshift(same > 1 ? `${cur.name}[${cur.index}]` : cur.name);
+    let counts = cur.parent ? sameNamed.get(cur.parent) : undefined;
+    if (cur.parent && !counts) {
+      counts = new Map();
+      for (const c of cur.parent.children) counts.set(c.name, (counts.get(c.name) ?? 0) + 1);
+      sameNamed.set(cur.parent, counts);
+    }
+    parts.push((counts?.get(cur.name) ?? 1) > 1 ? `${cur.name}[${cur.index}]` : cur.name);
   }
-  return parts.join('/');
+  return parts.reverse().join('/');
 }
 
 export function child(n: XNode | undefined, name: string): XNode | undefined {

@@ -153,6 +153,12 @@ export class CheckStalled extends AppError {
 }
 
 /**
+ * Not done yet: only the schema validator works in a Worker; reading the file and the engine's rules run on the page's
+ * own thread. Since paths are made at the cost of an element's depth, that is linear in the size of the file and in the
+ * number of findings (20,000 findings, each a misspelled class with a "Did you mean", took 4 to 8 s in Node, most of it
+ * looking for the closest class name). Moving the whole engine into a Worker would also need the page's tests to run
+ * it there; it is left for when a real file needs it.
+ *
  * Check the text with the engine, loaded on first use so the first paint never pays for it. Throws CheckStalled when the
  * engine has not answered within checkAllowed (an engine that answers later is not listened to).
  */

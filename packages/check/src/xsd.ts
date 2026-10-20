@@ -68,8 +68,15 @@ export function interpret(raw: string, tree?: XNode): XsdOutcome {
   const lines = raw.split('\n');
   const findings: Finding[] = [];
   let notWellFormed = false;
-  const byLine = new Map<number, XNode[]>();
-  if (tree) walk(tree, (n) => byLine.set(n.line, [...(byLine.get(n.line) ?? []), n]));
+  // For each line, its first element and its first element of each name: what a finding at that line is placed on.
+  const byLine = new Map<number, OnLine>();
+  if (tree) {
+    walk(tree, (n) => {
+      const at = byLine.get(n.line);
+      if (!at) byLine.set(n.line, { first: n, named: new Map([[n.name, n]]) });
+      else if (!at.named.has(n.name)) at.named.set(n.name, n);
+    });
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const m = /^[^:]+:(\d+): (parser error|Schemas validity error|Schemas parser error|Schemas parser warning|[a-z ]+error) : (.*)$/.exec(lines[i]);
@@ -104,12 +111,15 @@ export function interpret(raw: string, tree?: XNode): XsdOutcome {
   return { notWellFormed, findings: dedup };
 }
 
-function mapValidity(text: string, line: number, byLine: Map<number, XNode[]>): Finding {
+interface OnLine { first: XNode; named: Map<string, XNode> }
+
+function mapValidity(text: string, line: number, byLine: Map<number, OnLine>): Finding {
   const el = /^Element '([^']+)'(?:, attribute '([^']+)')?: (.*)$/.exec(text);
   const elementName = el ? localName(el[1]) : undefined;
   const attrName = el?.[2];
   const rest = el ? el[3] : text;
-  const node = elementName ? (byLine.get(line) ?? []).find((n) => n.name === elementName) ?? (byLine.get(line) ?? [])[0] : undefined;
+  const at = byLine.get(line);
+  const node = elementName && at ? at.named.get(elementName) ?? at.first : undefined;
   const where = (f: Omit<Finding, 'line' | 'column' | 'path' | 'severity'>): Finding => ({
     severity: 'error',
     ...f,
