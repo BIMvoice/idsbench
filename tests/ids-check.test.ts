@@ -11,8 +11,9 @@ const keys = (d: ReturnType<typeof doc>, level: 'error' | 'advice' = 'error') =>
 
 describe('guard rails', () => {
   it('a valid small document has no errors', () => expect(keys(doc(spec()))).toEqual([]));
-  it('a blank document needs a title and a specification', () => {
-    expect(keys(blankDocument() as never)).toEqual(['info.title', 'specs']);
+  it('a blank document needs a specification; a title is suggested, not required (the schema allows an empty one)', () => {
+    expect(keys(blankDocument() as never)).toEqual(['specs']);
+    expect(keys(blankDocument() as never, 'advice')).toEqual(['info.title']);
   });
   it('a specification with no applicability', () => expect(keys(doc(spec({ applicability: [] })))).toEqual(['applicability']));
   it('a specification needs a name and an IFC version', () => {

@@ -48,6 +48,9 @@ export function patternProblem(p: string): string | null {
   }
 }
 
+/** What the title field says while it is empty. */
+export const TITLE_SUGGESTED = 'A title is not required, but it helps people tell this IDS from others. Give it one if you can.';
+
 /** What a required field says while it is empty. */
 export const FILL_IN = 'Fill this in.';
 
@@ -104,7 +107,8 @@ export function checkDocument(doc: IdsDocument): Issue[] {
   const out: Issue[] = [];
   const add = (key: string, where: string, message: string, level: Issue['level'] = 'error') => out.push({ key, where, message, level });
 
-  if (doc.info.title.trim() === '') add('info.title', 'About this IDS', 'Give the IDS a title.');
+  // The schema needs the <title> element, not a text in it, and the Check engine does not ask for one: suggested, never blocking.
+  if (doc.info.title.trim() === '') add('info.title', 'About this IDS', TITLE_SUGGESTED, 'advice');
   if (doc.info.author !== '' && !isEmail(doc.info.author)) {
     add('info.author', 'About this IDS', 'This does not look like an email address, for example name@company.com.');
   }

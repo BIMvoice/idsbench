@@ -28,9 +28,10 @@ interface Props {
   onChange: (k: keyof IdsDocument['info'], v: string) => void;
 }
 
-/** The information about the IDS file itself. It asks for the title only, until "More details" is opened. */
+/** The information about the IDS file itself. It shows the title only (suggested, not required), until "More details" is opened. */
 export function About({ doc, issues, findings, xml, editing, focusKey, onEdit, onChange }: Props) {
   const issue = (k: string) => issues.find((i) => i.key === `info.${k}` && i.level === 'error')?.message ?? null;
+  const advice = (k: string) => issues.find((i) => i.key === `info.${k}` && i.level === 'advice')?.message ?? null;
   const filled = INFO_OPTIONAL.filter((k) => doc.info[k] !== '');
   const moreNeeded = INFO_OPTIONAL.some((k) => issue(k)) || (focusKey !== null && focusKey.key.startsWith('info.') && focusKey.key !== 'info.title');
   const root = useRef<HTMLElement>(null);
@@ -47,7 +48,7 @@ export function About({ doc, issues, findings, xml, editing, focusKey, onEdit, o
       <Findings findings={findings} xml={xml} label="What was found in About this IDS" />
       {editing ? (
         <div className="about-form">
-          <TextField label="Title" dataKey="info.title" required value={doc.info.title} error={issue('title')} onChange={(v) => onChange('title', v)} />
+          <TextField label="Title" dataKey="info.title" value={doc.info.title} error={issue('title')} advice={advice('title')} onChange={(v) => onChange('title', v)} />
           <details className="more" open={moreNeeded || undefined}>
             <summary>More details</summary>
             {INFO_OPTIONAL.map((k) => (

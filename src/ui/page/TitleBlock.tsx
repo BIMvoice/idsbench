@@ -37,7 +37,7 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
   const result = run && 'outcome' in run ? run.outcome.result : null;
   let verdict;
   if (page.blank) {
-    verdict = <Verdict state="waiting" word="New">Nothing to check yet. Give the IDS a title and add the first specification.</Verdict>;
+    verdict = <Verdict state="waiting" word="New">Nothing to check yet. Add the first specification, and give the IDS a title.</Verdict>;
   } else if (check && 'failed' in check) {
     verdict = <p className="error">{check.failed}</p>;
   } else if (check && 'view' in check && check.view.kind === 'sentence') {

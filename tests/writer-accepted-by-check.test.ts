@@ -94,11 +94,10 @@ describe('part 2: the official IDS 1.0 files that Check accepts, read and writte
       else accepted++;
       if (checkDocument(model).some((i) => i.level === 'error')) blockedByForm.push(`${r.file}: ${checkDocument(model).filter((i) => i.level === 'error').map((i) => i.message)[0]}`);
     }
-    console.log(`PART 2: official files Check accepts: ${files.length}; not IDS 1.0 (Write refuses to open): ${skipped}; written back and accepted: ${accepted}; rejected: ${rejected.length}; blocked by the form although Check accepts them (all: no title, the form's own rule): ${blockedByForm.length}`);
+    console.log(`PART 2: official files Check accepts: ${files.length}; not IDS 1.0 (Write refuses to open): ${skipped}; written back and accepted: ${accepted}; rejected: ${rejected.length}; blocked by the form although Check accepts them: ${blockedByForm.length}`);
     expect(rejected).toEqual([]);
-    // Three official files carry no <info> at all. The schema allows that; the form asks for a title (its own rule,
-    // not Check's), so opening one of them asks the user to type a title before Download is on. Nothing else blocks.
-    expect(blockedByForm.map((b) => b.split(': ').slice(1).join(': '))).toEqual(Array(3).fill('Give the IDS a title.'));
+    // Three of these files have an empty title, which the form used to block; it now suggests a title, so nothing blocks.
+    expect(blockedByForm).toEqual([]);
     expect(accepted + skipped).toBe(files.length);
     expect({ checkAccepts: files.length, notIds10: skipped, writtenBackAndAccepted: accepted }).toEqual({ checkAccepts: 346, notIds10: 1, writtenBackAndAccepted: 345 });
   }, 600000);

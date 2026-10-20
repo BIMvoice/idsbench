@@ -247,7 +247,7 @@ export function App() {
     : !model ? 'model'
     : result ? (hasFailures ? 'csv' : 'report') : '';
   const next = !doc && !page.source ? 'Open an IDS file, or drop an IDS file and an IFC model anywhere on this page. No files at hand? Try the example.'
-    : page.blank ? 'Give the IDS a title under "About this IDS", then add the first specification.'
+    : page.blank ? 'Add the first specification. A title under "About this IDS" is suggested.'
     : page.editing ? 'Your changes are checked as you make them. Press Done when the specification reads as you mean it.'
     : page.checking ? null
     : report && !report.valid ? (doc ? `Work through the list below: "Fix" opens the place concerned.${model ? ' The model is checked as soon as the file is valid.' : ''}` : 'This file has to be corrected in the tool that made it.')

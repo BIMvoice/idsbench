@@ -116,13 +116,14 @@ try {
   await page.getByRole('button', { name: 'New' }).click();
   await page.screenshot({ path: path.join(shotDir, 'write-1-empty.png'), fullPage: true });
   const empty = await page.locator('main').innerText();
-  check('empty editor invites the first action', /No specifications yet\. Add the first one/.test(empty) && /Give the IDS a title under "About this IDS", then add the first specification\./.test(empty));
+  check('empty editor invites the first action', /No specifications yet\. Add the first one/.test(empty) && /Add the first specification\. A title under "About this IDS" is suggested\./.test(empty));
   check('the IDS box holds Open, New and Download .ids', (await page.locator('.drop').first().locator('button').allInnerTexts()).join(',') === 'Open,New,Download .ids,Close');
   check('shows the file name and no unsaved mark on a blank document', /untitled\.ids/i.test(await status()) && !empty.includes('unsaved changes'));
   check('says where unsaved work is kept in one sentence', (await page.locator('.foot').innerText()).includes('Unsaved changes stay in this browser tab until you close it.'));
-  check('Download is off on a blank document, with a reason in words', (await dlBtn.isDisabled()) && /Download is off until this is fixed: About this IDS: Give the IDS a title\./.test(await reason()));
+  check('Download is off on a blank document, with a reason in words', (await dlBtn.isDisabled()) && /Download is off until this is fixed: Specifications: Add at least one specification\./.test(await reason()));
   check('a new document is not judged before there is something to judge: no verdict, the stamp cell says New', (await page.locator('.verdict.waiting .verdict-word').innerText()) === 'New' && (await page.locator('.verdict.fail, .verdict.pass').count()) === 0);
   check('nothing is stored while nothing is written', await page.evaluate(() => sessionStorage.length === 0 && localStorage.length === 0));
+  check('the title is suggested beside the field, not required (the schema allows an empty one)', (await page.locator('[data-key="info.title"] .advice-msg').innerText()).startsWith('A title is not required') && (await page.getByLabel('Title').getAttribute('aria-required')) === null && (await page.locator('[data-key="info.title"] .error-msg').count()) === 0);
   check('New puts the keyboard in the Title field, and About this IDS asks for the title only', (await page.evaluate(() => document.activeElement.labels?.[0]?.textContent)) === 'Title' && (await page.locator('.about-form details.more').evaluate((d) => !d.open)));
 
   // ---- create from blank, with the mouse --------------------------------------
