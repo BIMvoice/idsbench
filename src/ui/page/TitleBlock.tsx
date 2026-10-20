@@ -104,7 +104,7 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
       {run && 'error' in run && (
         <div className="model-refusal" role="alert">
           <p className="error">{run.error.message}</p>
-          {['unexpected', 'out-of-memory', 'file-unreadable', 'worker-stopped', 'check-stalled', 'check-incomplete'].includes(run.error.kind) && (
+          {['unexpected', 'out-of-memory', 'file-unreadable', 'worker-stopped', 'check-stalled', 'check-incomplete', 'engine-not-loaded'].includes(run.error.kind) && (
             <p className="refusal-action"><button type="button" className="btn small" onClick={page.runAgain}>Run again</button></p>
           )}
         </div>

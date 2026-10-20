@@ -163,6 +163,37 @@ export class CheckIncomplete extends AppError {
 }
 
 /**
+ * How long the download of the engine may take before the page says it did not come. The engine is loaded on first use
+ * and the time a check is allowed starts only once it is there, so without this a download that hangs would be waited
+ * for for ever. It is far longer than a check of a small file is allowed, for a slow connection.
+ */
+export const ENGINE_LOAD_ALLOWED_MS = 180_000;
+export const ENGINE_NOT_LOADED =
+  'The IDS file could not be checked: the checking engine did not download, so there is no verdict. Check your internet connection, then Check again.';
+/** The engine did not arrive within ENGINE_LOAD_ALLOWED_MS, or its download failed: nothing is known about the file. */
+export class EngineNotLoaded extends AppError {
+  constructor() { super('engine-not-loaded', ENGINE_NOT_LOADED); }
+}
+
+/** The engine, or EngineNotLoaded when it has not come within ENGINE_LOAD_ALLOWED_MS; the signal's reason when stopped first. */
+async function loadEngine(signal?: AbortSignal): Promise<typeof import('@idsbench/check')> {
+  signal?.throwIfAborted();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let passOn: (() => void) | undefined;
+  const gaveUp = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new EngineNotLoaded()), ENGINE_LOAD_ALLOWED_MS);
+    if (signal) { passOn = () => reject(signal.reason); signal.addEventListener('abort', passOn, { once: true }); }
+  });
+  const download = import('@idsbench/check').catch((e: unknown) => { console.error(e); throw new EngineNotLoaded(); });
+  try {
+    return await Promise.race([download, gaveUp]);
+  } finally {
+    clearTimeout(timer);
+    if (passOn) signal!.removeEventListener('abort', passOn);
+  }
+}
+
+/**
  * Not done yet: only the schema validator works in a Worker; reading the file and the engine's rules run on the page's
  * own thread. Since paths are made at the cost of an element's depth, that is linear in the size of the file and in the
  * number of findings (20,000 findings, each a misspelled class with a "Did you mean", took 4 to 8 s in Node, most of it
@@ -170,15 +201,16 @@ export class CheckIncomplete extends AppError {
  * it there; it is left for when a real file needs it.
  *
  * Check the text with the engine, loaded on first use so the first paint never pays for it. Throws CheckStalled when the
- * engine has not answered within checkAllowed of being loaded (an engine that answers later is not listened to), and CheckIncomplete
- * when the schema validator could not finish.
+ * engine has not answered within checkAllowed of being loaded (an engine that answers later is not listened to), CheckIncomplete
+ * when the schema validator could not finish, and EngineNotLoaded when the engine did not download.
  */
 export async function checkText(xml: string, options: { signal?: AbortSignal } = {}): Promise<CheckView> {
   const { signal } = options;
   const early = sentenceForText(xml);
   if (early) return { kind: 'sentence', text: early };
-  // The time allowed is counted from when the engine is there: a slow download of it is not a check that stalled.
-  const engine = await import('@idsbench/check');
+  // The time allowed is counted from when the engine is there: a slow download of it is not a check that stalled. The
+  // download has a time of its own, so one that hangs is said, with Check again.
+  const engine = await loadEngine(signal);
   signal?.throwIfAborted();
   // One stop for both ends of a check: the time allowed running out, and the caller no longer wanting it. Either ends
   // the schema validator's Worker at once, so that a check given up on does not go on beside the next one.

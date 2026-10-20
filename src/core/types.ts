@@ -171,6 +171,7 @@ export type ErrorKind =
   | 'worker-stopped'
   | 'check-stalled'
   | 'check-incomplete'
+  | 'engine-not-loaded'
   | 'unexpected';
 
 export interface AppErrorInfo {
