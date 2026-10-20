@@ -460,6 +460,19 @@ Expectations changed because a rule or a wording changed on purpose:
 - write-check, "typing number for a space offers Reference ... room number" became "typing type mark for a space offers Reference, with what it means (the reference of the type, not a room number)": the standard defines Reference as "Reference ID for this specified type in this project (e.g. type 'A-1')" in IFC2X3, IFC4 and IFC4X3. tests/meanings.test.ts the same; scripts/replay-job3.mjs finds Reference by "type mark".
 - proof-check, the abstract class in a new specification: the class stays at the head of its concrete subtypes (it was replaced by them), so that the sentence and the name are about that class; the assertion also reads the sentence and the name.
 
+## Four known defects (2026-10-20): new, and changed on purpose
+
+New in scripts/scale-check.mjs (2): the Check engine's schema validator runs in a worker of its own, and one that never answers (stubbed here, as a worker ended without a word) left "Checking the IDS file..." on screen for ever.
+- a check of the IDS file whose worker never answers: after 30 seconds the page says so and offers "Check again", and no longer says "Checking"
+- "Check again" checks the file once more and gives its verdict
+
+New in scripts/write-check.mjs (1):
+- the title is suggested beside the field, not required (the schema allows an empty one)
+
+Changed on purpose (the title is no longer required; the official schema needs the element, not a text in it):
+- write-check, "empty editor invites the first action": the line reads "Add the first specification. A title under "About this IDS" is suggested."
+- write-check, "Download is off on a blank document, with a reason in words": the reason is now "Specifications: Add at least one specification."
+
 ## What the scripts print now
 
-The numbers above were written as the scripts grew. Run on the present code they print: `browser-check` 151, `write-check` 90 (89 after the review of the new defaults, and one more since: giving the property a value writes the standard data type), `review-check` 56 without a large model (the two assertions that need one are run only when it is given), `proof-check` 21. `scale-check` is listed with 25 and was not run again for this note.
+The numbers above were written as the scripts grew. Run on the present code (2026-10-20) they print: `browser-check` 151, `write-check` 91 (89 after the review of the new defaults, one more when giving the property a value began to write the standard data type, and one for the title that is suggested and not required), `review-check` 56 without a large model (the two assertions that need one are run only when it is given), `scale-check` 27 (25 listed above and the two for a check that never answers), `proof-check` 21.

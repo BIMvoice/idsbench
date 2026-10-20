@@ -145,6 +145,7 @@ export type ErrorKind =
   | 'out-of-memory'
   | 'ifc-too-large'
   | 'worker-stopped'
+  | 'check-stalled'
   | 'unexpected';
 
 export interface AppErrorInfo {

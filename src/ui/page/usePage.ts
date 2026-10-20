@@ -102,6 +102,8 @@ export function usePage() {
   const [ran, setRan] = useState<Ran | null>(null);
   const [phase, setPhase] = useState<Phase>('reading-ids');
   const [nonce, setNonce] = useState(0);
+  /** Bumped by "Check again": the current text is checked once more after a check that did not finish. */
+  const [checkNonce, setCheckNonce] = useState(0);
   /** Set while the worker has said nothing for longer than it may during a run (to how long that is, in milliseconds): the page then offers to stop it. */
   const [silent, setSilent] = useState<number | null>(null);
   /** Set by "Run again" and "Stop and try again": the next run reads the model again instead of using the copy the worker keeps. */
@@ -139,10 +141,11 @@ export function usePage() {
     let live = true;
     checkText(settled).then(
       (view) => { if (live) setChecked({ text: settled, view }); },
-      (e) => { console.error(e); if (live) setChecked({ text: settled, failed: UNEXPECTED }); },
+      // A check that did not answer (see CheckStalled) says so; anything else is unexpected. Both offer "Check again".
+      (e) => { console.error(e); if (live) setChecked({ text: settled, failed: e instanceof AppError ? e.message : UNEXPECTED }); },
     );
     return () => { live = false; };
-  }, [settled]);
+  }, [settled, checkNonce]);
   const check = checked !== null && checked.text === text ? checked : null;
   const report: Report | null = check && 'view' in check && check.view.kind === 'report' ? check.view : null;
   const valid = report?.valid === true;
@@ -436,6 +439,8 @@ export function usePage() {
     openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, goToIssue, save, idsBlob, textOf, asInFile, kept,
     setModel, clearRefusal: () => setRefusal(null),
     runAgain: () => { freshNext.current = true; setNonce((n) => n + 1); },
+    /** Check the current text again, after a check that did not finish. */
+    checkAgain: () => { setChecked(null); setCheckNonce((n) => n + 1); },
     /** The worker has been silent too long: end it, and with it the model it holds, and run again from the file. */
     stopAndRetry: () => { stopWorker(); freshNext.current = true; setNonce((n) => n + 1); },
     silent: silent !== null && running,

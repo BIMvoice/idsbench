@@ -75,10 +75,12 @@ const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePa
 try {
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, acceptDownloads: true });
   const blocked = [], requests = [];
-  let stubWorker = false;
+  let stubWorker = false, stubXmllint = false;
   await ctx.route('**/*', async (route) => {
     const u = route.request().url();
     if (stubWorker && /\/assets\/worker-/.test(u)) return route.fulfill({ status: 200, contentType: 'text/javascript', body: 'self.onmessage = () => {};' });
+    // The Check engine's schema validator runs in a worker of its own: one that never answers, as one ended without a word.
+    if (stubXmllint && /\/assets\/xmllint-browser-/.test(u)) return route.fulfill({ status: 200, contentType: 'text/javascript', body: 'self.onmessage = () => {};' });
     if (u.startsWith(origin + '/') || u.startsWith('blob:') || u.startsWith('data:')) { requests.push(u); return route.continue(); }
     blocked.push(u); return route.abort();
   });
@@ -219,6 +221,19 @@ try {
   await page.getByRole('button', { name: 'Stop and try again' }).click();
   await verdict.waitFor({ timeout: 30000 });
   check('"Stop and try again" ends the stuck worker and the run gives its result', (await page.locator('.verdict-word').innerText()) === 'Pass' && (await page.locator('#stalled').count()) === 0);
+
+  // ---- the Check engine's worker never answers ---------------------------------------
+  stubXmllint = true;
+  await page.evaluate(() => sessionStorage.clear()).catch(() => {});
+  await page.goto(origin + '/');
+  await idsInput.setInputFiles(ids);
+  await page.locator('.title-block .model-refusal .error').waitFor({ timeout: 45000 });
+  const checkStalled = await page.locator('.title-block .model-refusal .error').innerText();
+  check('a check of the IDS file whose worker never answers: after 30 seconds the page says so and offers "Check again", and no longer says "Checking"', /^The check of the IDS file did not answer, so there is no verdict\./.test(checkStalled) && (await page.getByRole('button', { name: 'Check again' }).count()) === 1 && (await page.locator('.verdict-word', { hasText: 'Checking' }).count()) === 0, checkStalled);
+  stubXmllint = false;
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await page.locator('.verdict.pass, .verdict.incomplete').first().waitFor({ timeout: 20000 });
+  check('"Check again" checks the file once more and gives its verdict', (await page.locator('.verdict-word').innerText()) === 'Valid' && (await page.getByRole('button', { name: 'Check again' }).count()) === 0);
 
   // ---- a worker ended by the browser without a word ----------------------------------
   await fresh();

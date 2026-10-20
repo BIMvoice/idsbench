@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import type { Finding } from '@idsbench/check';
+import { AppError } from './errors';
 
 /** How many finding rows the page lists. The downloaded report holds all of them. */
 export const ROW_CAP = 200;
@@ -130,12 +131,42 @@ export function describeResult(xml: string, result: { valid: boolean; idsVersion
   };
 }
 
-/** Load the engine on first use, so the first paint never pays for it. */
+/** How long a check of a small IDS file may take before the page says it did not answer. */
+export const CHECK_ALLOWED_MS = 30_000;
+/**
+ * What is added for each megabyte of the file. 63.5 MB of IDS was checked in 17.2 s (Node, on the computer this was
+ * written on), about 0.3 s a megabyte; this is ten times that, for a slow computer.
+ */
+export const CHECK_MS_PER_MB = 3_000;
+/** How long the check of a text of this many characters may take. */
+export function checkAllowed(chars: number): number {
+  return CHECK_ALLOWED_MS + Math.round((chars / (1024 * 1024)) * CHECK_MS_PER_MB);
+}
+export const CHECK_STALLED =
+  'The check of the IDS file did not answer, so there is no verdict. The browser may have stopped it, most likely for want of memory. Check again; if it happens again, close other tabs and try once more.';
+/**
+ * The schema validator works in a Worker of its own that gives no sign of life while it works, and a Worker the browser
+ * ends without an error event never answers: without this the page would wait for ever.
+ */
+export class CheckStalled extends AppError {
+  constructor() { super('check-stalled', CHECK_STALLED); }
+}
+
+/**
+ * Check the text with the engine, loaded on first use so the first paint never pays for it. Throws CheckStalled when the
+ * engine has not answered within checkAllowed (an engine that answers later is not listened to).
+ */
 export async function checkText(xml: string): Promise<CheckView> {
   const early = sentenceForText(xml);
   if (early) return { kind: 'sentence', text: early };
-  const { checkIds } = await import('@idsbench/check');
-  return describeResult(xml, await checkIds(xml));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new CheckStalled()), checkAllowed(xml.length)); });
+  try {
+    const result = await Promise.race([import('@idsbench/check').then(({ checkIds }) => checkIds(xml)), stalled]);
+    return describeResult(xml, result);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const NOT_UTF8 =

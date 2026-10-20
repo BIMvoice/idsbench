@@ -39,7 +39,12 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
   if (page.blank) {
     verdict = <Verdict state="waiting" word="New">Nothing to check yet. Add the first specification, and give the IDS a title.</Verdict>;
   } else if (check && 'failed' in check) {
-    verdict = <p className="error">{check.failed}</p>;
+    verdict = (
+      <div className="model-refusal" role="alert">
+        <p className="error">{check.failed}</p>
+        <p className="refusal-action"><button type="button" className="btn small" onClick={page.checkAgain}>Check again</button></p>
+      </div>
+    );
   } else if (check && 'view' in check && check.view.kind === 'sentence') {
     verdict = <p className="error">{check.view.text}</p>;
   } else if (!report) {
@@ -99,7 +104,7 @@ export function TitleBlock({ page, shown }: { page: Page; shown: boolean }) {
       {run && 'error' in run && (
         <div className="model-refusal" role="alert">
           <p className="error">{run.error.message}</p>
-          {['unexpected', 'out-of-memory', 'file-unreadable', 'worker-stopped'].includes(run.error.kind) && (
+          {['unexpected', 'out-of-memory', 'file-unreadable', 'worker-stopped', 'check-stalled'].includes(run.error.kind) && (
             <p className="refusal-action"><button type="button" className="btn small" onClick={page.runAgain}>Run again</button></p>
           )}
         </div>
