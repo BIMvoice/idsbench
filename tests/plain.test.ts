@@ -24,9 +24,9 @@ describe('every code the engine can emit', () => {
     expect([...found].sort()).toEqual([...ENGINE_CODES].sort());
   });
 
-  it('all but two have a sentence in plain words, and the two that have none keep the engine\'s', () => {
+  it('all but one have a sentence in plain words, and the one that has none keeps the engine\'s', () => {
     const c = codeCoverage();
-    expect(c).toEqual({ total: 42, translated: 40, fallback: ['xsd-engine-failure', 'xsd-other'] });
+    expect(c).toEqual({ total: 41, translated: 40, fallback: ['xsd-other'] });
     for (const code of KEPT_AS_THE_ENGINE_SAYS) {
       const p = plainFinding(f(code, 'The schema check reported: x'));
       expect(p).toEqual({ plain: 'The schema check reported: x', technical: 'The schema check reported: x', translated: false });

@@ -62,8 +62,8 @@ describe('a check whose worker never answers', () => {
     const MB = 1024 * 1024;
     expect(checkAllowed(0)).toBe(30_000);
     expect(checkAllowed(10_000)).toBe(30_029);
-    // 63.5 MB of IDS was checked in 17.2 s in Node on the computer this was written on.
-    expect(checkAllowed(63.5 * MB)).toBeGreaterThan(10 * 17_200);
+    // A valid IDS file of 64 MB was checked in 14 s in Node on the computer this was written on.
+    expect(checkAllowed(64 * MB)).toBeGreaterThan(10 * 14_000);
     expect(checkAllowed(100 * MB)).toBe(30_000 + 300_000);
   });
 });

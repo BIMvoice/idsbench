@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // Layer 1: validate the document against the official IDS XSD with libxml2 compiled to WebAssembly
 // (npm: xmllint-wasm). All schema files are bundled (see schemas.generated.ts); nothing is fetched at runtime.
-import { validateXML } from 'xmllint-wasm';
+import { memoryPages, validateXML } from 'xmllint-wasm';
 import { ids10, xml as xmlXsd, xmlSchema } from './schemas.generated.ts';
 import type { Finding } from './types.ts';
 import { pathOf, walk, type XNode } from './xml.ts';
@@ -25,7 +25,40 @@ export interface XsdOutcome {
   findings: Finding[];
 }
 
-export async function validateAgainstXsd(xml: string, tree?: XNode): Promise<XsdOutcome> {
+/**
+ * The schema validator could not finish, for a reason of its own (most often it ran out of memory): it said nothing
+ * about the file, so there is no verdict. Never reported as a finding, which would call a valid file not valid.
+ */
+export class ValidatorFailed extends Error {
+  /** True when the validator ran out of memory. */
+  readonly outOfMemory: boolean;
+  constructor(detail: string, outOfMemory: boolean) {
+    super(`The schema validator could not finish: ${detail}`);
+    this.name = 'ValidatorFailed';
+    this.outOfMemory = outOfMemory;
+  }
+}
+
+/**
+ * The most memory libxml2 may take for a document of this many characters, in WebAssembly pages of 64 KiB: sixteen
+ * times the document and 32 MiB, never more than the 4 GiB WebAssembly allows. Measured in Node with xmllint-wasm
+ * 5.3.0, the least it needed was about 4.7 times the document and 16 MiB for files of simple specifications (15, 30 and
+ * 64 MB) and 6.4 times for 30 MB of long enumerations. The limit is a ceiling, not an allocation: the memory grows only
+ * as far as the document needs.
+ */
+export function memoryPagesFor(chars: number): number {
+  return Math.min(memoryPages.max, 2 * memoryPages.defaultInitialMemoryPages + Math.ceil((chars * 16) / (64 * 1024)));
+}
+
+const OUT_OF_MEMORY = /out of memory|\bOOM\b|cannot enlarge memory|allocation failed/i;
+
+export interface XsdOptions {
+  /** The memory ceiling, in WebAssembly pages; by default memoryPagesFor the document. */
+  maxMemoryPages?: number;
+}
+
+/** Throws ValidatorFailed when the validator could not finish. */
+export async function validateAgainstXsd(xml: string, tree?: XNode, options: XsdOptions = {}): Promise<XsdOutcome> {
   const schema = localise(ids10);
   let raw: string;
   try {
@@ -37,18 +70,21 @@ export async function validateAgainstXsd(xml: string, tree?: XNode): Promise<Xsd
         { fileName: 'XMLSchema.xsd', contents: xmlSchema },
         { fileName: 'XMLSchema-instance.xsd', contents: XSI_STUB },
       ],
-      initialMemoryPages: 256,
-      maxMemoryPages: 2048,
+      initialMemoryPages: memoryPages.defaultInitialMemoryPages,
+      maxMemoryPages: options.maxMemoryPages ?? memoryPagesFor(xml.length),
     });
     raw = res.rawOutput;
   } catch (e) {
-    return {
-      notWellFormed: false,
-      findings: [
-        { severity: 'error', code: 'xsd-engine-failure', message: `The schema validator could not run: ${String((e as Error).message ?? e).split('\n')[0]}` },
-      ],
-    };
+    // xmllint ended with another exit code than valid (0) or not valid (3, 4). 9 is its code for "out of memory": its
+    // message is then sometimes only a piece of the file, because there was no memory left to write the sentence. In a
+    // browser a Worker that failed hands over an ErrorEvent, whose message says what happened.
+    const text = String((e as { message?: unknown })?.message ?? e);
+    const outOfMemory = (e as { code?: unknown })?.code === 9 || OUT_OF_MEMORY.test(text);
+    throw new ValidatorFailed(outOfMemory ? 'it ran out of memory' : text.split('\n')[0], outOfMemory);
   }
+  // A validator that ran out of memory part of the way has not looked at the rest of the file.
+  const short = raw.split('\n').find((l) => OUT_OF_MEMORY.test(l));
+  if (short) throw new ValidatorFailed(short, true);
   return interpret(raw, tree);
 }
 

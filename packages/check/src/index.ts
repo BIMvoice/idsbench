@@ -8,6 +8,7 @@ import { runRules } from './rules.ts';
 import { versionProblem } from './version.ts';
 
 export type { CheckResult, Finding } from './types.ts';
+export { ValidatorFailed } from './xsd.ts';
 
 const NS = 'http://standards.buildingsmart.org/IDS';
 
@@ -15,7 +16,8 @@ export { declaredVersion, versionProblem, LOCATION_1_0 } from './version.ts';
 
 /**
  * Checks an IDS file (as text) against the official IDS schema and the additional rules of the buildingSMART
- * IDS audit tool. Runs entirely in the browser or in Node; makes no network calls.
+ * IDS audit tool. Runs entirely in the browser or in Node; makes no network calls. Throws ValidatorFailed when the
+ * schema validator could not finish (it ran out of memory, most often): there is then no verdict on the file.
  */
 export async function checkIds(input: string): Promise<CheckResult> {
   const xml = input.replace(/^\uFEFF/, ''); // a byte-order mark is allowed and ignored

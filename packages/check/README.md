@@ -104,7 +104,7 @@ document in `test/rules.test.ts` unless noted. The audit tool's numbers are in `
 | 401 | reserved `Pset_` prefix | `property-reserved-prefix` | implemented (simple value or enumeration, as in the tool) |
 | 501 | unexpected scenario | - | n/a |
 | 502 / crit | XML cannot be read / not an IDS stream | `xml-not-well-formed`, `not-an-ids-file` | implemented, with line and column from libxml2 |
-| 503, 504 | processing exception, schema not embedded | - | n/a (`xsd-engine-failure` is reported if the validator itself cannot run) |
+| 503, 504 | processing exception, schema not embedded | - | n/a (when the validator itself cannot finish, most often for want of memory, `checkIds` throws `ValidatorFailed`: no verdict, rather than a fault in the file) |
 
 Things listed in the audit tool's README that are covered by the rows above: IFC type names, predefined types
 (`USERDEFINED` accepts any value), attribute names and value types, property sets limited to the standard's properties,

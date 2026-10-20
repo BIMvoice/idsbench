@@ -134,8 +134,9 @@ export function describeResult(xml: string, result: { valid: boolean; idsVersion
 /** How long a check of a small IDS file may take before the page says it did not answer. */
 export const CHECK_ALLOWED_MS = 30_000;
 /**
- * What is added for each megabyte of the file. 63.5 MB of IDS was checked in 17.2 s (Node, on the computer this was
- * written on), about 0.3 s a megabyte; this is ten times that, for a slow computer.
+ * What is added for each megabyte of the file. A valid IDS file of 64 MB (105,800 specifications, written by
+ * scripts/make-large-ids.mjs) was checked in 14 s (Node, on the computer this was written on), about 0.22 s a megabyte;
+ * this is over ten times that, for a slow computer.
  */
 export const CHECK_MS_PER_MB = 3_000;
 /** How long the check of a text of this many characters may take. */
@@ -152,6 +153,15 @@ export class CheckStalled extends AppError {
   constructor() { super('check-stalled', CHECK_STALLED); }
 }
 
+export const CHECK_OUT_OF_MEMORY =
+  'This IDS file could not be checked: the browser ran out of memory for a file this size, so there is no verdict. Close other tabs and Check again.';
+export const CHECK_BROKE_DOWN =
+  'This IDS file could not be checked: the schema check stopped on a fault of its own, not of the file, so there is no verdict. Check again; if it happens again, idsbench cannot check this file yet.';
+/** The schema validator could not finish (see ValidatorFailed): nothing is known about the file, so there is no verdict. */
+export class CheckIncomplete extends AppError {
+  constructor(outOfMemory: boolean) { super('check-incomplete', outOfMemory ? CHECK_OUT_OF_MEMORY : CHECK_BROKE_DOWN); }
+}
+
 /**
  * Not done yet: only the schema validator works in a Worker; reading the file and the engine's rules run on the page's
  * own thread. Since paths are made at the cost of an element's depth, that is linear in the size of the file and in the
@@ -160,7 +170,8 @@ export class CheckStalled extends AppError {
  * it there; it is left for when a real file needs it.
  *
  * Check the text with the engine, loaded on first use so the first paint never pays for it. Throws CheckStalled when the
- * engine has not answered within checkAllowed (an engine that answers later is not listened to).
+ * engine has not answered within checkAllowed (an engine that answers later is not listened to), and CheckIncomplete
+ * when the schema validator could not finish.
  */
 export async function checkText(xml: string): Promise<CheckView> {
   const early = sentenceForText(xml);
@@ -168,7 +179,10 @@ export async function checkText(xml: string): Promise<CheckView> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const stalled = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new CheckStalled()), checkAllowed(xml.length)); });
   try {
-    const result = await Promise.race([import('@idsbench/check').then(({ checkIds }) => checkIds(xml)), stalled]);
+    const engine = await Promise.race([import('@idsbench/check'), stalled]);
+    const result = await Promise.race([engine.checkIds(xml), stalled]).catch((e: unknown) => {
+      throw e instanceof engine.ValidatorFailed ? new CheckIncomplete(e.outOfMemory) : e;
+    });
     return describeResult(xml, result);
   } finally {
     clearTimeout(timer);

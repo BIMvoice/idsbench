@@ -146,6 +146,7 @@ export type ErrorKind =
   | 'ifc-too-large'
   | 'worker-stopped'
   | 'check-stalled'
+  | 'check-incomplete'
   | 'unexpected';
 
 export interface AppErrorInfo {

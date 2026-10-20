@@ -186,9 +186,8 @@ const RULES: Record<string, Rule> = {
     rx(/^The element <(\w+)> is not allowed here\.$/, (m) => `${el(m[1]).replace(/^./, (c) => c.toUpperCase())} is not allowed here.`),
   ),
   'xsd-unexpected-text': rx(/^The element <(\w+)> contains text, but it may only contain other elements\.$/, (m) => `${el(m[1]).replace(/^./, (c) => c.toUpperCase())} holds loose text. It may only hold other items; move the text into one of them.`),
-  // Left as the engine says them: they name the schema validator's own wording or its failure, and a rewording would claim more than is known.
+  // Left as the engine says it: it names the schema validator's own wording, and a rewording would claim more than is known.
   'xsd-other': () => null,
-  'xsd-engine-failure': () => null,
 };
 
 /** Every code the Check engine can emit, as far as its source and the corpus show. The coverage test keeps this list honest. */
@@ -199,12 +198,12 @@ export const ENGINE_CODES: readonly string[] = [
   'partof-entity-incompatible', 'partof-relation-invalid', 'pattern-invalid', 'property-datatype-invalid', 'property-reserved-prefix',
   'property-unknown-in-standard-set', 'property-value-not-allowed', 'property-value-type-mismatch', 'requirements-needed', 'requirements-not-allowed',
   'restriction-base-invalid', 'restriction-empty', 'restriction-facet-invalid', 'restriction-facet-not-for-text', 'value-empty', 'value-invalid-for-type',
-  'value-missing', 'value-needs-datatype', 'xml-not-well-formed', 'xsd-engine-failure', 'xsd-invalid-value', 'xsd-missing-attribute', 'xsd-missing-element',
+  'value-missing', 'value-needs-datatype', 'xml-not-well-formed', 'xsd-invalid-value', 'xsd-missing-attribute', 'xsd-missing-element',
   'xsd-other', 'xsd-unexpected-attribute', 'xsd-unexpected-element', 'xsd-unexpected-text',
 ];
 
-/** The codes whose sentence is left as the engine gives it: they carry the schema validator's own wording or its failure. */
-export const KEPT_AS_THE_ENGINE_SAYS: readonly string[] = ['xsd-other', 'xsd-engine-failure'];
+/** The codes whose sentence is left as the engine gives it: they carry the schema validator's own wording. */
+export const KEPT_AS_THE_ENGINE_SAYS: readonly string[] = ['xsd-other'];
 
 /** How many of the engine's codes have a plain sentence written for them, and which keep the engine's own. */
 export function codeCoverage(): { total: number; translated: number; fallback: string[] } {
