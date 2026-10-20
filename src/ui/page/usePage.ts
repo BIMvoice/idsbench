@@ -280,6 +280,9 @@ export function usePage() {
   // ---- actions ----
   const discardOk = useCallback(() => !dirty || window.confirm('You have unsaved changes. Discard them?'), [dirty]);
   const token = useRef(0);
+  /** Stops the engine's check of the file being opened: a second file opened, or the page gone, ends its validator. */
+  const openStop = useRef<AbortController | null>(null);
+  useEffect(() => () => { token.current++; openStop.current?.abort(); }, []);
 
   const show = (next: { doc: IdsDocument | null; source: Source | null; unreadable?: string | null; fileName: string | null; seed?: Checked }) => {
     atOnce.current = true;
@@ -295,6 +298,9 @@ export function usePage() {
 
   const openIds = async (file: File, example = false) => {
     const mine = ++token.current;
+    openStop.current?.abort();
+    const stop = new AbortController();
+    openStop.current = stop;
     setRefusal(null);
     setOpening(file.name);
     try {
@@ -318,16 +324,19 @@ export function usePage() {
       // The quick reader could not take it. The engine says whether it is an IDS file with problems (shown, with
       // its findings) or not an IDS file at all (refused; what is on the page stays). A check that did not answer or
       // could not finish is shown with its sentence and "Check again".
-      const checked = await checkForOpening(read.text);
+      const checked = await checkForOpening(read.text, { signal: stop.signal });
       if (mine !== token.current) return;
       if ('view' in checked && checked.view.kind === 'sentence') { setRefusal({ name: file.name, text: checked.view.text }); return; }
       if (!discardOk()) return;
       show({ doc: null, source: src, unreadable: why, fileName: file.name, seed: checked });
     } catch (e) {
+      // A file whose opening was given up on (another file opened, the page gone) says nothing.
+      if (mine !== token.current) return;
       console.error(e);
-      if (mine === token.current) setRefusal({ name: file.name, text: UNEXPECTED });
+      setRefusal({ name: file.name, text: UNEXPECTED });
     } finally {
       if (mine === token.current) setOpening(null);
+      if (openStop.current === stop) openStop.current = null;
     }
   };
 

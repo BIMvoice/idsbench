@@ -204,11 +204,11 @@ export type Checked = { text: string; view: CheckView } | { text: string; failed
 /**
  * The check of a file the forms could not read, as the page keeps it. A check that did not answer or could not finish
  * (an AppError) is kept with its sentence, so that the file is shown with it and with "Check again"; anything else is
- * thrown.
+ * thrown. `signal` stops the check (its validator's Worker is ended) and the call rejects with the signal's reason.
  */
-export async function checkForOpening(text: string): Promise<Checked> {
+export async function checkForOpening(text: string, options: { signal?: AbortSignal } = {}): Promise<Checked> {
   try {
-    return { text, view: await checkText(text) };
+    return { text, view: await checkText(text, options) };
   } catch (e) {
     if (e instanceof AppError) return { text, failed: e.message };
     throw e;
