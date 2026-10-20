@@ -130,6 +130,9 @@ export async function validateAgainstXsd(xml: string, tree?: XNode, options: Xsd
       ],
       initialMemoryPages: memoryPages.defaultInitialMemoryPages,
       maxMemoryPages: options.maxMemoryPages ?? memoryPagesFor(xml.length),
+      // Without it libxml2 calls a valid file with a text node over 10 MB not well-formed ("Resource limit exceeded"):
+      // the page reads files of up to 100 MB, and how much memory the validator may take is set above.
+      modifyArguments: (args) => ['--huge', ...args],
     }, options.signal);
     raw = res.rawOutput;
   } catch (e) {
