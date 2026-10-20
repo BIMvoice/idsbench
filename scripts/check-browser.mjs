@@ -1,11 +1,11 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-// Runs the five browser scripts against the built site (run `npm run build` first): writing and editing an IDS file;
+// Runs the six browser scripts against the built site (run `npm run build` first): writing and editing an IDS file;
 // checking it, running a model against it and fixing it in place; what the saved file is, what happens when
 // things change under a run, what survives a reload, odd input and the keyboard journeys; large models, the model kept
 // between runs, a worker that goes silent or is ended and models too large to open; and the exact class, a Pset_ name that
-// is not the standard's and Download pressed again and again. All on the one page. Headless Chromium with
+// is not the standard's and Download pressed again and again; and the model compared with an earlier delivery. All on the one page. Headless Chromium with
 // every non-local request blocked. scripts/ASSERTIONS.md lists what is asserted.
 // Usage: npm run check:browser -- <clone of buildingSMART/IDS> [a large IFC model]      (set CHROMIUM_PATH to use an already installed browser)
 import fs from 'node:fs';
@@ -25,4 +25,5 @@ if (status === 0) status = run(['scripts/browser-check.mjs', cases]) || status;
 if (status === 0) status = run(['scripts/review-check.mjs', clone, ...(largeModel ? [largeModel] : [])]) || status;
 if (status === 0) status = run(['scripts/scale-check.mjs']) || status;
 if (status === 0) status = run(['scripts/proof-check.mjs']) || status;
+if (status === 0) status = run(['scripts/compare-check.mjs']) || status;
 process.exit(status);

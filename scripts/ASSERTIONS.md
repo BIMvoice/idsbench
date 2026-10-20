@@ -473,6 +473,30 @@ Changed on purpose (the title is no longer required; the official schema needs t
 - write-check, "empty editor invites the first action": the line reads "Add the first specification. A title under "About this IDS" is suggested."
 - write-check, "Download is off on a blank document, with a reason in words": the reason is now "Specifications: Add at least one specification."
 
+## scripts/compare-check.mjs (19, all new)
+
+The model compared with an earlier delivery, on the example IDS file and two variants of the example model (the same variants `tests/compare.test.ts` builds).
+
+- one model: the run is shown as before, and there is no comparison
+- one model: the offer to compare is in the IFC box
+- the headline counts the changes
+- while the comparison runs it says how far it is, the earlier delivery's own steps included
+- choosing the earlier delivery leaves the run of the model alone: one pass of the model that collects, then the earlier delivery
+- the element line counts the element changes
+- each specification has its change
+- both models are named, with their size and SHA-256
+- the verdict of the model is unchanged by the comparison
+- the element changes open from the keyboard, grouped by change
+- the comparison downloads as CSV with a byte order mark, one row per specification and per changed element
+- the report names both models by name, size and SHA-256, and holds the comparison
+- removing the earlier delivery leaves the page as it was with one model
+- removing the earlier delivery runs nothing again
+- the verdict of the model never left the page while the earlier delivery was chosen and removed
+- and its report has no earlier model and no comparison
+- an IDS file chosen as the earlier delivery is said and not taken
+- no error on the page
+- no request to anything but the local server
+
 ## What the scripts print now
 
-The numbers above were written as the scripts grew. Run on the present code (2026-10-20) they print: `browser-check` 151, `write-check` 91 (89 after the review of the new defaults, one more when giving the property a value began to write the standard data type, and one for the title that is suggested and not required), `review-check` 56 without a large model (the two assertions that need one are run only when it is given), `scale-check` 27 (25 listed above and the two for a check that never answers), `proof-check` 21.
+The numbers above were written as the scripts grew. Run on the present code (2026-10-20) they print: `browser-check` 151, `write-check` 91 (89 after the review of the new defaults, one more when giving the property a value began to write the standard data type, and one for the title that is suggested and not required), `review-check` 56 without a large model (the two assertions that need one are run only when it is given), `scale-check` 27 (25 listed above and the two for a check that never answers), `proof-check` 21, `compare-check` 19.

@@ -156,12 +156,29 @@ export interface ShapeOptions {
   place?: (expressId: number) => string;
   /** Set when the result of this specification is not given because the engine would answer it wrongly (see core/foldguard.ts): the sentence that says so. The row is then "Not checked". */
   withheld?: string;
+  /** Also keep every failing element and what the specification applies to, for comparing two deliveries, as long as the budget lasts. */
+  collect?: KeyBudget;
+}
+
+/** How many keys a run made for a comparison may still keep, shared by all its specifications (see CompareKeys.tooMany). */
+export class KeyBudget {
+  used = 0;
+  over = false;
+  constructor(readonly limit: number) {}
+  /** Count one more key; false (and from then on always false) once the limit is passed. */
+  take(): boolean {
+    if (this.over) return false;
+    if (++this.used > this.limit) this.over = true;
+    return !this.over;
+  }
 }
 
 /** Takes failing elements one at a time: counts them exactly, groups them by reason, holds what the page lists, and (if asked) writes the rest to the downloads. */
 class Failures {
   total = 0;
   readonly held: FailingElement[] = [];
+  /** Every failing element, kept only when ShapeOptions.collect is set. */
+  readonly all: FailingElement[] = [];
   readonly groups = new GroupAccumulator(FAILURE_CAP);
   private csv: Chunks | null;
   private json: Chunks | null;
@@ -177,6 +194,7 @@ class Failures {
     } else {
       this.held.push(f);
     }
+    if (this.options.collect?.take()) this.all.push(f);
     this.total++;
     this.groups.add(f);
   }
@@ -234,6 +252,7 @@ export class SpecAccumulator<R extends { status: string }> {
     this.error ??= r.error;
     this.last = r;
     if (hasNoApplicability(this.spec) || r.error || (r.status !== 'pass' && r.status !== 'fail' && r.status !== 'not_applicable')) return;
+    if (this.options.collect) for (const e of r.entityResults) if (e.globalId && this.options.collect.take()) this.applicableIds.push(e.globalId);
     const element = (e: SpecResult['entityResults'][number], reasons: string[], found?: (string | null)[]): FailingElement => {
       const el: FailingElement = { ifcClass: e.entityType, name: e.entityName ?? null, globalId: e.globalId ?? null, reasons };
       const place = e.expressId !== undefined ? this.options.place?.(e.expressId) : undefined;
@@ -260,6 +279,11 @@ export class SpecAccumulator<R extends { status: string }> {
       this.fails.add(el);
     }
   }
+
+  /** Every failing element fed so far; empty unless ShapeOptions.collect was set. */
+  collected(): FailingElement[] { return this.fails.all; }
+  /** The GlobalIds of every element the specification applied to (the run must keep the passing ones); empty unless ShapeOptions.collect was set. */
+  readonly applicableIds: string[] = [];
 
   finish(): { row: SpecRow; spilled: Spilled | null } {
     const { spec, modelSchema, fails } = this;

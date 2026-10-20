@@ -493,3 +493,9 @@ summary.finding-head::after { grid-column: 3; grid-row: 1; align-self: center; }
 .subtype-choice { display: block; margin: var(--s2) 0; }
 .choice-group.occurs { margin: var(--s3) 0; }
 .limit-versions { margin: 0 0 var(--s2); }
+
+/* The model against an earlier delivery: a sentence, the two files, then one row per specification. Existing tokens only. */
+.compare-headline { max-width: 46rem; margin: var(--s3) 0 var(--s2); font-size: var(--t-lead); font-weight: 600; }
+.compare-files { margin-left: 0; }
+.compare-files .sha { white-space: normal; overflow-wrap: anywhere; font-size: var(--t-label); }
+.change-group > h5 { margin: var(--s4) 0 var(--s2); }

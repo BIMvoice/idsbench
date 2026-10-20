@@ -118,8 +118,21 @@ export function countEntities(bytes: ArrayBuffer, onTick?: () => void): EntityCo
   return { all, named };
 }
 
-/** Refuse a model by the number of its entities, before it is parsed. */
-export function checkEntities(bytes: ArrayBuffer, deviceMemoryGiB?: number, onTick?: () => void): void {
-  const count = countEntities(bytes, onTick), limit = maxEntities(deviceMemoryGiB);
-  if (weighedEntities(count) > limit) throw new AppError('ifc-too-large', TOO_MANY_ENTITIES(count, limit, deviceMemoryGiB));
+/**
+ * The refusal of the earlier delivery of a comparison when it fits a tab alone but not beside the model the tab already
+ * holds. `weight` and `held` are weighed counts (see weighedEntities). The model's own result is not affected by it.
+ */
+export const PAIR_TOO_LARGE = (weight: number, held: number, limit: number) =>
+  `This model and the earlier delivery together have ${(weight + held).toLocaleString('en')} entities, counted as for one model (geometry for a third), and a browser tab holds about ${limit.toLocaleString('en')}: each fits alone, but not both at once, and a comparison needs both. The earlier delivery was not read, so there is no comparison; the result of this model is not affected. To compare them, export the two models in smaller parts, split the same way (by building or discipline), and compare part with part.`;
+
+/**
+ * Refuse a model by the number of its entities, before it is parsed, and return its weighed count. `held` is the
+ * weighed count of a model the tab already holds beside it (the other model of a comparison): the two are held
+ * against one budget. `limit` stands in for the budget of this browser (tests lower it).
+ */
+export function checkEntities(bytes: ArrayBuffer, deviceMemoryGiB?: number, onTick?: () => void, held?: number, limit = maxEntities(deviceMemoryGiB)): number {
+  const count = countEntities(bytes, onTick), weight = weighedEntities(count);
+  if (weight > limit) throw new AppError('ifc-too-large', TOO_MANY_ENTITIES(count, limit, deviceMemoryGiB));
+  if (held !== undefined && weight + held > limit) throw new AppError('ifc-too-large', PAIR_TOO_LARGE(weight, held, limit));
+  return weight;
 }
