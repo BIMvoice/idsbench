@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Finding } from '@idsbench/check';
 import { chooseDropped, type DroppedKind } from '../../core/align';
-import { checkText, readForCheck, startCheck, type Checked, type CheckView } from '../../core/checkview';
+import { checkForOpening, checkText, readForCheck, startCheck, type Checked, type CheckView } from '../../core/checkview';
 import { keepSource, sameContent, wholeLoss, writeKept, type Kept, type LostPart } from '../../core/ids/keep';
 import { leftOutSentence, sayLost, type LeftOut, type LostItem } from '../../core/ids/lost';
 import { AppError, UNEXPECTED } from '../../core/errors';
@@ -261,12 +261,13 @@ export function usePage() {
         return;
       }
       // The quick reader could not take it. The engine says whether it is an IDS file with problems (shown, with
-      // its findings) or not an IDS file at all (refused; what is on the page stays).
-      const view = await checkText(read.text);
+      // its findings) or not an IDS file at all (refused; what is on the page stays). A check that did not answer or
+      // could not finish is shown with its sentence and "Check again".
+      const checked = await checkForOpening(read.text);
       if (mine !== token.current) return;
-      if (view.kind === 'sentence') { setRefusal({ name: file.name, text: view.text }); return; }
+      if ('view' in checked && checked.view.kind === 'sentence') { setRefusal({ name: file.name, text: checked.view.text }); return; }
       if (!discardOk()) return;
-      show({ doc: null, source: src, unreadable: why, fileName: file.name, seed: { text: read.text, view } });
+      show({ doc: null, source: src, unreadable: why, fileName: file.name, seed: checked });
     } catch (e) {
       console.error(e);
       if (mine === token.current) setRefusal({ name: file.name, text: UNEXPECTED });

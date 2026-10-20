@@ -202,6 +202,20 @@ export async function checkText(xml: string, options: { signal?: AbortSignal } =
 export type Checked = { text: string; view: CheckView } | { text: string; failed: string };
 
 /**
+ * The check of a file the forms could not read, as the page keeps it. A check that did not answer or could not finish
+ * (an AppError) is kept with its sentence, so that the file is shown with it and with "Check again"; anything else is
+ * thrown.
+ */
+export async function checkForOpening(text: string): Promise<Checked> {
+  try {
+    return { text, view: await checkText(text) };
+  } catch (e) {
+    if (e instanceof AppError) return { text, failed: e.message };
+    throw e;
+  }
+}
+
+/**
  * Check `text` and hand what came of it to `done`, unless the returned function was called first: it stops the check
  * (its validator's Worker is ended) and nothing is handed on. What the page calls when the text changes, when the page
  * goes, and when "Check again" asks for a new check.
