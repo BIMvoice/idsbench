@@ -60,6 +60,8 @@ export interface SpecComparison {
   counts: Record<ElementChange, number>;
   /** Failing elements without a GlobalId, in either delivery: they cannot be matched, so they are counted and not listed. */
   noGlobalId: number;
+  /** Failing elements, in either delivery, whose GlobalId another entity of the model also carries: not matched, counted and not listed. */
+  duplicateGlobalId: number;
   /** The change in words, with the counts. */
   summary: string;
 }
@@ -73,6 +75,8 @@ export interface Comparison {
   headline: string;
   /** The element changes over all specifications in one sentence; empty when there are none. */
   elementLine: string;
+  /** Failing elements over all specifications that share their GlobalId with another element (see SpecComparison.duplicateGlobalId). */
+  duplicateGlobalId: number;
 }
 
 const passing = (s: SpecState) => s === 'pass' || s === 'nothing';
@@ -96,6 +100,8 @@ export interface MatchContext {
   laterIds: ReadonlySet<string>;
   earlierApplicable: ReadonlySet<string>;
   laterApplicable: ReadonlySet<string>;
+  /** GlobalIds that more than one entity of either model carries: an element with one of them cannot be told from the other by it, so it is not matched. */
+  duplicates?: ReadonlySet<string>;
 }
 
 /**
@@ -105,7 +111,7 @@ export interface MatchContext {
  * same: a new failure is an element the specification applied to before (it passed), "newly checked" one the earlier
  * model held without the specification applying to it, and a "new element" one the earlier model did not hold.
  */
-export function diffElements(before: FailingElement[], after: FailingElement[], ctx: MatchContext): { elements: ChangedElement[]; noGlobalId: number } {
+export function diffElements(before: FailingElement[], after: FailingElement[], ctx: MatchContext): { elements: ChangedElement[]; noGlobalId: number; duplicateGlobalId: number } {
   const keyed = (list: FailingElement[]) => {
     const m = new Map<string, FailingElement>();
     for (const f of list) if (f.globalId && !m.has(f.globalId)) m.set(f.globalId, f);
@@ -113,18 +119,21 @@ export function diffElements(before: FailingElement[], after: FailingElement[], 
   };
   const was = keyed(before), now = keyed(after);
   const elements: ChangedElement[] = [];
-  let noGlobalId = 0;
+  let noGlobalId = 0, duplicateGlobalId = 0;
+  const shared = (f: FailingElement) => !!f.globalId && (ctx.duplicates?.has(f.globalId) ?? false);
   for (const f of before) {
     if (!f.globalId) { noGlobalId++; continue; }
+    if (shared(f)) { duplicateGlobalId++; continue; }
     if (now.has(f.globalId)) continue;
     elements.push({ change: ctx.laterApplicable.has(f.globalId) ? 'fixed' : ctx.laterIds.has(f.globalId) ? 'no-longer-checked' : 'removed', element: f });
   }
   for (const f of after) {
     if (!f.globalId) { noGlobalId++; continue; }
+    if (shared(f)) { duplicateGlobalId++; continue; }
     const change: ElementChange = was.has(f.globalId) ? 'still-failing' : ctx.earlierApplicable.has(f.globalId) ? 'new-failure' : ctx.earlierIds.has(f.globalId) ? 'newly-checked' : 'new-element';
     elements.push({ change, element: f });
   }
-  return { elements, noGlobalId };
+  return { elements, noGlobalId, duplicateGlobalId };
 }
 
 /** The pairs of rows of the two results: by position when the two list the same specifications, else by name, and what is left over alone. */
@@ -171,9 +180,12 @@ function summaryOf(c: Omit<SpecComparison, 'summary'>): string {
     if (line) words.push(`${line[0].toUpperCase()}${line.slice(1)}.`);
     if (c.failedBefore === 0 && c.failedAfter === 0 && c.change === 'still-fails') words.push('It fails as a whole in both, with no element to list.');
   }
+  if (c.duplicateGlobalId) words.push(sharedSentence(c.duplicateGlobalId));
   if (c.noGlobalId) words.push(`${plural(c.noGlobalId, 'failing element')} without a GlobalId cannot be matched and ${c.noGlobalId === 1 ? 'is' : 'are'} not listed.`);
   return words.join(' ');
 }
+
+const sharedSentence = (n: number) => `${plural(n, 'failing element')} (in either delivery) share${n === 1 ? 's' : ''} a GlobalId with another element of the model, so ${n === 1 ? 'it is' : 'they are'} not matched by it: counted, not listed.`;
 
 function headlineOf(later: string, earlier: string, counts: Record<SpecChange, number>, total: number): string {
   if (total === 0) return `${later} against ${earlier}: the IDS file has no specifications, so there is nothing to compare.`;
@@ -200,13 +212,16 @@ const keysOf = (r: RunResult): CompareKeys => {
 export function compareDeliveries(earlier: RunResult, later: RunResult): Comparison {
   const ek = keysOf(earlier), lk = keysOf(later);
   const earlierIds = new Set(ek.globalIds), laterIds = new Set(lk.globalIds);
+  // A GlobalId more than one entity of a model carries (the list of a model holds each entity's once).
+  const duplicates = new Set<string>();
+  for (const list of [ek.globalIds, lk.globalIds]) { const seen = new Set<string>(); for (const g of list) { if (seen.has(g)) duplicates.add(g); else seen.add(g); } }
   const failingOf = (r: RunResult, k: CompareKeys, row: SpecRow) => k.failing[r.specs.indexOf(row)] ?? [];
   const applicableOf = (r: RunResult, k: CompareKeys, row: SpecRow) => new Set(k.applicable[r.specs.indexOf(row)] ?? []);
   const counts = zeroSpecs(), elements = zeroElements();
   const specs = pairRows(earlier.specs, later.specs).map(([before, after]): SpecComparison => {
     const change = specChange(before, after);
     const checked = change !== 'not-checked' && change !== 'not-in-both';
-    const diff = checked && before && after ? diffElements(failingOf(earlier, ek, before), failingOf(later, lk, after), { earlierIds, laterIds, earlierApplicable: applicableOf(earlier, ek, before), laterApplicable: applicableOf(later, lk, after) }) : { elements: [], noGlobalId: 0 };
+    const diff = checked && before && after ? diffElements(failingOf(earlier, ek, before), failingOf(later, lk, after), { earlierIds, laterIds, earlierApplicable: applicableOf(earlier, ek, before), laterApplicable: applicableOf(later, lk, after), duplicates }) : { elements: [], noGlobalId: 0, duplicateGlobalId: 0 };
     const c = zeroElements();
     for (const e of diff.elements) c[e.change]++;
     counts[change]++;
@@ -216,11 +231,12 @@ export function compareDeliveries(earlier: RunResult, later: RunResult): Compari
       change, before, after,
       failedBefore: checked && before ? failureTotalOf(before) : 0,
       failedAfter: checked && after ? failureTotalOf(after) : 0,
-      elements: diff.elements, counts: c, noGlobalId: diff.noGlobalId,
+      elements: diff.elements, counts: c, noGlobalId: diff.noGlobalId, duplicateGlobalId: diff.duplicateGlobalId,
     };
     return { ...base, summary: summaryOf(base) };
   });
   const line = countsLine(elements);
+  const duplicateGlobalId = specs.reduce((n, s) => n + s.duplicateGlobalId, 0);
   return {
     earlierFile: earlier.ifcFile,
     laterFile: later.ifcFile,
@@ -228,7 +244,8 @@ export function compareDeliveries(earlier: RunResult, later: RunResult): Compari
     counts,
     elements,
     headline: headlineOf(later.ifcFile, earlier.ifcFile, counts, specs.length),
-    elementLine: line ? `Failing elements: ${line}.` : '',
+    elementLine: [line ? `Failing elements: ${line}.` : '', duplicateGlobalId ? sharedSentence(duplicateGlobalId) : ''].filter(Boolean).join(' '),
+    duplicateGlobalId,
   };
 }
 
@@ -284,6 +301,7 @@ export function comparisonForReport(c: Comparison) {
       failedAfter: s.failedAfter,
       counts: s.counts,
       noGlobalId: s.noGlobalId,
+      duplicateGlobalId: s.duplicateGlobalId,
       summary: s.summary,
       elements: s.elements.map((e) => ({ change: e.change, ifcClass: e.element.ifcClass, name: e.element.name, globalId: e.element.globalId })),
     })),

@@ -369,3 +369,39 @@ describe('the diff function with what each specification applies to', () => {
   it('in the earlier model, not applied to before: newly checked', () => expect(of('newly-checked')).toEqual(['S']));
   it('not in the earlier model: new element', () => expect(of('new-element')).toEqual(['E']));
 });
+
+// ---- review finding 3: two elements with one GlobalId ----
+describe('two elements that share a GlobalId are not matched by it', () => {
+  const ids_ = onlyFireRating(EXAMPLE_IDS);
+  // Walls 3 and 4 both fail the fire rating and carry the same GlobalId (an invalid file, but one that is delivered).
+  const shared = V1.replace("#4=IFCWALL('0aExampleWall000000004'", "#4=IFCWALL('0aExampleWall000000003'");
+  const rated = (model: string, walls: string) => model.replace('(#1,#2),#11);', `(#1,#2,${walls}),#11);`);
+  it('one of the two fixed: neither is called fixed nor still failing; both deliveries\' elements are counted and said', async () => {
+    const v1 = await runText(ids_, shared, { collect: true });
+    const v2 = await runText(ids_, rated(shared, '#3'), { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(c.specs[0].elements.filter((e) => e.element.globalId === '0aExampleWall000000003')).toEqual([]);
+    expect(c.specs[0].duplicateGlobalId).toBe(3);
+    expect(c.specs[0].summary).toContain('3 failing elements (in either delivery) share a GlobalId with another element of the model');
+  });
+  it('both fixed: not counted twice as fixed', async () => {
+    const v1 = await runText(ids_, shared, { collect: true });
+    const v2 = await runText(ids_, rated(shared, '#3,#4'), { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(c.specs[0].counts.fixed).toBe(0);
+    expect(c.specs[0].duplicateGlobalId).toBe(2);
+    expect(c.elementLine).toContain('2 failing elements (in either delivery) share a GlobalId with another element of the model');
+  });
+  it('a GlobalId shared in the later model only is not matched either', async () => {
+    const v1 = await runText(ids_, V1, { collect: true });
+    const v2 = await runText(ids_, shared, { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(c.specs[0].elements.filter((e) => e.element.globalId === '0aExampleWall000000003')).toEqual([]);
+    expect(c.specs[0].duplicateGlobalId).toBe(3);
+  });
+  it('a GlobalId shared in only one of the two models is not matched either', () => {
+    const d = diffElements([el('X', 'a')], [el('X', 'b')], { earlierIds: new Set(['X']), laterIds: new Set(['X']), earlierApplicable: new Set(['X']), laterApplicable: new Set(['X']), duplicates: new Set(['X']) });
+    expect(d.elements).toEqual([]);
+    expect(d.duplicateGlobalId).toBe(2);
+  });
+});
