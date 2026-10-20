@@ -148,9 +148,12 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
   let cancelled = false;
   let myId = 0;
   let rejectRun: (e: Error) => void = () => {};
+  // Ends the check of the IDS file when the run is cancelled, so that its validator does not go on beside the next run's.
+  const stopCheck = new AbortController();
   const cancel = () => {
     if (cancelled) return;
     cancelled = true;
+    stopCheck.abort(new RunCancelled());
     if (pending?.id === myId) { worker?.postMessage({ type: 'cancel', id: myId } satisfies WorkerRequest); pending = null; }
     rejectRun(new RunCancelled());
   };
@@ -176,7 +179,7 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
       // The Check engine decides first: a file it rejects is never run.
       let ids, idsWarnings: number;
       try {
-        ({ doc: ids, warnings: idsWarnings } = await prepareIds(idsXml));
+        ({ doc: ids, warnings: idsWarnings } = await prepareIds(idsXml, { signal: stopCheck.signal }));
       } catch (e) {
         if (cancelled) return;
         console.error(e);

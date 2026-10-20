@@ -25,10 +25,11 @@ export class IdsInvalid extends AppError {
  * The one way Run opens an IDS file: the Check engine decides first, and only a file it accepts is read.
  * Whatever versions, structure or content the engine rejects, Run does not run.
  * Returns the parsed document and the number of warnings the engine raised (the file is still used).
+ * `signal` stops the check (its validator's Worker is ended) and the call rejects with the signal's reason.
  */
-export async function prepareIds(xml: string): Promise<{ doc: IDSDocument; warnings: number }> {
+export async function prepareIds(xml: string, options: { signal?: AbortSignal } = {}): Promise<{ doc: IDSDocument; warnings: number }> {
   precheckIdsText(xml);
-  const view = await checkText(xml);
+  const view = await checkText(xml, { signal: options.signal });
   if (view.kind === 'sentence') throw new AppError('ids-unusable', view.text);
   if (view.errors > 0) throw new IdsInvalid(view.errors);
   return { doc: readIds(xml), warnings: view.warnings };
