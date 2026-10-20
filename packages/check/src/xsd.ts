@@ -51,31 +51,22 @@ export function memoryPagesFor(chars: number): number {
 }
 
 /**
- * libxml2's own out-of-memory error, as xmllint prints it: `document.xml:54464: error: libxml2: out of memory`, or the
- * message alone. Matched as a whole line, because the rest of what the validator prints quotes the file: a value
- * (`ifcVersion="OOM"`), and after a parser error a line of the file itself.
- */
-const LIBXML2_OUT_OF_MEMORY = /^(?:[^\s:]+:\d+: (?:[a-z ]+ )?error ?: )?libxml2: out of memory$/;
-/**
- * The WebAssembly runtime's own: memory for the validator could not be had (V8's RangeError, as a failed Worker's
- * ErrorEvent states it), or the runtime gave up for want of it (Emscripten's `Aborted(OOM)`). Matched at the start of
- * the message, which these errors write themselves; never in xmllint's output.
+ * The WebAssembly runtime's own error for want of memory: memory for the validator could not be had (V8's RangeError, as
+ * a failed Worker's ErrorEvent states it), or the runtime gave up for want of it (Emscripten's `Aborted(OOM)`). Matched
+ * at the start of the message, which these errors write themselves; never in xmllint's output.
  */
 const RUNTIME_OUT_OF_MEMORY = /^(?:Uncaught )?(?:RangeError: (?:WebAssembly\.(?:Memory|Memory\.grow|Instance|instantiate)\(\)|Out of memory: Cannot allocate Wasm memory)|(?:RuntimeError: )?Aborted\(OOM\))/;
 
-/** True when one of the lines of xmllint's output is libxml2 saying it ran out of memory. A line of the file that libxml2 quotes (it is followed by a caret line) is not. */
-export function libxml2OutOfMemory(output: string): boolean {
-  const lines = output.split('\n');
-  return lines.some((l, i) => LIBXML2_OUT_OF_MEMORY.test(l) && !/^\s*\^\s*$/.test(lines[i + 1] ?? ''));
-}
-
-/** True when the validator's failure `e` is its running out of memory: xmllint's exit code 9, libxml2's own message, or the runtime's. */
+/**
+ * True when the validator's failure `e` is its running out of memory: xmllint's exit code 9, or the runtime's own error.
+ * What xmllint prints is never read for it, whatever its exit code: it quotes the file, values with their line breaks
+ * included, so any line of it may be the file's. Running files of 1, 4 and 15 MB (valid, not valid, not well-formed)
+ * under ceilings of 20 to 96 MiB, every one of the 30 runs that ran out of memory ended with exit code 9.
+ */
 export function failedForWantOfMemory(e: unknown): boolean {
   const code = (e as { code?: unknown })?.code;
-  if (code === 9) return true;
-  const text = String((e as { message?: unknown })?.message ?? e);
-  // An exit code means the text is xmllint's output, which quotes the file: only libxml2's own line counts there.
-  return typeof code === 'number' ? libxml2OutOfMemory(text) : RUNTIME_OUT_OF_MEMORY.test(text) || libxml2OutOfMemory(text);
+  if (typeof code === 'number') return code === 9;
+  return RUNTIME_OUT_OF_MEMORY.test(String((e as { message?: unknown })?.message ?? e));
 }
 
 export interface XsdOptions {
@@ -144,8 +135,6 @@ export async function validateAgainstXsd(xml: string, tree?: XNode, options: Xsd
     const outOfMemory = failedForWantOfMemory(e);
     throw new ValidatorFailed(outOfMemory ? 'it ran out of memory' : text.split('\n')[0], outOfMemory);
   }
-  // A validator that ran out of memory part of the way has not looked at the rest of the file.
-  if (libxml2OutOfMemory(raw)) throw new ValidatorFailed('it ran out of memory', true);
   return interpret(raw, tree);
 }
 
@@ -190,7 +179,16 @@ export function interpret(raw: string, tree?: XNode): XsdOutcome {
     if (!m) continue;
     const line = parseInt(m[1], 10);
     const kind = m[2];
-    const text = m[3];
+    let text = m[3];
+    if (kind === 'Schemas validity error' && quotesUnfinished(text)) {
+      // libxml2 quotes a value with its line breaks: the lines after this one are the rest of the value, up to the line
+      // that finishes the message. Read that way, whatever they look like; when no line finishes it, only this one.
+      let rest = text;
+      for (let j = i + 1; j < lines.length && !/ fails to validate$/.test(lines[j]); j++) {
+        rest += '\n' + lines[j];
+        if (!quotesUnfinished(rest)) { text = rest; i = j; break; }
+      }
+    }
     if (kind === 'parser error') {
       notWellFormed = true;
       // libxml2 prints the source line and a caret under the offending column
@@ -223,6 +221,17 @@ export function interpret(raw: string, tree?: XNode): XsdOutcome {
     (f) => !(f.message.includes('is not a valid value of the local list type') && (invalidValues.get(at(f)) ?? 0) - (f.code === 'xsd-invalid-value' ? 1 : 0) > 0),
   );
   return { notWellFormed, findings: dedup };
+}
+
+/**
+ * True when the schema error `text` opens a quoted value (`The value '…` or `'…`) and has not yet closed it, that is
+ * not yet reached the `' is …` or `' has …` that follows the value in each of libxml2's messages.
+ */
+function quotesUnfinished(text: string): boolean {
+  const el = /^Element '[^']+'(?:, attribute '[^']+')?: ([\s\S]*)$/.exec(text);
+  const rest = el ? el[1] : text;
+  const opened = /^(?:\[facet '[^']+'\] The value '|')/.exec(rest);
+  return !!opened && !/' (?:is|has) /.test(rest.slice(opened[0].length));
 }
 
 interface Counted { node: XNode; count: number }
@@ -258,7 +267,7 @@ function locate(elementName: string | undefined, line: number, index: Index): { 
 }
 
 function mapValidity(text: string, reported: number, index: Index): Finding {
-  const el = /^Element '([^']+)'(?:, attribute '([^']+)')?: (.*)$/.exec(text);
+  const el = /^Element '([^']+)'(?:, attribute '([^']+)')?: ([\s\S]*)$/.exec(text);
   const elementName = el ? localName(el[1]) : undefined;
   const attrName = el?.[2];
   const rest = el ? el[3] : text;
