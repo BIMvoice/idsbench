@@ -239,6 +239,7 @@ export class SpecAccumulator<R extends { status: string }> {
     this.error ??= r.error;
     this.last = r;
     if (hasNoApplicability(this.spec) || r.error || (r.status !== 'pass' && r.status !== 'fail' && r.status !== 'not_applicable')) return;
+    if (this.options.collect) for (const e of r.entityResults) if (e.globalId) this.applicableIds.push(e.globalId);
     const element = (e: SpecResult['entityResults'][number], reasons: string[], found?: (string | null)[]): FailingElement => {
       const el: FailingElement = { ifcClass: e.entityType, name: e.entityName ?? null, globalId: e.globalId ?? null, reasons };
       const place = e.expressId !== undefined ? this.options.place?.(e.expressId) : undefined;
@@ -268,6 +269,8 @@ export class SpecAccumulator<R extends { status: string }> {
 
   /** Every failing element fed so far; empty unless ShapeOptions.collect was set. */
   collected(): FailingElement[] { return this.fails.all; }
+  /** The GlobalIds of every element the specification applied to (the run must keep the passing ones); empty unless ShapeOptions.collect was set. */
+  readonly applicableIds: string[] = [];
 
   finish(): { row: SpecRow; spilled: Spilled | null } {
     const { spec, modelSchema, fails } = this;

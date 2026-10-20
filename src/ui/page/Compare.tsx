@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import { capGroups, groupFailures, ownValues } from '../../core/groups';
-import { ELEMENT_CHANGE_WORDS, ELEMENT_CHANGES, elementsOf, SPEC_CHANGE_WORDS, type Comparison, type ElementChange, type SpecChange, type SpecComparison } from '../../core/compare';
+import { ELEMENT_CHANGE_WORDS, ELEMENT_CHANGES, elementsOf, NO_LONGER_FAILING, SPEC_CHANGE_WORDS, type Comparison, type ElementChange, type SpecChange, type SpecComparison } from '../../core/compare';
 import { formatSize } from '../../core/format';
 import type { ModelBytes } from '../../core/session';
 import { plural } from '../../core/shape';
@@ -18,7 +18,7 @@ function ChangeGroup({ spec, change }: { spec: SpecComparison; change: ElementCh
   const list = elementsOf(spec, change);
   if (list.length === 0) return null;
   const { shown, notShown } = capGroups(groupFailures(list), FAILURE_CAP);
-  const before = change === 'fixed' || change === 'removed';
+  const before = NO_LONGER_FAILING.has(change);
   return (
     <section className="fail-group change-group" aria-label={`${ELEMENT_CHANGE_WORDS[change]}: ${plural(list.length, 'element')}`}>
       <h5>{ELEMENT_CHANGE_WORDS[change]}: {plural(list.length, 'element')}</h5>

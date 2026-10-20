@@ -179,7 +179,8 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
           { ...doc, specifications: part.map(({ s }) => s) },
           asDeclared ? declaring(accessor, store.entityIndex?.byId) : accessor,
           modelInfo,
-          { translator, includePassingEntities: keepPassing, onProgress },
+          // A comparison needs every element a specification applies to, the passing ones too (see CompareKeys.applicable).
+          { translator, includePassingEntities: keepPassing || input.collect === true, onProgress },
         );
         if (report.specificationResults.length !== part.length) {
           throw new Error('the report does not hold one result per specification');
@@ -201,7 +202,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       input.spill ? done.map((d) => d.spilled) : null,
       { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, ...elementsIn(store, tables), seconds: (performance.now() - t0) / 1000 },
     );
-    if (input.collect) result.keys = { globalIds: globalIdsOf(store, input.onTick), failing: accs.map((a) => a.collected()) };
+    if (input.collect) result.keys = { globalIds: globalIdsOf(store, input.onTick), failing: accs.map((a) => a.collected()), applicable: accs.map((a) => a.applicableIds) };
     return result;
   } catch (e) {
     if (e instanceof RunStopped) throw e;

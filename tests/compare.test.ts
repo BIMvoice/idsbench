@@ -27,7 +27,8 @@ const row = (name: string, state: SpecState, failures: FailingElement[] = []): S
 const result = (file: string, specs: SpecRow[], globalIds: string[]): RunResult => ({
   idsFile: 'a.ids', ifcFile: file, schema: 'IFC4', entityCount: globalIds.length, specs,
   counts: { specifications: specs.length, passed: 0, failed: 0, notChecked: 0, nothingToCheck: 0 }, headline: '', verdict: 'fail', allPassed: false, seconds: 0,
-  keys: { globalIds, failing: specs.map((s) => s.failures) },
+  // Made by hand, every element of the model is one the specification applies to.
+  keys: { globalIds, failing: specs.map((s) => s.failures), applicable: specs.map(() => globalIds) },
 });
 const ids = (c: Comparison, i: number, change: string) => c.specs[i].elements.filter((e) => e.change === change).map((e) => e.element.globalId);
 
@@ -58,7 +59,7 @@ describe('the failing elements of one specification, matched by GlobalId', () =>
   const after = [el('A'), el('D'), el('E')];
   const earlierIds = new Set(['A', 'B', 'C', 'D']);
   const laterIds = new Set(['A', 'B', 'D', 'E']);
-  const { elements } = diffElements(before, after, earlierIds, laterIds);
+  const { elements } = diffElements(before, after, { earlierIds, laterIds, earlierApplicable: earlierIds, laterApplicable: laterIds });
   const of = (k: string) => elements.filter((e) => e.change === k).map((e) => e.element.globalId);
   it('an element that fails no more and is still in the model is fixed', () => expect(of('fixed')).toEqual(['B']));
   it('an element that fails no more and is not in the model any more is removed, not fixed', () => expect(of('removed')).toEqual(['C']));
@@ -66,16 +67,16 @@ describe('the failing elements of one specification, matched by GlobalId', () =>
   it('an element the earlier model did not have, failing now, is a new element', () => expect(of('new-element')).toEqual(['E']));
   it('an element that fails in both is still failing', () => expect(of('still-failing')).toEqual(['A']));
   it('elements are matched by GlobalId, not by name: a renamed element that still fails is still failing', () => {
-    const d = diffElements([el('A', 'Old name')], [el('A', 'New name')], new Set(['A']), new Set(['A']));
+    const d = diffElements([el('A', 'Old name')], [el('A', 'New name')], { earlierIds: new Set(['A']), laterIds: new Set(['A']), earlierApplicable: new Set(['A']), laterApplicable: new Set(['A']) });
     expect(d.elements.map((e) => e.change)).toEqual(['still-failing']);
     expect(d.elements[0].element.name).toBe('New name');
   });
   it('two elements with the same name and other GlobalIds are two elements', () => {
-    const d = diffElements([el('A', 'Same')], [el('B', 'Same')], new Set(['A', 'B']), new Set(['A', 'B']));
+    const d = diffElements([el('A', 'Same')], [el('B', 'Same')], { earlierIds: new Set(['A', 'B']), laterIds: new Set(['A', 'B']), earlierApplicable: new Set(['A', 'B']), laterApplicable: new Set(['A', 'B']) });
     expect(d.elements.map((e) => `${e.change}:${e.element.globalId}`).sort()).toEqual(['fixed:A', 'new-failure:B']);
   });
   it('a failing element without a GlobalId cannot be matched: counted, never called fixed or new', () => {
-    const d = diffElements([el(null, 'x')], [el(null, 'x')], new Set(), new Set());
+    const d = diffElements([el(null, 'x')], [el(null, 'x')], { earlierIds: new Set(), laterIds: new Set(), earlierApplicable: new Set(), laterApplicable: new Set() });
     expect(d.elements).toEqual([]);
     expect(d.noGlobalId).toBe(2);
   });
@@ -117,7 +118,7 @@ describe('two results made by hand', () => {
     expect(c.specs[3].elements).toEqual([]);
     expect(c.specs[3].summary).toBe('Not checked in the earlier delivery, so there is nothing to compare.');
   });
-  it('over all specifications', () => expect(c.elements).toEqual({ fixed: 2, removed: 1, 'new-failure': 1, 'new-element': 1, 'still-failing': 1 }));
+  it('over all specifications', () => expect(c.elements).toEqual({ fixed: 2, 'no-longer-checked': 0, removed: 1, 'new-failure': 1, 'newly-checked': 0, 'new-element': 1, 'still-failing': 1 }));
 
   it('a specification in one result only (the IDS file is the same, so this should not happen) is said, and nothing is matched by guess', () => {
     const one = result('v1.ifc', [row('Kept', 'fail', [el('A')]), row('Gone', 'fail', [el('B')])], ['A', 'B']);
@@ -177,7 +178,7 @@ describe('two variants of the example model, run by the engine', () => {
     expect(ids(c, 0, 'still-failing')).toEqual([]);
     expect(ids(c, 1, 'new-failure')).toEqual(['0aExampleWall000000002']);
     expect(ids(c, 2, 'new-element')).toEqual(['0aExampleDoor000000001']);
-    expect(c.elements).toEqual({ fixed: 1, removed: 1, 'new-failure': 1, 'new-element': 2, 'still-failing': 0 });
+    expect(c.elements).toEqual({ fixed: 1, 'no-longer-checked': 0, removed: 1, 'new-failure': 1, 'newly-checked': 0, 'new-element': 2, 'still-failing': 0 });
   });
   it('v1 against v2 (the other way round): the name is back, so that specification now passes', () => {
     const c = compareDeliveries(v2, v1);
@@ -191,7 +192,7 @@ describe('two variants of the example model, run by the engine', () => {
   it('the same model twice: nothing changed', () => {
     const c = compareDeliveries(v1, v1);
     expect(c.specs.map((s) => s.change)).toEqual(['still-fails', 'still-passes', 'still-passes']);
-    expect(c.elements).toEqual({ fixed: 0, removed: 0, 'new-failure': 0, 'new-element': 0, 'still-failing': 2 });
+    expect(c.elements).toEqual({ fixed: 0, 'no-longer-checked': 0, removed: 0, 'new-failure': 0, 'newly-checked': 0, 'new-element': 0, 'still-failing': 2 });
   });
   it('a run in many ranges collects the same', async () => {
     const parts = await runText(EXAMPLE_IDS, V2, { collect: true, rangeIds: 2 });
@@ -292,4 +293,79 @@ describe('the section on the page', () => {
     expect(failed).toContain('The earlier delivery could not be checked. The file is zipped.');
     expect(failed).toContain('Run again');
   });
+});
+
+// ---- review finding 1: "fixed" means the element is checked by the specification now and passes it ----
+const PROHIBITED_WALLS = EXAMPLE_IDS.replace(/<specification name="Walls have a name"[\s\S]*?<\/specification>/, `<specification name="No walls" ifcVersion="IFC4">
+      <applicability minOccurs="0" maxOccurs="0">
+        <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+      </applicability>
+    </specification>`);
+const toSlab = (model: string, n: number) => model.replace(`#${n}=IFCWALL('0aExampleWall00000000${n}',$,'`, `#${n}=IFCSLAB('0aExampleWall00000000${n}',$,'`);
+const onlyFireRating = (ids: string) => ids.replace(/<specification name="Walls have a name"[\s\S]*?<\/specification>/, '').replace(/<specification name="Doors are classified"[\s\S]*?<\/specification>/, '');
+const optional = (ids: string) => ids.replace('<applicability minOccurs="1" maxOccurs="unbounded">', '<applicability minOccurs="0" maxOccurs="unbounded">');
+
+describe('an element that no longer fails is fixed only when the specification checks it now and it passes', () => {
+  it('a failing wall made a slab with the same GlobalId is no longer checked by the specification, not fixed', async () => {
+    const v1 = await runText(onlyFireRating(EXAMPLE_IDS), V1, { collect: true });
+    const v2 = await runText(onlyFireRating(EXAMPLE_IDS), toSlab(V1, 3), { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(ids(c, 0, 'fixed')).toEqual([]);
+    expect(ids(c, 0, 'no-longer-checked')).toEqual(['0aExampleWall000000003']);
+    expect(c.elementLine).toContain('1 no longer checked by this specification');
+  });
+  it('two failing walls made slabs, optional specification: it now passes with nothing fixed', async () => {
+    const ids_ = optional(onlyFireRating(EXAMPLE_IDS));
+    const v1 = await runText(ids_, V1, { collect: true });
+    const v2 = await runText(ids_, toSlab(toSlab(V1, 3), 4), { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(c.specs[0].change).toBe('now-passes');
+    expect(c.specs[0].counts.fixed).toBe(0);
+    expect(ids(c, 0, 'no-longer-checked')).toEqual(['0aExampleWall000000003', '0aExampleWall000000004']);
+  });
+  it('a required specification that matches nothing any more fails as a whole, with nothing fixed', async () => {
+    const ids_ = onlyFireRating(EXAMPLE_IDS);
+    const v1 = await runText(ids_, V1, { collect: true });
+    const v2 = await runText(ids_, toSlab(toSlab(toSlab(toSlab(V1, 1), 2), 3), 4), { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(c.specs[0].change).toBe('still-fails');
+    expect(c.specs[0].counts.fixed).toBe(0);
+    expect(c.specs[0].summary).not.toMatch(/fixed/);
+    expect(c.specs[0].counts['no-longer-checked']).toBe(2);
+  });
+  it('a prohibited specification: a wall made a slab is no longer checked, not fixed', async () => {
+    const v1 = await runText(PROHIBITED_WALLS, V1, { collect: true });
+    const v2 = await runText(PROHIBITED_WALLS, toSlab(V1, 4), { collect: true });
+    const c = compareDeliveries(v1, v2);
+    const i = c.specs.findIndex((s) => s.name === 'No walls');
+    expect(ids(c, i, 'fixed')).toEqual([]);
+    expect(ids(c, i, 'no-longer-checked')).toEqual(['0aExampleWall000000004']);
+    expect(ids(c, i, 'still-failing')).toHaveLength(3);
+  });
+  it('the other way round: a slab made a failing wall is newly checked, not a new failure of an element that passed', async () => {
+    const ids_ = onlyFireRating(EXAMPLE_IDS);
+    const v1 = await runText(ids_, toSlab(V1, 3), { collect: true });
+    const v2 = await runText(ids_, V1, { collect: true });
+    const c = compareDeliveries(v1, v2);
+    expect(ids(c, 0, 'new-failure')).toEqual([]);
+    expect(ids(c, 0, 'newly-checked')).toEqual(['0aExampleWall000000003']);
+  });
+  it('a wall that gets its fire rating is fixed (it is checked now and passes)', async () => {
+    const ids_ = onlyFireRating(EXAMPLE_IDS);
+    const v1 = await runText(ids_, V1, { collect: true });
+    const v2 = await runText(ids_, V1.replace('(#1,#2),#11);', '(#1,#2,#3),#11);'), { collect: true });
+    expect(ids(compareDeliveries(v1, v2), 0, 'fixed')).toEqual(['0aExampleWall000000003']);
+  });
+});
+
+describe('the diff function with what each specification applies to', () => {
+  const ctx = { earlierIds: new Set(['F', 'N', 'R', 'P', 'S']), laterIds: new Set(['F', 'N', 'P', 'S', 'E']), earlierApplicable: new Set(['F', 'N', 'R', 'P']), laterApplicable: new Set(['F', 'P', 'S', 'E']) };
+  const { elements } = diffElements([el('F'), el('N'), el('R')], [el('P'), el('S'), el('E')], ctx);
+  const of = (k: string) => elements.filter((e) => e.change === k).map((e) => e.element.globalId);
+  it('applies now and does not fail: fixed', () => expect(of('fixed')).toEqual(['F']));
+  it('in the model, not applied to now: no longer checked', () => expect(of('no-longer-checked')).toEqual(['N']));
+  it('not in the model: removed', () => expect(of('removed')).toEqual(['R']));
+  it('applied to before and passed: new failure', () => expect(of('new-failure')).toEqual(['P']));
+  it('in the earlier model, not applied to before: newly checked', () => expect(of('newly-checked')).toEqual(['S']));
+  it('not in the earlier model: new element', () => expect(of('new-element')).toEqual(['E']));
 });

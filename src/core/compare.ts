@@ -11,11 +11,14 @@ import type { CompareKeys, FailingElement, RunResult, SpecRow, SpecState } from 
 export type SpecChange = 'now-passes' | 'now-fails' | 'still-fails' | 'still-passes' | 'not-checked' | 'not-in-both';
 
 /**
- * What happened to one failing element. fixed: it failed before and is in the model now without failing.
- * removed: it failed before and is not in the model any more. new-failure: it was in the earlier model and did not
- * fail, it fails now. new-element: it was not in the earlier model, and fails now. still-failing: it fails in both.
+ * What happened to one failing element, for one specification. fixed: it failed before, and now the specification
+ * applies to it and it passes. no-longer-checked: it failed before and is still in the model, but the specification
+ * does not apply to it any more (its class changed, say), so it is not known to pass. removed: it failed before and is
+ * not in the model any more. new-failure: the specification applied to it before and it passed; it fails now.
+ * newly-checked: it was in the earlier model but the specification did not apply to it; it applies now, and it fails.
+ * new-element: it was not in the earlier model, and fails now. still-failing: it fails in both.
  */
-export type ElementChange = 'fixed' | 'removed' | 'new-failure' | 'new-element' | 'still-failing';
+export type ElementChange = 'fixed' | 'no-longer-checked' | 'removed' | 'new-failure' | 'newly-checked' | 'new-element' | 'still-failing';
 
 export const SPEC_CHANGE_WORDS: Record<SpecChange, string> = {
   'now-passes': 'Now passes',
@@ -27,17 +30,21 @@ export const SPEC_CHANGE_WORDS: Record<SpecChange, string> = {
 };
 export const ELEMENT_CHANGE_WORDS: Record<ElementChange, string> = {
   fixed: 'Fixed',
+  'no-longer-checked': 'No longer checked by this specification',
   removed: 'Element removed',
   'new-failure': 'New failure',
+  'newly-checked': 'Newly checked by this specification, failing',
   'new-element': 'New element, failing',
   'still-failing': 'Still failing',
 };
 /** The order in which element changes are listed: what got better first. */
-export const ELEMENT_CHANGES: ElementChange[] = ['fixed', 'removed', 'new-failure', 'new-element', 'still-failing'];
+export const ELEMENT_CHANGES: ElementChange[] = ['fixed', 'no-longer-checked', 'removed', 'new-failure', 'newly-checked', 'new-element', 'still-failing'];
+/** The changes of an element that does not fail now: what is listed of them is how they failed before. */
+export const NO_LONGER_FAILING: ReadonlySet<ElementChange> = new Set(['fixed', 'no-longer-checked', 'removed']);
 
 export interface ChangedElement {
   change: ElementChange;
-  /** The element as the delivery where it fails has it: the earlier one for fixed and removed, this one otherwise. */
+  /** The element as the delivery where it fails has it: the earlier one for the changes in NO_LONGER_FAILING, this one otherwise. */
   element: FailingElement;
 }
 
@@ -69,7 +76,7 @@ export interface Comparison {
 }
 
 const passing = (s: SpecState) => s === 'pass' || s === 'nothing';
-const zeroElements = (): Record<ElementChange, number> => ({ fixed: 0, removed: 0, 'new-failure': 0, 'new-element': 0, 'still-failing': 0 });
+const zeroElements = (): Record<ElementChange, number> => ({ fixed: 0, 'no-longer-checked': 0, removed: 0, 'new-failure': 0, 'newly-checked': 0, 'new-element': 0, 'still-failing': 0 });
 const zeroSpecs = (): Record<SpecChange, number> => ({ 'now-passes': 0, 'now-fails': 0, 'still-fails': 0, 'still-passes': 0, 'not-checked': 0, 'not-in-both': 0 });
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
 
@@ -83,12 +90,22 @@ export function specChange(before: SpecRow | null, after: SpecRow | null): SpecC
   return is ? 'now-passes' : 'now-fails';
 }
 
+/** What an element is matched against: the GlobalIds of each model, and those of the elements the specification applies to in each run. */
+export interface MatchContext {
+  earlierIds: ReadonlySet<string>;
+  laterIds: ReadonlySet<string>;
+  earlierApplicable: ReadonlySet<string>;
+  laterApplicable: ReadonlySet<string>;
+}
+
 /**
- * The failing elements of one specification in the two deliveries, matched by GlobalId. `earlierIds` and `laterIds`
- * are the GlobalIds of the two models: an element that fails no more is "fixed" when the model still holds it and
- * "removed" when it does not, and a new failure is a "new element" when the earlier model did not hold it.
+ * The failing elements of one specification in the two deliveries, matched by GlobalId. An element that fails no more
+ * is "fixed" only when the specification applies to it now (and so it passes); "no longer checked" when the model still
+ * holds it but the specification does not apply to it; "removed" when the model does not hold it. Each way round the
+ * same: a new failure is an element the specification applied to before (it passed), "newly checked" one the earlier
+ * model held without the specification applying to it, and a "new element" one the earlier model did not hold.
  */
-export function diffElements(before: FailingElement[], after: FailingElement[], earlierIds: ReadonlySet<string>, laterIds: ReadonlySet<string>): { elements: ChangedElement[]; noGlobalId: number } {
+export function diffElements(before: FailingElement[], after: FailingElement[], ctx: MatchContext): { elements: ChangedElement[]; noGlobalId: number } {
   const keyed = (list: FailingElement[]) => {
     const m = new Map<string, FailingElement>();
     for (const f of list) if (f.globalId && !m.has(f.globalId)) m.set(f.globalId, f);
@@ -100,11 +117,11 @@ export function diffElements(before: FailingElement[], after: FailingElement[], 
   for (const f of before) {
     if (!f.globalId) { noGlobalId++; continue; }
     if (now.has(f.globalId)) continue;
-    elements.push({ change: laterIds.has(f.globalId) ? 'fixed' : 'removed', element: f });
+    elements.push({ change: ctx.laterApplicable.has(f.globalId) ? 'fixed' : ctx.laterIds.has(f.globalId) ? 'no-longer-checked' : 'removed', element: f });
   }
   for (const f of after) {
     if (!f.globalId) { noGlobalId++; continue; }
-    const change: ElementChange = was.has(f.globalId) ? 'still-failing' : earlierIds.has(f.globalId) ? 'new-failure' : 'new-element';
+    const change: ElementChange = was.has(f.globalId) ? 'still-failing' : ctx.earlierApplicable.has(f.globalId) ? 'new-failure' : ctx.earlierIds.has(f.globalId) ? 'newly-checked' : 'new-element';
     elements.push({ change, element: f });
   }
   return { elements, noGlobalId };
@@ -128,9 +145,11 @@ function pairRows(a: SpecRow[], b: SpecRow[]): [SpecRow | null, SpecRow | null][
 function countsLine(counts: Record<ElementChange, number>): string {
   const parts: string[] = [];
   if (counts.fixed) parts.push(`${counts.fixed.toLocaleString('en')} fixed`);
+  if (counts['no-longer-checked']) parts.push(`${counts['no-longer-checked'].toLocaleString('en')} no longer checked by this specification`);
   if (counts.removed) parts.push(`${counts.removed.toLocaleString('en')} removed from the model`);
   const fresh = counts['new-failure'] + counts['new-element'];
   if (fresh) parts.push(`${plural(fresh, 'new failure')}${counts['new-element'] ? ` (${counts['new-element'] === fresh ? (fresh === 1 ? 'a new element' : 'all new elements') : `${counts['new-element'].toLocaleString('en')} of them new ${counts['new-element'] === 1 ? 'element' : 'elements'}`})` : ''}`);
+  if (counts['newly-checked']) parts.push(`${counts['newly-checked'].toLocaleString('en')} newly checked and failing`);
   if (counts['still-failing']) parts.push(`${counts['still-failing'].toLocaleString('en')} still failing`);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] ?? '';
 }
@@ -182,11 +201,12 @@ export function compareDeliveries(earlier: RunResult, later: RunResult): Compari
   const ek = keysOf(earlier), lk = keysOf(later);
   const earlierIds = new Set(ek.globalIds), laterIds = new Set(lk.globalIds);
   const failingOf = (r: RunResult, k: CompareKeys, row: SpecRow) => k.failing[r.specs.indexOf(row)] ?? [];
+  const applicableOf = (r: RunResult, k: CompareKeys, row: SpecRow) => new Set(k.applicable[r.specs.indexOf(row)] ?? []);
   const counts = zeroSpecs(), elements = zeroElements();
   const specs = pairRows(earlier.specs, later.specs).map(([before, after]): SpecComparison => {
     const change = specChange(before, after);
     const checked = change !== 'not-checked' && change !== 'not-in-both';
-    const diff = checked && before && after ? diffElements(failingOf(earlier, ek, before), failingOf(later, lk, after), earlierIds, laterIds) : { elements: [], noGlobalId: 0 };
+    const diff = checked && before && after ? diffElements(failingOf(earlier, ek, before), failingOf(later, lk, after), { earlierIds, laterIds, earlierApplicable: applicableOf(earlier, ek, before), laterApplicable: applicableOf(later, lk, after) }) : { elements: [], noGlobalId: 0 };
     const c = zeroElements();
     for (const e of diff.elements) c[e.change]++;
     counts[change]++;
@@ -235,7 +255,7 @@ export function comparisonCsvParts(c: Comparison, idsFile: string): BlobPart[] {
       for (const e of s.elements) {
         if (e.change !== k) continue;
         const f = e.element;
-        const fails = k !== 'fixed' && k !== 'removed';
+        const fails = !NO_LONGER_FAILING.has(k);
         mine.push(row(['Element', ELEMENT_CHANGE_WORDS[k], s.name, requirement, `${fails ? '' : 'It failed before: '}${f.reasons.join(' ')}`, fails ? (f.toFix ?? []).filter(Boolean).join('; ') : '', f.ifcClass, f.name ?? '', f.globalId ?? '', f.place ?? '', c.earlierFile, c.laterFile, idsFile]));
       }
     }

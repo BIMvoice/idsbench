@@ -99,6 +99,8 @@ export interface CompareKeys {
   globalIds: string[];
   /** Per specification (same order as `specs`), every failing element. */
   failing: FailingElement[][];
+  /** Per specification, the GlobalIds of every element it applies to (passing or failing): an element that fails no more is fixed only if it is among them. */
+  applicable: string[][];
 }
 
 export interface RunResult {
