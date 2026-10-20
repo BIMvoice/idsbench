@@ -8,8 +8,8 @@ import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { AppError, mapError } from './errors';
 import { checkIdsDocument, precheckIdsText } from './idsfile';
 import { inspectIfc } from './ifcfile';
-import { assembleReport, hasIdsOccurs, hasNoApplicability, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
-import type { RunResult } from './types';
+import { assembleReport, hasIdsOccurs, hasNoApplicability, KeyBudget, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
+import { COMPARE_LIMIT, type RunResult } from './types';
 import { coverageOf, namedByLibrarySpec, tableVersion } from './coverage';
 import { CLASS_NAME, declaredFolded, FOLDED_ONTO, foldEffect, withheldSentence } from './foldguard';
 
@@ -34,6 +34,8 @@ export interface RunInput {
   sentences?: (string | null)[] | null;
   /** Also collect every failing element and the GlobalIds of the model (RunResult.keys), for comparing two deliveries. */
   collect?: boolean;
+  /** How many keys the run may collect (COMPARE_LIMIT; tests lower it). */
+  compareLimit?: number;
 }
 
 /** How many entities one range of the check holds at most. A model of no more entities than this is checked as one range. */
@@ -147,7 +149,8 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
     const known = await tablesFor(loaded.schema);
     // Said only of a class and an attribute the tables know; of anything else nothing is claimed.
     const reasons = known ? { hasAttribute: (cls: string, attribute: string) => (known.classes.has(cls.toUpperCase()) ? known.attributes.get(attribute)?.classes.includes(cls.toUpperCase()) : undefined) } : undefined;
-    const options: ShapeOptions = { ...(input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {}), ...(reasons ? { reasons } : {}), ...(input.collect ? { collect: true } : {}) };
+    const budget = input.collect ? new KeyBudget(input.compareLimit ?? COMPARE_LIMIT) : null;
+    const options: ShapeOptions = { ...(input.spill ? { spill: { ifcFile: input.ifcName, idsFile: input.idsName } } : {}), ...(reasons ? { reasons } : {}), ...(budget ? { collect: budget } : {}) };
     // The storey or space of a failing element is read from the part of the model being checked (the accessor of its range).
     const placer: { find: (id: number) => string } = { find: () => '' };
     const place = (id: number) => placer.find(id);
@@ -202,7 +205,13 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       input.spill ? done.map((d) => d.spilled) : null,
       { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, ...elementsIn(store, tables), seconds: (performance.now() - t0) / 1000 },
     );
-    if (input.collect) result.keys = { globalIds: globalIdsOf(store, input.onTick), failing: accs.map((a) => a.collected()), applicable: accs.map((a) => a.applicableIds) };
+    if (budget) {
+      const globalIds = globalIdsOf(store, input.onTick, budget);
+      // Over the budget nothing is sent: a comparison of part of the keys would call elements fixed or new that are not.
+      result.keys = budget.over
+        ? { globalIds: [], failing: accs.map(() => []), applicable: accs.map(() => []), tooMany: { limit: budget.limit } }
+        : { globalIds, failing: accs.map((a) => a.collected()), applicable: accs.map((a) => a.applicableIds) };
+    }
     return result;
   } catch (e) {
     if (e instanceof RunStopped) throw e;
@@ -213,13 +222,13 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
 }
 
 /** The GlobalId of every entity of the model that has one (for comparing two deliveries: an element not among them is not in the model). */
-export function globalIdsOf(store: LoadedModel['store'], onTick?: () => void): string[] {
+export function globalIdsOf(store: LoadedModel['store'], onTick?: () => void, budget?: KeyBudget): string[] {
   const accessor = createDataAccessor(store);
   const out: string[] = [];
   const ids = accessor.getAllEntityIds();
   for (let i = 0; i < ids.length; i++) {
     const g = accessor.getGlobalId(ids[i]);
-    if (g) out.push(g);
+    if (g) { if (budget && !budget.take()) return []; out.push(g); }
     if (onTick && i % 100_000 === 99_999) onTick();
   }
   return out;

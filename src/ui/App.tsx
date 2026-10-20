@@ -317,6 +317,7 @@ export function App() {
               earlierBytes={page.earlierRun && 'outcome' in page.earlierRun ? page.earlierRun.outcome.model : null}
               laterBytes={run && 'outcome' in run ? run.outcome.model : null}
               working={page.comparingNow}
+              problem={page.comparisonProblem}
               error={page.earlierRun && 'error' in page.earlierRun ? { side: page.earlierRun.side, message: page.earlierRun.error.message } : null}
               onDownload={() => void downloadComparison()}
               onRunAgain={page.runAgain}

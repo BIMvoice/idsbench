@@ -56,6 +56,8 @@ interface Props {
   laterBytes: ModelBytes | null;
   /** Set while the earlier delivery is being run. */
   working: boolean;
+  /** Why the two runs are not compared on the page, when they are not (too many elements). */
+  problem?: string | null;
   /** Why one of the two runs of the comparison could not be made, when one could not: the model's own pass, or the earlier delivery. */
   error: { side: 'model' | 'earlier'; message: string } | null;
   onDownload: () => void;
@@ -63,7 +65,7 @@ interface Props {
 }
 
 /** The model against the earlier delivery: the two files, one sentence, and per specification what changed and which elements. */
-export function Compare({ comparison: c, earlierBytes, laterBytes, working, error, onDownload, onRunAgain }: Props) {
+export function Compare({ comparison: c, earlierBytes, laterBytes, working, problem, error, onDownload, onRunAgain }: Props) {
   const sha = (b: ModelBytes | null) => b?.sha256 ?? 'not available in this browser';
   return (
     <section className="spec-section compare" aria-labelledby="compare-title" id="compare">
@@ -74,6 +76,8 @@ export function Compare({ comparison: c, earlierBytes, laterBytes, working, erro
             <p className="error">{error.side === 'earlier' ? 'The earlier delivery could not be checked.' : 'The comparison could not be made: this model could not be checked again.'} {error.message}</p>
             <p className="refusal-action"><button type="button" className="btn small" onClick={onRunAgain}>Run again</button></p>
           </div>
+        ) : problem ? (
+          <p className="notice-box" id="compare-problem">{problem}</p>
         ) : !c ? (
           working ? <p className="working">Checking the earlier delivery against the same IDS file...</p> : null
         ) : (

@@ -6,14 +6,17 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { compareDeliveries, comparisonCsvName, comparisonCsvParts, comparisonForReport, diffElements, specChange, COMPARE_COLUMNS, type Comparison } from '../src/core/compare';
+import { COMPARE_LIMIT, compareDeliveries, tooManyToCompare, comparisonCsvName, comparisonCsvParts, comparisonForReport, diffElements, specChange, COMPARE_COLUMNS, type Comparison } from '../src/core/compare';
 import { parseCsv } from '../src/core/csv';
 import { EXAMPLE_IDS, EXAMPLE_IFC } from '../src/core/example';
 import { reportParts } from '../src/core/format';
 import { pageReportParts } from '../src/core/report';
 import type { FailingElement, RunResult, SpecRow, SpecState } from '../src/core/types';
 import { Compare } from '../src/ui/page/Compare';
-import { runText } from './helpers/small-model';
+import { ifcText, line, runText } from './helpers/small-model';
+import { keeperFor, ModelKeeper, runSession, type ModelRef } from '../src/core/session';
+import { readIds } from '../src/core/validate';
+import { AppError } from '../src/core/errors';
 
 const saved = { log: console.log, warn: console.warn, error: console.error, info: console.info };
 beforeAll(() => { console.log = console.warn = console.error = console.info = () => {}; });
@@ -293,6 +296,11 @@ describe('the section on the page', () => {
     expect(failed).toContain('The earlier delivery could not be checked. The file is zipped.');
     expect(failed).toContain('Run again');
   });
+  it('two models with too many elements to compare: the sentence, and no comparison', () => {
+    const html = renderToStaticMarkup(createElement(Compare, { comparison: null, earlierBytes: null, laterBytes: null, working: false, problem: 'big.ifc has too many elements to compare on this page.', error: null, onDownload: () => {}, onRunAgain: () => {} }));
+    expect(html).toContain('big.ifc has too many elements to compare on this page.');
+    expect(html).not.toContain('Download the comparison');
+  });
 });
 
 // ---- review finding 1: "fixed" means the element is checked by the specification now and passes it ----
@@ -404,4 +412,69 @@ describe('two elements that share a GlobalId are not matched by it', () => {
     expect(d.elements).toEqual([]);
     expect(d.duplicateGlobalId).toBe(2);
   });
+});
+
+// ---- review finding 2: two models held at once, and what a comparison sends to the page ----
+describe('the two models of a comparison are held against one budget', () => {
+  const walls = (n: number, prefix: string) => ifcText(Array.from({ length: n }, (_, i) => line(i + 1, 'IFCWALL', `${prefix}${i}`)).join(''));
+  const bytesOf = (text: string) => { const u = new TextEncoder().encode(text); return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer; };
+  const ref = (token: number, text: string): ModelRef => ({ token, name: `m${token}.ifc`, size: bytesOf(text).byteLength, lastModified: 1 });
+  const ids_ = readIds(onlyFireRating(EXAMPLE_IDS));
+  const A = walls(30, 'a'), B = walls(30, 'b');
+  it('each fits the lowered budget alone; together they do not, and the earlier one is refused before it is parsed, in one sentence', async () => {
+    const model = new ModelKeeper(), earlier = new ModelKeeper();
+    await runSession(model, { ids: ids_, idsName: 'a.ids', model: ref(1, A), read: async () => bytesOf(A), entityLimit: 40 });
+    expect(model.weight).toBe(30);
+    // Alone the earlier delivery fits.
+    await runSession(new ModelKeeper(), { ids: ids_, idsName: 'a.ids', model: ref(2, B), read: async () => bytesOf(B), entityLimit: 40 });
+    let caught: unknown = null;
+    try { await runSession(earlier, { ids: ids_, idsName: 'a.ids', model: ref(2, B), read: async () => bytesOf(B), entityLimit: 40, held: model.weight }); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(AppError);
+    expect((caught as AppError).kind).toBe('ifc-too-large');
+    expect((caught as AppError).message).toMatch(/^This model and the earlier delivery together have 60 entities/);
+    expect((caught as AppError).message).toContain('The earlier delivery was not read');
+    expect(earlier.ref).toBeNull();
+    // With room for both, the pair is read.
+    await runSession(earlier, { ids: ids_, idsName: 'a.ids', model: ref(2, B), read: async () => bytesOf(B), entityLimit: 60, held: model.weight });
+    expect(earlier.ref?.token).toBe(2);
+  });
+});
+
+describe('which keeper the worker uses, and what it holds the model against', () => {
+  const r = (token: number): ModelRef => ({ token, name: 'm.ifc', size: 1, lastModified: 1 });
+  const fake = { store: {} as never, schema: 'IFC4', entityCount: 1 };
+  it('the earlier delivery is held against the weight of the model the worker holds', () => {
+    const model = new ModelKeeper(), earlier = new ModelKeeper();
+    model.keep(r(1), fake, undefined, 120);
+    expect(keeperFor('earlier', { model, earlier }, r(2), false)).toEqual({ keeper: earlier, held: 120 });
+  });
+  it('a model that is kept is checked again beside the earlier delivery, which stays', () => {
+    const model = new ModelKeeper(), earlier = new ModelKeeper();
+    model.keep(r(1), fake, undefined, 120);
+    earlier.keep(r(2), fake, undefined, 80);
+    expect(keeperFor('model', { model, earlier }, r(1), false)).toEqual({ keeper: model, held: 80 });
+    expect(earlier.ref?.token).toBe(2);
+  });
+  it('a model that has to be read lets go of the earlier delivery first', () => {
+    const model = new ModelKeeper(), earlier = new ModelKeeper();
+    earlier.keep(r(2), fake, undefined, 80);
+    expect(keeperFor('model', { model, earlier }, r(3), false)).toEqual({ keeper: model, held: 0 });
+    expect(earlier.ref).toBeNull();
+  });
+});
+
+describe('what a comparison sends to the page is bounded', () => {
+  it('within the limit every key is there; over it none are, and the comparison says so instead of comparing part of them', async () => {
+    const within = await runText(EXAMPLE_IDS, V1, { collect: true, compareLimit: 1000 });
+    expect(within.keys!.tooMany).toBeUndefined();
+    const over = await runText(EXAMPLE_IDS, V1, { collect: true, compareLimit: 5 });
+    expect(over.keys!.tooMany).toEqual({ limit: 5 });
+    expect(over.keys!.globalIds).toEqual([]);
+    expect(over.keys!.failing.flat()).toEqual([]);
+    expect(over.keys!.applicable.flat()).toEqual([]);
+    expect(tooManyToCompare(over, within)).toMatch(/too many elements to compare on this page/);
+    expect(tooManyToCompare(within, within)).toBeNull();
+    expect(() => compareDeliveries(over, within)).toThrow();
+  });
+  it('the limit in the page is half a million keys a model', () => expect(COMPARE_LIMIT).toBe(500_000));
 });

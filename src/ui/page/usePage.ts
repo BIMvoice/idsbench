@@ -20,7 +20,7 @@ import { leftOutSentence, sayLost, type LeftOut, type LostItem } from '../../cor
 import { AppError, UNEXPECTED } from '../../core/errors';
 import { EXAMPLE_IDS, EXAMPLE_IDS_NAME, EXAMPLE_IFC, EXAMPLE_IFC_NAME } from '../../core/example';
 import { checkDocument, type Issue } from '../../core/ids/check';
-import { compareDeliveries, type Comparison } from '../../core/compare';
+import { compareDeliveries, tooManyToCompare, type Comparison } from '../../core/compare';
 import { blankDocument, type IdsDocument } from '../../core/ids/model';
 import { readIdsText } from '../../core/ids/read';
 import { writeIds } from '../../core/ids/write';
@@ -226,9 +226,11 @@ export function usePage() {
   }, [laterResult, earlier]);
   useEffect(() => { forgetModel(earlier, 'earlier'); }, [earlier]);
   const earlierRun = compared !== null && earlier !== null && compared.earlier === earlier && compared.text === text && compared.model === model && compared.nonce === nonce && laterResult ? compared : null;
+  /** Why the two runs are not compared on the page (a model with too many keys), when they are not. */
+  const comparisonProblem = earlierRun && 'outcome' in earlierRun ? tooManyToCompare(earlierRun.outcome.result, earlierRun.later.result) : null;
   const comparison: Comparison | null = useMemo(
-    () => (earlierRun && 'outcome' in earlierRun ? compareDeliveries(earlierRun.outcome.result, earlierRun.later.result) : null),
-    [earlierRun],
+    () => (earlierRun && 'outcome' in earlierRun && !comparisonProblem ? compareDeliveries(earlierRun.outcome.result, earlierRun.later.result) : null),
+    [earlierRun, comparisonProblem],
   );
   /** True while an earlier delivery is chosen and its comparison is not there yet (and has not failed). */
   const comparingNow = earlier !== null && runnable && earlierRun === null;
@@ -494,7 +496,7 @@ export function usePage() {
     notice, clearNotice: () => setNotice(null), draftKept, saveNote, leftOut,
     check, report, valid, checking: text !== null && !blank && check === null,
     run, running, phase, runnable,
-    earlier, chooseEarlier, removeEarlier: () => { setEarlier(null); setEarlierRefusal(null); }, earlierRefusal, earlierRun, comparison, comparingNow,
+    earlier, chooseEarlier, removeEarlier: () => { setEarlier(null); setEarlierRefusal(null); }, earlierRefusal, earlierRun, comparison, comparisonProblem, comparingNow,
     placed, targets, issues, guardErrors, extraGuard, lines,
     editing, setEditing, focusKey, undo, saveProblem, downloadBlocked,
     openIds, addFiles, startNew, tryExample, closeAll, edit, change, undoLast, goTo, goToIssue, save, idsBlob, textOf, asInFile, kept,

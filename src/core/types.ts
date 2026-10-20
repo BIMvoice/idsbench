@@ -101,7 +101,15 @@ export interface CompareKeys {
   failing: FailingElement[][];
   /** Per specification, the GlobalIds of every element it applies to (passing or failing): an element that fails no more is fixed only if it is among them. */
   applicable: string[][];
+  /**
+   * Set when the model has more keys (GlobalIds, elements applied to, failing elements, counted together) than a
+   * comparison may send to the page: then none are sent (the three lists are empty), and the page says so.
+   */
+  tooMany?: { limit: number };
 }
+
+/** How many keys of one model a comparison may send to the page (see CompareKeys.tooMany). */
+export const COMPARE_LIMIT = 500_000;
 
 export interface RunResult {
   /** Present only on a run asked to collect them, for comparing two deliveries (see core/compare.ts). Not part of the report. */

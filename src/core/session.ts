@@ -27,18 +27,31 @@ export interface ModelBytes { bytes: number; sha256: string | null }
 
 /** Holds at most one parsed model. */
 export class ModelKeeper {
-  private kept: { ref: ModelRef; model: LoadedModel; of: ModelBytes } | null = null;
+  private kept: { ref: ModelRef; model: LoadedModel; of: ModelBytes; weight: number } | null = null;
   /** The kept model if, and only if, it is the one `ref` names. */
   get(ref: ModelRef): LoadedModel | null {
     return this.kept && sameModel(this.kept.ref, ref) ? this.kept.model : null;
   }
   /** The bytes the kept model was read from. */
   get of(): ModelBytes | null { return this.kept?.of ?? null; }
-  keep(ref: ModelRef, model: LoadedModel, of: ModelBytes = { bytes: ref.size, sha256: null }): void { this.kept = { ref, model, of }; }
+  keep(ref: ModelRef, model: LoadedModel, of: ModelBytes = { bytes: ref.size, sha256: null }, weight = 0): void { this.kept = { ref, model, of, weight }; }
+  /** The weighed count of entities of the kept model (see limits.ts weighedEntities), 0 when none is kept. */
+  get weight(): number { return this.kept?.weight ?? 0; }
   forget(): void { this.kept = null; }
   /** Let go of the kept model unless it was read from the file object `token` stands for (null: let go whatever it is). */
   forgetOthers(token: number | null): void { if (token === null || this.kept?.ref.token !== token) this.kept = null; }
   get ref(): ModelRef | null { return this.kept?.ref ?? null; }
+}
+
+/**
+ * Which keeper a run uses and what it is held against. The two models of a comparison are held against one budget:
+ * the earlier delivery is counted beside the model the worker holds; a model that has to be read lets go of the earlier
+ * delivery first (it is read again, and counted again, when the comparison asks for it).
+ */
+export function keeperFor(slot: 'model' | 'earlier' | undefined, keepers: { model: ModelKeeper; earlier: ModelKeeper }, ref: ModelRef, fresh: boolean): { keeper: ModelKeeper; held: number } {
+  if (slot === 'earlier') return { keeper: keepers.earlier, held: keepers.model.weight };
+  if (fresh || !keepers.model.get(ref)) keepers.earlier.forget();
+  return { keeper: keepers.model, held: keepers.earlier.weight };
 }
 
 export interface SessionRequest {
@@ -57,6 +70,10 @@ export interface SessionRequest {
   sentences?: (string | null)[] | null;
   /** Also collect what a comparison of two deliveries needs (RunResult.keys). */
   collect?: boolean;
+  /** The weighed count of a model held beside this one (the other model of a comparison): both are held against one budget. */
+  held?: number;
+  /** Stands in for the budget of this browser, in weighed entities (tests lower it). */
+  entityLimit?: number;
 }
 
 export async function runSession(keeper: ModelKeeper, req: SessionRequest): Promise<{ result: RunResult; reused: boolean; model: ModelBytes }> {
@@ -79,13 +96,13 @@ export async function runSession(keeper: ModelKeeper, req: SessionRequest): Prom
     }
     // A file that is not the size it was when it was chosen is not trusted to be the file that was chosen.
     if (bytes.byteLength !== req.model.size) throw new AppError('file-unreadable', 'The model changed on disk while it was being read. Choose it again.');
-    checkEntities(bytes, (globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory, req.onTick);
+    const weight = checkEntities(bytes, (globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory, req.onTick, req.held, req.entityLimit);
     // The digest is of these bytes, the ones parsed below, and is taken before the parser has them.
     of = { bytes: bytes.byteLength, sha256: await sha256OfBytes(bytes) };
     try {
       loaded = await loadModel(bytes, req.onTick);
     } catch (e) { keeper.forget(); throw e; }
-    keeper.keep(req.model, loaded, of);
+    keeper.keep(req.model, loaded, of, weight);
   }
   try {
     const result = await runValidation({

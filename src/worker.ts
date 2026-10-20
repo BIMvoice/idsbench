@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 // The worker: reads the model, keeps it between runs, checks it against the IDS, and tells the page that it is alive.
 import { mapError } from './core/errors';
-import { ModelKeeper, runSession, type ModelBytes, type ModelRef } from './core/session';
+import { keeperFor, ModelKeeper, runSession, type ModelBytes, type ModelRef } from './core/session';
 import { RunStopped, type Phase } from './core/validate';
 import type { IDSDocument } from '@ifc-lite/ids';
 import type { AppErrorInfo, RunResult } from './core/types';
@@ -56,7 +56,10 @@ if (typeof navigator !== 'undefined' && navigator.locks) {
 async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
   if (cancelled.delete(m.id)) { post({ type: 'cancelled', id: m.id }); return; }
   try {
-    const { result, reused, model } = await runSession(m.slot === 'earlier' ? earlierKeeper : keeper, {
+    // The two models of a comparison are held against one budget (see keeperFor).
+    const chosen = keeperFor(m.slot, { model: keeper, earlier: earlierKeeper }, m.model, m.fresh);
+    const { result, reused, model } = await runSession(chosen.keeper, {
+      held: chosen.held,
       ids: m.ids,
       idsName: m.idsName,
       model: m.model,

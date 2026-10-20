@@ -5,7 +5,7 @@
 // by element. Elements are matched by their GlobalId, which IFC keeps the same for an element in every file it is in.
 import { csvCell, failureTotalOf } from './csv';
 import { plural } from './shape';
-import type { CompareKeys, FailingElement, RunResult, SpecRow, SpecState } from './types';
+import { COMPARE_LIMIT, type CompareKeys, type FailingElement, type RunResult, type SpecRow, type SpecState } from './types';
 
 /** How a specification's result changed from the earlier delivery to this one. */
 export type SpecChange = 'now-passes' | 'now-fails' | 'still-fails' | 'still-passes' | 'not-checked' | 'not-in-both';
@@ -205,8 +205,23 @@ function headlineOf(later: string, earlier: string, counts: Record<SpecChange, n
 
 const keysOf = (r: RunResult): CompareKeys => {
   if (!r.keys) throw new Error('a comparison needs a run made with collect');
+  if (r.keys.tooMany) throw new Error('a comparison of a run with too many keys (see tooManyToCompare)');
   return r.keys;
 };
+
+export { COMPARE_LIMIT };
+
+/**
+ * Null when the two runs can be compared on the page; else the sentence that says why not: a model with more keys
+ * (GlobalIds, elements applied to and failing elements together) than the page holds for a comparison.
+ */
+export function tooManyToCompare(earlier: RunResult, later: RunResult): string | null {
+  const over = [earlier, later].filter((r) => r.keys?.tooMany);
+  if (over.length === 0) return null;
+  const limit = over[0].keys!.tooMany!.limit;
+  const names = over.map((r) => r.ifcFile).join(' and ');
+  return `${names} ${over.length === 1 ? 'has' : 'have'} too many elements to compare on this page: a comparison holds at most ${limit.toLocaleString('en')} GlobalIds and element results of each model, and it does not compare part of them. The result of this model above is complete, and Download failing elements gives every failing element of it. To compare, export both models in smaller parts, split the same way (by building or discipline).`;
+}
 
 /** Compare the run of the earlier delivery with the run of this one, both against the same IDS file. */
 export function compareDeliveries(earlier: RunResult, later: RunResult): Comparison {
