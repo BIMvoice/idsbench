@@ -168,8 +168,14 @@ export class CheckIncomplete extends AppError {
  * for for ever. It is far longer than a check of a small file is allowed, for a slow connection.
  */
 export const ENGINE_LOAD_ALLOWED_MS = 180_000;
+/**
+ * It says to reload the page, not to Check again: Chromium keeps a failed import() of a module, so importing it again
+ * fails without asking the server. Importing it under another address would not do either, since the engine imports
+ * chunks of its own by their fixed addresses and the one that failed may be any of them. The draft is kept across a
+ * reload.
+ */
 export const ENGINE_NOT_LOADED =
-  'The IDS file could not be checked: the checking engine did not download, so there is no verdict. Check your internet connection, then Check again.';
+  'The IDS file could not be checked: the checking engine did not download, so there is no verdict. Check your internet connection, then reload the page to check it again.';
 /** The engine did not arrive within ENGINE_LOAD_ALLOWED_MS, or its download failed: nothing is known about the file. */
 export class EngineNotLoaded extends AppError {
   constructor() { super('engine-not-loaded', ENGINE_NOT_LOADED); }
@@ -209,7 +215,7 @@ export async function checkText(xml: string, options: { signal?: AbortSignal } =
   const early = sentenceForText(xml);
   if (early) return { kind: 'sentence', text: early };
   // The time allowed is counted from when the engine is there: a slow download of it is not a check that stalled. The
-  // download has a time of its own, so one that hangs is said, with Check again.
+  // download has a time of its own, so one that hangs is said.
   const engine = await loadEngine(signal);
   signal?.throwIfAborted();
   // One stop for both ends of a check: the time allowed running out, and the caller no longer wanting it. Either ends
