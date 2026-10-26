@@ -21,6 +21,8 @@ export interface RunInput {
   /** From readIds(). IDS XML is parsed by the caller because parseIDS needs DOMParser, which a Web Worker lacks. */
   ids: IDSDocument;
   idsName: string;
+  /** The SHA-256 of the IDS file's bytes, if known; the BCF file's GUIDs are made from it. */
+  idsSha256?: string | null;
   ifcBytes: ArrayBuffer;
   ifcName: string;
   onPhase?: (phase: Phase) => void;
@@ -207,6 +209,7 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       input.spill ? done.map((d) => d.spilled) : null,
       { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, ...elementsIn(store, tables), seconds: (performance.now() - t0) / 1000 },
     );
+    if (input.idsSha256 !== undefined) result.idsSha256 = input.idsSha256;
     // The BCF file is made here, in the worker, from the groups gathered as the failures went by (a few thousand GlobalIds at most).
     if (input.spill && offersFailingDownload(result)) result.bcf = await bcfBlob(result);
     if (budget) {

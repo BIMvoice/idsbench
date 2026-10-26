@@ -57,6 +57,8 @@ export function keeperFor(slot: 'model' | 'earlier' | undefined, keepers: { mode
 export interface SessionRequest {
   ids: IDSDocument;
   idsName: string;
+  /** The SHA-256 of the IDS file's bytes, if known (see RunInput). */
+  idsSha256?: string | null;
   model: ModelRef;
   /** Reads the model's bytes. Called only when the model is not already kept. */
   read: () => Promise<ArrayBuffer>;
@@ -106,7 +108,7 @@ export async function runSession(keeper: ModelKeeper, req: SessionRequest): Prom
   }
   try {
     const result = await runValidation({
-      ids: req.ids, idsName: req.idsName, ifcBytes: new ArrayBuffer(0), ifcName: req.model.name,
+      ids: req.ids, idsName: req.idsName, idsSha256: req.idsSha256, ifcBytes: new ArrayBuffer(0), ifcName: req.model.name,
       loaded, onPhase: req.onPhase, onTick: req.onTick, spill: req.spill, sentences: req.sentences, collect: req.collect,
     });
     // The time of this run: with the reading of the model when it was read, without it when the kept copy was used.

@@ -127,6 +127,8 @@ export interface RunResult {
   /** The BCF 2.1 file of the failures, made in the worker beside the other two downloads. Present only on a run made there, and only when something failed; not part of the report. */
   bcf?: Blob;
   idsFile: string;
+  /** The SHA-256 of the IDS file's bytes the run was made for, where the caller had it; the BCF file's GUIDs are made from it. Not part of the report. */
+  idsSha256?: string | null;
   ifcFile: string;
   schema: string;
   /** Every record of the file: elements, but also geometry, properties and relationships. */
