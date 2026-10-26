@@ -33,7 +33,7 @@ describe('the bundled examples', () => {
       expect(readIdsText(text, nodeEnv).specifications.length).toBeGreaterThan(0);
     });
   }
-  it('the hard-requirements example has 8 specifications', () => {
-    expect(readIdsText(fs.readFileSync(new URL('byggesaksbim.ids', dir), 'utf8'), nodeEnv).specifications).toHaveLength(8);
+  it('the hard-requirements example has 7 specifications', () => {
+    expect(readIdsText(fs.readFileSync(new URL('byggesaksbim.ids', dir), 'utf8'), nodeEnv).specifications).toHaveLength(7);
   });
 });

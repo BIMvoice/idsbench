@@ -117,7 +117,7 @@ try {
   await page.screenshot({ path: path.join(shotDir, 'write-1-empty.png'), fullPage: true });
   const empty = await page.locator('main').innerText();
   check('empty editor invites the first action', /No specifications yet\. Add the first one/.test(empty) && /Add the first specification\. A title under "About this IDS" is suggested\./.test(empty));
-  check('the IDS box holds Open, New and Download .ids', (await page.locator('.drop').first().locator('button').allInnerTexts()).join(',') === 'Open,New,Download .ids,Close');
+  check('the IDS box holds Open, New, Example and Download .ids', (await page.locator('.drop').first().locator('button').allInnerTexts()).join(',') === 'Open,New,Example,Download .ids,Close');
   check('shows the file name and no unsaved mark on a blank document', /untitled\.ids/i.test(await status()) && !empty.includes('unsaved changes'));
   check('says where unsaved work is kept in one sentence', (await page.locator('.foot').innerText()).includes('Unsaved changes stay in this browser tab until you close it.'));
   check('Download is off on a blank document, with a reason in words', (await dlBtn.isDisabled()) && /Download is off until this is fixed: Specifications: Add at least one specification\./.test(await reason()));

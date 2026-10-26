@@ -3,7 +3,7 @@
     {
       "file": "byggesaksbim.ids",
       "title": "Norway — ByggesaksBIM (DiBK), hard requirements",
-      "description": "8 specifications, one for each requirement the DiBK P13 eByggesak report marks Obligatorisk (ARK, Forprosjekt). Our own reading of that report, written 2026-10-26; DiBK has not published it. Data types are the IFC4 ones where DiBK gives none, and the building type is checked for presence only."
+      "description": "7 specifications, one for each requirement the DiBK P13 eByggesak report marks Obligatorisk (ARK, Forprosjekt); the one for spaces applies only to IfcZone with Pset_ZoneCommon.Reference = 'Bruksenhet'. Our own reading of that report, written 2026-10-26; DiBK has not published it. Data types are the IFC4 ones where DiBK gives none, and the building type is checked for presence only."
     },
     {
       "file": "byggesaksbim-warnings.ids",
