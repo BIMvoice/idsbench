@@ -13,6 +13,7 @@ import readline from 'node:readline';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
+import { strFromU8, unzipSync } from 'fflate';
 
 const WALLS = Number(process.argv[2] ?? 1_400_000);
 const dist = path.resolve('dist');
@@ -104,6 +105,9 @@ try {
     window.__longest = 0;
     let last = performance.now();
     setInterval(() => { const n = performance.now(); window.__longest = Math.max(window.__longest, n - last - 50); last = n; }, 50);
+    // Long tasks (the browser's own measure: any task over 50 ms) of the page's thread, to be reset around one action.
+    window.__longTask = 0;
+    new PerformanceObserver((list) => { for (const e of list.getEntries()) window.__longTask = Math.max(window.__longTask, e.duration); }).observe({ type: 'longtask', buffered: false });
     window.__texts = [];
     new MutationObserver(() => { const t = document.querySelector('.title-block .headline')?.textContent; if (t && window.__texts[window.__texts.length - 1] !== t) window.__texts.push(t); }).observe(document, { subtree: true, childList: true, characterData: true });
   });
@@ -151,7 +155,20 @@ try {
   const inReport = await countOf(report, '"ifcClass"');
   const head = fs.readFileSync(report, 'utf8').slice(0, 20000);
   check(`the report holds all ${WALLS.toLocaleString('en')} failing elements and says so in the count`, inReport === WALLS && head.includes(`"failureTotal":${WALLS}`), `${inReport}`);
-  fs.rmSync(csv); fs.rmSync(report);
+  // The BCF file comes out of the same stream as the CSV and is made in the worker: one topic, capped at 1,000 components, and the page's thread is not held up by it.
+  await page.evaluate(() => { window.__longTask = 0; });
+  const tBcf = Date.now();
+  const bcfFile = await download('failing.bcfzip', 'Download as BCF');
+  const bcfSeconds = (Date.now() - tBcf) / 1000;
+  const longTask = await page.evaluate(() => new Promise((r) => setTimeout(() => r(Math.round(window.__longTask)), 500)));
+  const zip = unzipSync(new Uint8Array(fs.readFileSync(bcfFile)));
+  const markups = Object.keys(zip).filter((f) => f.endsWith('/markup.bcf')), views = Object.keys(zip).filter((f) => f.endsWith('.bcfv'));
+  const components = views.length ? (strFromU8(zip[views[0]]).match(/<Component /g) ?? []).length : 0;
+  const bcfMarkup = markups.length ? strFromU8(zip[markups[0]]) : '';
+  console.log(`LARGE BCF: ${(fs.statSync(bcfFile).size / 1024).toFixed(0)} KB in ${bcfSeconds.toFixed(1)} s after the click; longest task of the page's thread ${longTask} ms`);
+  check(`the BCF file of ${WALLS.toLocaleString('en')} failing walls: one topic, 1,000 components, and the topic says "first 1,000 of ${WALLS.toLocaleString('en')}"`, markups.length === 1 && views.length === 1 && components === 1000 && bcfMarkup.includes(`first 1,000 of ${WALLS.toLocaleString('en')}`), `${markups.length} topics, ${components} components`);
+  check('the BCF download did not hold up the page: longest task under 100 ms', longTask < 100, `${longTask} ms`);
+  fs.rmSync(csv); fs.rmSync(report); fs.rmSync(bcfFile);
 
   // ---- the model is kept: a run after an edit does not read it again ------------
   await fresh();

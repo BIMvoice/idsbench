@@ -21,7 +21,7 @@ export function reportFileName(ifcName: string): string {
  * (`groups`, `notListed`) is a view of the elements and is not part of the report.
  */
 export function reportParts(result: RunResult): BlobPart[] {
-  const { specs, spilled, keys: _keys, ...rest } = result;
+  const { specs, spilled, keys: _keys, bcf: _bcf, ...rest } = result;
   const head = JSON.stringify(rest, null, 2).replace(/\n\}$/, '');
   const parts: BlobPart[] = [`${head},\n  "specs": [`];
   specs.forEach((s, i) => {
