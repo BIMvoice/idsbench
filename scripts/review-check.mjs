@@ -319,7 +319,8 @@ try {
   await ifcInput.setInputFiles(wilmaWalls);
   await page.locator('.verdict-word', { hasText: 'Checking' }).waitFor();
   await page.getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('button', { name: 'Try an example' }).click();
+  await page.getByRole('button', { name: 'Example', exact: true }).click();
+  await page.getByRole('button', { name: 'Small demo, with a model' }).click();
   await runVerdict.waitFor({ timeout: 60000 });
   check('closing and loading the example during a run: the result is the example\'s, under the example\'s names', /IDS file\s+example-requirements\.ids/.test(await page.locator('.record').innerText()) && /Model\s+example-building\.ifc/.test(await page.locator('.record').innerText()) && !/wilma|other\.ids/.test(await page.locator('.record').innerText()), (await page.locator('.record').innerText()).replace(/\s+/g, ' '));
   workerDelay = 0;

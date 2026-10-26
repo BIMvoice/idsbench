@@ -6,6 +6,9 @@ import { fetchExampleFile, fetchExampleList, type ExampleEntry } from '../../cor
 import { formatSize } from '../../core/format';
 import type { Page } from './usePage';
 
+const DEMO_TITLE = 'Small demo, with a model';
+const DEMO_DESCRIPTION = 'Three specifications and a small model, to see Fail, Pass and Nothing to check. It ships inside the page.';
+
 interface Props { page: Page; primary: string; onDownloadIds: () => void }
 
 /** The two inputs. Files can also be dropped anywhere on the page; these boxes are the visible places to press. */
@@ -43,11 +46,14 @@ export function FileBar({ page, primary, onDownloadIds }: Props) {
           <button type="button" className="btn small" onClick={page.startNew}>New</button>
           <button type="button" className="btn small" aria-expanded={!!menu} aria-controls="example-menu" onClick={toggleExamples}>Example</button>
           {page.doc && <button type="button" className={cls('download')} disabled={!!page.downloadBlocked} aria-describedby="ids-reason" onClick={onDownloadIds}>Download .ids</button>}
-          {!has && <button type="button" className="btn small" onClick={page.tryExample}>Try an example</button>}
           {has && <button type="button" className="btn small quiet" onClick={page.closeAll}>{page.source?.example ? 'Clear the example' : 'Close'}</button>}
         </span>
         {menu && (
           <div className="example-menu" id="example-menu" role="group" aria-label="Examples">
+            <div className="example-item">
+              <button type="button" className="btn small" onClick={() => { setMenu(null); page.tryExample(); }}>{DEMO_TITLE}</button>
+              <span className="drop-hint">{DEMO_DESCRIPTION}</span>
+            </div>
             {menu.list === null && !menu.problem && <span className="drop-hint" role="status">Loading the examples...</span>}
             {menu.problem && <span className="drop-hint" role="alert">{menu.problem}</span>}
             {menu.list?.map((e) => (

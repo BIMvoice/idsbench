@@ -256,7 +256,7 @@ export function App() {
     : report && !report.valid ? (errorRows >= 0 ? `edit-${errorRows}` : 'open')
     : !model ? 'model'
     : result ? (hasFailures ? 'csv' : 'report') : '';
-  const next = !doc && !page.source ? 'Open an IDS file, or drop an IDS file and an IFC model anywhere on this page. No files at hand? Try the example.'
+  const next = !doc && !page.source ? 'Open an IDS file, or drop an IDS file and an IFC model anywhere on this page. No files at hand? Choose Example.'
     : page.blank ? 'Add the first specification. A title under "About this IDS" is suggested.'
     : page.editing ? 'Your changes are checked as you make them. Press Done when the specification reads as you mean it.'
     : page.checking ? null
