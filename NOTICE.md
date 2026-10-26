@@ -40,4 +40,4 @@ SOFTWARE.
 
 ## Libraries
 
-The libraries idsbench depends on are listed in `README.md` with their licences (`@ifc-lite/parser` and `@ifc-lite/ids` under MPL-2.0; `xmllint-wasm`, `@xmldom/xmldom`, `react` and `react-dom` under MIT).
+The libraries idsbench depends on are listed in `README.md` with their licences (`@ifc-lite/parser`, `@ifc-lite/ids` and `@ifc-lite/bcf` under MPL-2.0; `xmllint-wasm`, `@xmldom/xmldom`, `react` and `react-dom` under MIT).

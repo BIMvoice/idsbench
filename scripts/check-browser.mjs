@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-// Runs the six browser scripts against the built site (run `npm run build` first): writing and editing an IDS file;
+// Runs the seven browser scripts (the accessibility script, scripts/a11y-check.mjs, among them) against the built site (run `npm run build` first): writing and editing an IDS file;
 // checking it, running a model against it and fixing it in place; what the saved file is, what happens when
 // things change under a run, what survives a reload, odd input and the keyboard journeys; large models, the model kept
 // between runs, a worker that goes silent or is ended and models too large to open; and the exact class, a Pset_ name that
@@ -22,6 +22,7 @@ let status = run(['scripts/local-xsd.mjs', path.join(clone, 'Schema', 'ids.xsd')
 if (status === 0) status = run(['scripts/write-check.mjs', clone, xsd]) || status;
 const cases = path.join(clone, 'Documentation', 'ImplementersDocumentation', 'TestCases');
 if (status === 0) status = run(['scripts/browser-check.mjs', cases]) || status;
+if (status === 0) status = run(['scripts/a11y-check.mjs', cases]) || status;
 if (status === 0) status = run(['scripts/review-check.mjs', clone, ...(largeModel ? [largeModel] : [])]) || status;
 if (status === 0) status = run(['scripts/scale-check.mjs']) || status;
 if (status === 0) status = run(['scripts/proof-check.mjs']) || status;

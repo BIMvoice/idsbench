@@ -44,7 +44,7 @@ export function FailureGroups({ spec, index }: { spec: Result; index: number }) 
       <summary>Show the {plural(total, 'failing element')}, by reason</summary>
       {shown.map((g, i) => (
         <section key={i} className="fail-group" aria-label={g.reason}>
-          <h5 className="group-reason">{plural(g.total, 'element')}: {g.reason}{g.varies ? ' Each element\'s own value is in the last column.' : ''}</h5>
+          <h4 className="group-reason">{plural(g.total, 'element')}: {g.reason}{g.varies ? ' Each element\'s own value is in the last column.' : ''}</h4>
           {view.open && <button type="button" className="btn small show-group-3d" onClick={() => view.show(index, g.elements.map((f) => f.globalId ?? ''))}>Show {g.elements.length === g.total ? 'these' : `the ${g.elements.length.toLocaleString('en')} listed`} in 3D</button>}
           <div className="table-wrap">
             {/* The roles keep this a table for screen readers on a narrow screen, where each row is laid out as a block. */}
@@ -114,6 +114,13 @@ interface Props {
 export function SpecRow({ spec: s, index, count, result, waiting, findings, xml, issues, editing, primary, focusKey, onEdit, onChange, onMove, onDelete, subtypes, onAddSubtypes, words: wordsOptions, changed }: Props) {
   const label = s.name.trim() || 'Untitled specification';
   const words = describeSpecification(s, wordsOptions);
+  // Done at the foot of the form removes the button the keyboard was on; it goes back to the row's own Edit button.
+  const editButton = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(editing);
+  useEffect(() => {
+    if (wasEditing.current && !editing && (!document.activeElement || document.activeElement === document.body)) editButton.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
   // While a row is being edited its result is not shown as its state.
   const state = editing ? <span className="state waiting">Editing</span>
     : result ? <span className={`state ${result.state}`}>{STATE_TEXT[result.state]}</span>
@@ -126,7 +133,7 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
         <span className="spec-words words" aria-label="This specification in words">{words.text}</span>
         {result && !editing && <span className="spec-counts">{result.summary}</span>}
         <span className="row-actions">
-          <button type="button" className={primary ? 'btn small primary' : 'btn small'} aria-expanded={editing} aria-controls={`body-${s.uid}`} aria-label={`${editing ? 'Done editing' : 'Edit'} ${label}`} onClick={() => onEdit(!editing)}>{editing ? 'Done' : 'Edit'}</button>
+          <button type="button" ref={editButton} className={primary ? 'btn small primary' : 'btn small'} aria-expanded={editing} aria-controls={`body-${s.uid}`} aria-label={`${editing ? 'Done editing' : 'Edit'} ${label}`} onClick={() => onEdit(!editing)}>{editing ? 'Done' : 'Edit'}</button>
         </span>
       </div>
       {changed && !editing && <p className="note change-line" role="status">{changed}</p>}
@@ -146,8 +153,8 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
           <SpecEditor spec={s} issues={issues} onChange={onChange} focusKey={focusKey} subtypes={subtypes ?? null} onAddSubtypes={onAddSubtypes} />
           <div className="spec-foot">
             <button type="button" className="btn small" onClick={() => onEdit(false)}>Done</button>
-            <button type="button" className="btn small quiet" disabled={index === 0} onClick={() => onMove(-1)} aria-label={`Move ${label} up`}>Move up</button>
-            <button type="button" className="btn small quiet" disabled={index === count - 1} onClick={() => onMove(1)} aria-label={`Move ${label} down`}>Move down</button>
+            <button type="button" className="btn small quiet" disabled={index === 0} onClick={() => onMove(-1)} aria-label={`Move up: ${label}`}>Move up</button>
+            <button type="button" className="btn small quiet" disabled={index === count - 1} onClick={() => onMove(1)} aria-label={`Move down: ${label}`}>Move down</button>
             <button type="button" className="btn small quiet" onClick={onDelete} aria-label={`Delete ${label}`}>Delete</button>
           </div>
         </div>

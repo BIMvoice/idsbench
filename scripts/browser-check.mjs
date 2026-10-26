@@ -14,6 +14,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import zlib from 'node:zlib';
 import { chromium } from 'playwright';
+import { strFromU8, unzipSync } from 'fflate';
 
 const root = process.argv[2];
 if (!root) throw new Error('usage: browser-check.mjs <TestCases dir> [walls]');
@@ -457,6 +458,12 @@ try {
   check('Download failing elements: a CSV named after the model, UTF-8 with a byte order mark, CRLF, one row per failing element, each marked as an element row', csv.file === 'mixed walls-failing-elements.csv' && csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf && csvLines[0] === 'Row about,Specification,Requirement,Why it failed,What to fix,IFC class,Name,GlobalId,Storey or space,Model,IDS file' && csvLines.length === 4 + 2 && csvLines[5] === '', `${csv.file}: ${csvLines.length - 2} rows`);
   check('CSV: commas and quotes are quoted, letters outside ASCII are kept', csvLines[2].includes(',"Wand ""Süd"", außen",0000000000000000000002,,mixed walls.ifc,two-requirements.ids') && csvLines[2].startsWith('Element,"Walls, ""named"" and described",') && csvLines[3].includes('"Ușă, perete"'), csvLines[2]);
 
+  const bcf = await download('Download as BCF', 'failing.bcfzip');
+  const bcfZip = unzipSync(new Uint8Array(fs.readFileSync(bcf.path)));
+  const bcfMarkups = Object.keys(bcfZip).filter((f) => f.endsWith('/markup.bcf')).map((f) => strFromU8(bcfZip[f]));
+  const bcfGuids = Object.keys(bcfZip).filter((f) => f.endsWith('.bcfv')).flatMap((f) => [...strFromU8(bcfZip[f]).matchAll(/IfcGuid="([^"]*)"/g)].map((m) => m[1])).sort();
+  check('Download as BCF: a .bcfzip named after the model, BCF 2.1, a topic for each of the two reasons, an open Issue labelled with the specification, and the four failing GlobalIds', bcf.file === 'mixed walls-failing-elements.bcfzip' && strFromU8(bcfZip['bcf.version']).includes('VersionId="2.1"') && bcfMarkups.length === groupHeads.length && bcfMarkups.every((m) => m.includes('TopicType="Issue"') && m.includes('TopicStatus="Open"') && m.includes('<Labels>Walls, &quot;named&quot; and described</Labels>')) && bcfGuids.join(',') === ['0000000000000000000001', '0000000000000000000002', '0000000000000000000003', '0000000000000000000004'].join(','), `${bcf.file}: ${bcfMarkups.length} topics, ${bcfGuids.length} components`);
+
   // ---- the worker -------------------------------------------------------------
   // A second pair after a first: the old result goes the moment a file changes.
   await load(goodIds, goodIfc);
@@ -673,7 +680,7 @@ try {
   await load(statesIds, goodIfc);
   await settled();
   await page.getByRole('button', { name: 'Edit Required, broken' }).click();
-  await page.getByRole('button', { name: 'Move Required, broken up' }).click();
+  await page.getByRole('button', { name: 'Move up: Required, broken' }).click();
   await runVerdict.waitFor({ timeout: 60000 });
   const afterMove = await specs.evaluateAll((els) => els.slice(0, 2).map((e) => `${e.querySelector('.spec-name').textContent}=${e.querySelector('.state').textContent}`));
   check('moving a specification with a result on screen: the rows change place and the result is made again for the new order', afterMove.join(' | ') === 'Required, broken=Editing | Required, met=Pass' && /^4 of 8 specifications passed\./.test(await headline.innerText()), afterMove.join(' | '));

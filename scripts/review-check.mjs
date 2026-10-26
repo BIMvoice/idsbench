@@ -269,7 +269,7 @@ try {
   check('three specifications, two walls named Waldo: Pass, Fail, Pass, each row with the state of its own specification', (await stateOf(0)) === 'Pass' && (await stateOf(1)) === 'Fail' && (await stateOf(2)) === 'Pass' && (await specs.nth(1).getAttribute('data-result-of')) === 'Walls are named Wilma');
   // reorder: the rows change place, and each still carries its own result
   await page.getByRole('button', { name: 'Edit Walls are named Wilma' }).click();
-  await page.getByRole('button', { name: 'Move Walls are named Wilma up' }).click();
+  await page.getByRole('button', { name: 'Move up: Walls are named Wilma' }).click();
   await page.getByRole('button', { name: 'Done editing Walls are named Wilma' }).click();
   await runVerdict.waitFor({ timeout: 60000 });
   check('moving a specification: the result follows the specification, not the place', (await specs.nth(0).locator('.spec-name').innerText()) === 'Walls are named Wilma' && (await stateOf(0)) === 'Fail' && (await stateOf(1)) === 'Pass' && (await stateOf(2)) === 'Pass');

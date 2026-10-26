@@ -97,6 +97,10 @@ export function failuresCsvName(ifcName: string): string {
   return `${ifcName.replace(/\.ifc$/i, '') || 'model'}-failing-elements.csv`;
 }
 
+export function bcfName(ifcName: string): string {
+  return `${ifcName.replace(/\.ifc$/i, '') || 'model'}-failing-elements.bcfzip`;
+}
+
 /**
  * What to do with a result, in one sentence. "Nothing failed" is said only of a result that passed: a required
  * specification that matches nothing fails without a single failing element, and so does not make an empty list good news.

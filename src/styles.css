@@ -445,7 +445,7 @@ summary.finding-head::after { grid-column: 3; grid-row: 1; align-self: center; }
 .findings.attached { border-top-color: var(--rule); margin-bottom: var(--s3); }
 .findings.attached .finding:last-child { border-bottom: 0; }
 .fail-group { margin-top: var(--s3); }
-.group-reason { margin-bottom: var(--s2); }
+.group-reason { margin: 0 0 var(--s2); font-size: var(--t-body); line-height: inherit; }
 .fail-group .table-wrap { margin-left: 0; }
 .fails td:nth-child(2) { min-width: 0; }
 .about-list { margin: 0; border-top: var(--w-fine) solid var(--ink); }
