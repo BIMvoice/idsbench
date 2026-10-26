@@ -5,9 +5,11 @@
   "type": "module",
   "dependencies": {
     "@idsbench/check": "*",
+    "@ifc-lite/geometry": "^7.9.0",
     "@ifc-lite/bcf": "^5.1.0",
     "@ifc-lite/ids": "^3.2.0",
     "@ifc-lite/parser": "^9.2.0",
+    "@ifc-lite/renderer": "^6.5.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

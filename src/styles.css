@@ -499,3 +499,19 @@ summary.finding-head::after { grid-column: 3; grid-row: 1; align-self: center; }
 .compare-files { margin-left: 0; }
 .compare-files .sha { white-space: normal; overflow-wrap: anywhere; font-size: var(--t-label); }
 .change-group > h5 { margin: var(--s4) 0 var(--s2); }
+
+/* ---- the 3D view (opened with "Show in 3D"; see src/ui/view3d) ---- */
+.view3d { margin-top: var(--s4); }
+.view3d-bar { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; margin-bottom: var(--s2); }
+.view3d-bar select { font: inherit; max-width: 100%; }
+.view3d .legend { display: inline-flex; gap: var(--s2); align-items: center; font-size: var(--t-small); color: var(--ink-soft); }
+.view3d .swatch { display: inline-block; width: 0.9rem; height: 0.9rem; border: var(--w-fine) solid var(--rule-strong); margin-left: var(--s2); }
+.view3d .swatch.fail { background: #dc1f1f; }
+.view3d .swatch.pass { background: #299e47; }
+.view3d .swatch.other { background: #cfd2d8; }
+.view3d-canvas { display: block; width: 100%; height: min(60vh, 32rem); background: #f7f7f5; border: var(--w-fine) solid var(--rule-strong); touch-action: none; }
+.view3d-canvas:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.show-group-3d { margin: var(--s1) 0 var(--s2); }
+tr.in3d { cursor: pointer; }
+tr.in3d:hover { background: var(--tint); }
+tr.picked { background: var(--tint); outline: 2px solid var(--fail-fill); outline-offset: -2px; }
