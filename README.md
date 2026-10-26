@@ -80,6 +80,16 @@ Check is the package in `packages/check` (see its README). It validates the IDS 
 
 The Check engine is not part of the first load. It is fetched when the first IDS file arrives (about 456 KB over the wire, gzip, with its WebAssembly and the IFC 4 tables); the specifications are on screen before that, read by a small reader of the page's own, and the stamp says "Checking" until the engine answers.
 
+## Accessibility
+
+`scripts/a11y-check.mjs` runs axe-core (`@axe-core/playwright`, MPL-2.0, a development dependency only: it is not in the built site) in headless Chromium over the empty page, an IDS file that is valid, one that is not valid (a generated one and an official one), a model with a Fail result with its failing elements open, the Edit form with and without a pick-list open, a refused model, "Stop and try again" and "Check again", each in the light and the dark theme (WCAG 2.0 and 2.1 A and AA, WCAG 2.2 AA and axe's best-practice rules). Serious or critical violations fail the script; lesser ones are printed. It also drives the keyboard alone: Edit, the pick-list (combobox role, `aria-expanded`, `aria-controls`, `aria-activedescendant`, arrows, Escape, Enter), Done, the menu that adds a specification (Escape and Cancel return the keyboard to the button that opened it), and that the verdict and the run result are written inside a polite live region.
+
+```
+npm run build && node scripts/a11y-check.mjs <TestCases dir>   # takes about two minutes
+```
+
+Known limits: axe finds about a third of what a person using a screen reader would; this was not tried with a screen reader. Only the states above are audited (not the comparison with an earlier delivery, nor a narrow screen). Pressing Delete on a specification leaves the keyboard at the top of the page.
+
 ## Privacy
 
 Files are read and checked in your browser, in Web Workers. Unsaved changes to the IDS file are kept in `sessionStorage` only (cleared when the tab closes); nothing else is stored. Nothing is sent to a server, there is no analytics, and the page loads no fonts or scripts from other sites.
@@ -102,7 +112,8 @@ The first two are from the ifc-lite project. How the interface looks and reads i
 ```
 npm test                                          # the MPL-2.0 notice on every source file, the app's unit tests, then the Check package's tests
 npm run lint:headers                              # only the notice: lists the source files that lack it (node scripts/check-headers.mjs --write adds it)
-npm run build && npm run check:browser -- <IDS clone> [a large .ifc]   # the six browser scripts in headless Chromium, network blocked (scripts/ASSERTIONS.md lists what they assert)
+npm run build && npm run check:browser -- <IDS clone> [a large .ifc]   # the seven browser scripts in headless Chromium, network blocked (scripts/ASSERTIONS.md lists what they assert)
+node scripts/a11y-check.mjs <TestCases dir>        # axe-core over the main states in both themes, and the keyboard journeys of the pick-list and the menus (see Accessibility)
 npm run truth -- <TestCases dir>                  # every pass-/fail- pair of the buildingSMART IDS test cases through Check and Run
 npx vite-node scripts/roundtrip.ts <IDS clone> <ids.xsd with local imports> <out dir>   # read, write back and compare every IDS 1.0 file
 node scripts/local-xsd.mjs <official ids.xsd> <dir with xml.xsd and XMLSchema.xsd> <out>   # the schema xmllint can read without the network

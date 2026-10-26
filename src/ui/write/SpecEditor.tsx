@@ -208,8 +208,8 @@ function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice,
             <div className="facet-head">
               <h5>{FACET_INFO[f.kind].name}</h5>
               <span className="row-actions">
-                {facets.length > 1 && canMove(i, -1) && <button type="button" className="btn small quiet" onClick={() => move(i, -1)} aria-label={`Move ${FACET_INFO[f.kind].name} item ${i + 1} up in ${title}`}>Up</button>}
-                {facets.length > 1 && canMove(i, 1) && <button type="button" className="btn small quiet" onClick={() => move(i, 1)} aria-label={`Move ${FACET_INFO[f.kind].name} item ${i + 1} down in ${title}`}>Down</button>}
+                {facets.length > 1 && canMove(i, -1) && <button type="button" className="btn small quiet" onClick={() => move(i, -1)} aria-label={`Up: move ${FACET_INFO[f.kind].name} item ${i + 1} in ${title}`}>Up</button>}
+                {facets.length > 1 && canMove(i, 1) && <button type="button" className="btn small quiet" onClick={() => move(i, 1)} aria-label={`Down: move ${FACET_INFO[f.kind].name} item ${i + 1} in ${title}`}>Down</button>}
                 <button type="button" className="btn small quiet" onClick={() => { onChange(facets.filter((x) => x !== f)); setFocusNext('add'); }} aria-label={`Remove ${FACET_INFO[f.kind].name} item ${i + 1} from ${title}`}>Remove</button>
               </span>
             </div>
@@ -218,7 +218,7 @@ function FacetList({ title, help, kind, facets, issues, groupError, groupAdvice,
         ))}
       </ol>
       {adding ? (
-        <div className="add-menu" role="group" aria-label={`Add to ${title}`}>
+        <div className="add-menu" role="group" aria-label={`Add to ${title}`} onKeyDown={(e) => { if (e.key === 'Escape') { setAdding(false); setFocusNext('add'); } }}>
           <ul>
             {KINDS.map((k) => {
               const blocked = !requirement && k === 'entity' && hasEntity;

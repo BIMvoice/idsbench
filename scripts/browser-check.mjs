@@ -679,7 +679,7 @@ try {
   await load(statesIds, goodIfc);
   await settled();
   await page.getByRole('button', { name: 'Edit Required, broken' }).click();
-  await page.getByRole('button', { name: 'Move Required, broken up' }).click();
+  await page.getByRole('button', { name: 'Move up: Required, broken' }).click();
   await runVerdict.waitFor({ timeout: 60000 });
   const afterMove = await specs.evaluateAll((els) => els.slice(0, 2).map((e) => `${e.querySelector('.spec-name').textContent}=${e.querySelector('.state').textContent}`));
   check('moving a specification with a result on screen: the rows change place and the result is made again for the new order', afterMove.join(' | ') === 'Required, broken=Editing | Required, met=Pass' && /^4 of 8 specifications passed\./.test(await headline.innerText()), afterMove.join(' | '));
