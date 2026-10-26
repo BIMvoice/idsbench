@@ -500,7 +500,7 @@ export function usePage() {
       : null;
 
   return {
-    doc, source, unreadable, name, dirty, asOpened, blank, text, xml, model, refusal, opening,
+    doc, source, unreadable, name, dirty, asOpened, blank, text, xml, model, idsFile, refusal, opening,
     notice, clearNotice: () => setNotice(null), draftKept, saveNote, leftOut,
     check, report, valid, checking: text !== null && !blank && check === null,
     run, running, phase, runnable,

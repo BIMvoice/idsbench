@@ -15,7 +15,12 @@ import { Compare } from './page/Compare';
 import { saveFile } from './page/draft';
 import { FileBar } from './page/FileBar';
 import { Findings } from './page/Findings';
-import { SpecRow } from './page/SpecRow';
+import { shownGroups, SpecRow } from './page/SpecRow';
+import { Focus3dContext, type Focus3d } from './page/focus3d';
+import { Show3D } from './page/Show3D';
+import type { RunResult } from '../core/types';
+import { SceneKeeper } from '../core/sceneKeeper';
+import { loadScene } from '../runner';
 import { mark, modelMark, TitleBlock } from './page/TitleBlock';
 import { ToFix } from './page/ToFix';
 import { usePage } from './page/usePage';
@@ -36,6 +41,45 @@ export function App() {
   const hasFailures = result ? offersFailingDownload(result) : false;
   // A result row is shown beside a specification only when the result is of exactly these specifications, in this order.
   const rows = useMemo(() => (result && doc ? alignResults(doc.specifications, result) : null), [result, doc]);
+
+  // ---- the 3D view: off until asked for; the lists and the view tell each other what is selected ----
+  const [view3d, setView3d] = useState(false);
+  const [spec3d, setSpec3d] = useState<number | null>(null);
+  const [focus3d, setFocus3d] = useState<{ globalIds: string[]; n: number } | null>(null);
+  const [picked3d, setPicked3d] = useState<string | null>(null);
+  // The shapes outlive the view's rebuilds (every edit makes one), not the view being closed or the model being replaced.
+  const scenes = useRef<SceneKeeper | null>(null);
+  scenes.current ??= new SceneKeeper(loadScene);
+  useEffect(() => () => scenes.current?.release(), [model, view3d]);
+  useEffect(() => { setFocus3d(null); setPicked3d(null); }, [model]);
+  // While an edit is being checked again `result` is gone at once (the page never shows an older result as the answer),
+  // but the 3D view is kept, out of sight, with the result it had: its renderer, camera and selection stay, and it is
+  // painted again when the new result comes. Another model, or closing the view, lets it go.
+  const kept3d = useRef<{ model: File; result: RunResult } | null>(null);
+  const answered = result && rows ? result : null;
+  if (view3d && model && answered) kept3d.current = { model, result: answered };
+  else if (!view3d || kept3d.current?.model !== model || (run && 'error' in run)) kept3d.current = null;
+  const result3d = answered ?? kept3d.current?.result ?? null;
+  const selected3d = spec3d !== null && spec3d < (result?.specs.length ?? 0) ? spec3d : null;
+  useEffect(() => {
+    if (!view3d || !result || selected3d !== null) return;
+    const firstFailing = result.specs.findIndex((x) => x.state === 'fail');
+    setSpec3d(firstFailing >= 0 ? firstFailing : 0);
+  }, [view3d, result, selected3d]);
+  const listed3d = useMemo(() => {
+    const out = new Set<string>();
+    if (!rows || selected3d === null || !rows[selected3d]) return out;
+    for (const g of shownGroups(rows[selected3d]!).shown) for (const f of g.elements) if (f.globalId) out.add(f.globalId);
+    return out;
+  }, [rows, selected3d]);
+  const focus3dValue: Focus3d = useMemo(() => ({
+    open: view3d && rows !== null, spec: selected3d, picked: picked3d,
+    show: (spec, globalIds) => {
+      setSpec3d(spec);
+      setPicked3d(globalIds.length === 1 ? globalIds[0] : null);
+      setFocus3d((f) => ({ globalIds: globalIds.filter(Boolean), n: (f?.n ?? 0) + 1 }));
+    },
+  }), [view3d, rows, selected3d, picked3d]);
 
   // ---- what an edit did to the result: said next to the specification when the form is closed ----
   // The result of the specification as it was when its form was opened, and the one to compare when the form is closed.
@@ -270,7 +314,7 @@ export function App() {
     : report && !report.valid ? (errorRows >= 0 ? `edit-${errorRows}` : 'open')
     : !model ? 'model'
     : result ? (hasFailures ? 'csv' : 'report') : '';
-  const next = !doc && !page.source ? 'Open an IDS file, or drop an IDS file and an IFC model anywhere on this page. No files at hand? Try the example.'
+  const next = !doc && !page.source ? 'Open an IDS file, or drop an IDS file and an IFC model anywhere on this page. No files at hand? Choose Example.'
     : page.blank ? 'Add the first specification. A title under "About this IDS" is suggested.'
     : page.editing ? 'Your changes are checked as you make them. Press Done when the specification reads as you mean it.'
     : page.checking ? null
@@ -322,9 +366,17 @@ export function App() {
           {(report || result) && (
             <div className="actions">
               {result && hasFailures && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={() => void downloadCsv()}>Download failing elements</button>}
+              {result && rows && model && <button type="button" className="btn" aria-pressed={view3d} id="toggle-3d" onClick={() => setView3d((v) => !v)}>Show in 3D</button>}
               {result && hasFailures && <button type="button" className="btn" onClick={() => void downloadBcf()}>Download as BCF</button>}
               {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
+          )}
+          {view3d && result3d && model && page.idsFile && (
+            <Show3D
+              idsFile={page.idsFile} model={model} keeper={scenes.current} result={result3d} stale={answered === null} busy={page.comparingNow}
+              spec={selected3d} focus={focus3d} listed={listed3d}
+              onSpec={(i) => { setSpec3d(i); setFocus3d(null); setPicked3d(null); }} onPick={setPicked3d}
+            />
           )}
           {page.earlier && model && result && (
             <Compare
@@ -361,6 +413,7 @@ export function App() {
           <section aria-labelledby="specs-title" className="spec-section">
             <h3 id="specs-title">Specifications</h3>
             {doc.specifications.length === 0 && <p className="empty">No specifications yet. Add the first one to say what the model must contain.</p>}
+            <Focus3dContext.Provider value={focus3dValue}>
             <ol className={`specs page-specs${model ? ' with-state' : ''}`} data-of={result && run ? mark(run.text) : ''} data-of-model={result && run ? modelMark(run.model) : ''}>
               {doc.specifications.map((s, i) => (
                 <SpecRow
@@ -388,6 +441,7 @@ export function App() {
                 />
               ))}
             </ol>
+            </Focus3dContext.Provider>
             {adding ? (
               <div ref={menu} className="add-menu patterns" role="group" aria-label="Start a specification from" onKeyDown={(e) => { if (e.key === 'Escape') cancelAdding(); }}>
                 <p className="hint">Start from the shape closest to what you need, then change the choices.</p>

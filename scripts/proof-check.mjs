@@ -138,7 +138,8 @@ try {
 
   // ---- Download pressed again and again ------------------------------------------------------------
   await page.getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('button', { name: 'Try an example' }).click();
+  await page.getByRole('button', { name: 'Example', exact: true }).click();
+  await page.getByRole('button', { name: 'Small demo, with a model' }).click();
   await page.locator('.title-block[data-kind="run"]').waitFor({ timeout: 30000 });
   let files = 0;
   page.on('download', () => { files++; });

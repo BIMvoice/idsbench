@@ -48,7 +48,7 @@ const countOf = async (file, needle) => {
   for await (const chunk of fs.createReadStream(file, { encoding: 'utf8', highWaterMark: 1 << 24 })) {
     const t = tail + chunk;
     for (let i = t.indexOf(needle); i !== -1; i = t.indexOf(needle, i + needle.length)) n++;
-    tail = t.slice(-needle.length);
+    tail = t.slice(-(needle.length - 1)); // one short of the needle: a whole needle in the tail would be counted twice
   }
   return n;
 };
