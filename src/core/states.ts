@@ -50,3 +50,16 @@ export function listedGlobalId(expressId: number | null, guidOf: ReadonlyMap<num
   const g = expressId === null ? undefined : guidOf.get(expressId);
   return g && listed.has(g) ? g : null;
 }
+
+/**
+ * What a click in 3D landed on, for the specification shown. `listed` is the GlobalId of a clicked element the page lists
+ * (its row is highlighted). `unlisted` is the GlobalId of a clicked element that fails but is not among the listed rows
+ * (the page lists the first FAILURE_CAP of a specification; the rest are in the downloads), so that the view can say so
+ * instead of doing nothing.
+ */
+export function pickOf(expressId: number | null, guidOf: ReadonlyMap<number, string>, listed: ReadonlySet<string>, states: ReadonlyMap<string, ElementState>): { listed: string | null; unlisted: string | null } {
+  const g = expressId === null ? undefined : guidOf.get(expressId);
+  if (!g) return { listed: null, unlisted: null };
+  if (listed.has(g)) return { listed: g, unlisted: null };
+  return { listed: null, unlisted: stateOf(states, g) === 'fail' ? g : null };
+}

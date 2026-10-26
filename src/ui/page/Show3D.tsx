@@ -2,7 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { loadScene, runInWorker } from '../../runner';
+import { runInWorker } from '../../runner';
+import type { SceneKeeper } from '../../core/sceneKeeper';
 import { SCENE_MAX_BYTES, SCENE_TOO_BIG, type Scene } from '../../core/scene';
 import { elementStates } from '../../core/states';
 import type { CompareKeys, RunResult } from '../../core/types';
@@ -18,6 +19,8 @@ type Loaded = { scene: Scene; keys: CompareKeys } | { problem: string } | null;
 interface Props {
   idsFile: File;
   model: File;
+  /** Holds the shapes of the model while 3D is open, so that the view rebuilt after an edit does not make them again. */
+  keeper: SceneKeeper;
   /** The result of the page: the view is made again when it changes. */
   result: RunResult;
   /** True while the page is making another run in the worker (a comparison): the view waits for it. */
@@ -31,11 +34,14 @@ interface Props {
 }
 
 /** The 3D view: the model's shapes coloured by one specification. Open only while the reader has asked for it. */
-export function Show3D({ idsFile, model, result, busy, spec, focus, listed, onSpec, onPick }: Props) {
+export function Show3D({ idsFile, model, keeper, result, busy, spec, focus, listed, onSpec, onPick }: Props) {
   const gpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
   const tooBig = model.size > SCENE_MAX_BYTES;
   const [scene, setScene] = useState<Scene | null>(null);
   const [keys, setKeys] = useState<CompareKeys | null>(null);
+  const [beyond, setBeyond] = useState(false);
+  // A click on a failing element the page does not list is explained until the next click or another specification.
+  useEffect(() => { setBeyond(false); }, [spec, result, focus]);
   const [problem, setProblem] = useState<string | null>(tooBig ? SCENE_TOO_BIG(model.size) : !gpu ? NO_WEBGPU : null);
 
   // The shapes: once for the model.
@@ -43,9 +49,10 @@ export function Show3D({ idsFile, model, result, busy, spec, focus, listed, onSp
     if (!gpu || tooBig) return;
     let live = true;
     setScene(null);
-    loadScene(model).then((s) => { if (live) setScene(s); }, (e: Error) => { if (live) setProblem(e.message); });
+    // The keeper ends a pass in the worker when 3D closes or the model changes (see App), so this view only stops listening.
+    keeper.get(model).then((s) => { if (live) setScene(s); }, (e: Error) => { if (live) setProblem(e.message); });
     return () => { live = false; };
-  }, [model, gpu, tooBig]);
+  }, [model, keeper, gpu, tooBig]);
 
   // The state of every element: whenever the result is made again (the same worker, the model it keeps; only the check is run).
   useEffect(() => {
@@ -82,8 +89,9 @@ export function Show3D({ idsFile, model, result, busy, spec, focus, listed, onSp
         </span>
       </div>
       <Suspense fallback={<p className="note">Loading the 3D view.</p>}>
-        <Viewer scene={scene} states={states} listed={listed} focus={focus} onPick={onPick} onProblem={setProblem} />
+        <Viewer scene={scene} states={states} listed={listed} focus={focus} onPick={(g, beyondList) => { setBeyond(beyondList); onPick(g); }} onProblem={setProblem} />
       </Suspense>
+      {beyond && <p className="note" role="status" id="view3d-beyond">This element fails, but it is not one of the {listed.size.toLocaleString('en')} the page lists for this specification, so it has no row. Every failing element is in the downloads.</p>}
       <p className="note">Drag to turn, shift-drag to move, scroll to come closer. Press a failing element in the list to see where it is; press an element here to find its row. {scene.meshes.length.toLocaleString('en')} elements have a shape.</p>
     </div>
   );

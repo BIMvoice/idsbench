@@ -86,15 +86,18 @@ async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
 }
 
 async function scene(m: Extract<WorkerRequest, { type: 'scene' }>): Promise<void> {
+  // Cancelled while it waited its turn (3D was closed): nothing is made.
+  if (cancelled.delete(m.id)) return;
   try {
     const loaded = keeper.get(m.model);
     if (!loaded) { post({ type: 'scene-error', id: m.id, message: 'The model is not held any more. Check it again, then open 3D.' }); return; }
     if (m.model.size > SCENE_MAX_BYTES) { post({ type: 'scene-error', id: m.id, message: SCENE_TOO_BIG(m.model.size) }); return; }
-    const s = await buildScene(await m.file.arrayBuffer(), loaded, beat);
+    const s = await buildScene(await m.file.arrayBuffer(), loaded, () => { beat(); if (cancelled.has(m.id)) throw new RunStopped(); });
     // The shapes are handed over, not copied.
     const transfer = s.meshes.flatMap((x) => [x.positions.buffer, x.normals.buffer, x.indices.buffer] as ArrayBuffer[]);
     (self as unknown as Worker).postMessage({ type: 'scene-done', id: m.id, scene: s } satisfies WorkerMessage, [...new Set(transfer)]);
   } catch (e) {
+    if (e instanceof RunStopped) { cancelled.delete(m.id); return; }
     if (e instanceof SceneTooLarge) { post({ type: 'scene-error', id: m.id, message: e.message }); return; }
     console.error(e);
     post({ type: 'scene-error', id: m.id, message: 'The shapes of the model could not be made. The check is not affected.' });

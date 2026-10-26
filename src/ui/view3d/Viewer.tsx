@@ -6,7 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Renderer } from '@ifc-lite/renderer';
 import type { Scene } from '../../core/scene';
-import { colourOverrides, expressIdsOf, listedGlobalId, type ElementState } from '../../core/states';
+import { colourOverrides, expressIdsOf, pickOf, type ElementState } from '../../core/states';
+import { onDeviceLost } from './lost';
 
 export interface ViewerProps {
   scene: Scene;
@@ -15,7 +16,8 @@ export interface ViewerProps {
   listed: ReadonlySet<string>;
   /** Elements to frame and highlight. `n` changes with every press, so pressing the same row again frames it again. */
   focus: { globalIds: string[]; n: number } | null;
-  onPick: (globalId: string | null) => void;
+  /** `beyondList`: the element fails but is not one of the listed rows (it has no row to highlight). */
+  onPick: (globalId: string | null, beyondList: boolean) => void;
   onProblem: (message: string) => void;
 }
 
@@ -63,6 +65,7 @@ export function Viewer({ scene, states, listed, focus, onPick, onProblem }: View
         renderer.fitToView();
         live.current = { renderer, dirty: true, selected: new Set() };
         applyColours();
+        onDeviceLost(renderer.getGPUDevice(), () => stopped, onProblem);
         setReady(true);
         el.dataset.target = JSON.stringify(renderer.getCamera().getTarget());
         let last = performance.now();
@@ -104,10 +107,11 @@ export function Viewer({ scene, states, listed, focus, onPick, onProblem }: View
       if (!d || d.moved || !live.current) return;
       const r = el.getBoundingClientRect();
       const hit = await renderer.pick(e.clientX - r.left, e.clientY - r.top);
-      const g = listedGlobalId(hit ? hit.expressId : null, guidOf.current, props.current.listed);
+      const p = pickOf(hit ? hit.expressId : null, guidOf.current, props.current.listed, props.current.states);
+      const g = p.listed ?? p.unlisted;
       live.current.selected = g ? expressIdsOf([g], guidOf.current) : new Set();
       live.current.dirty = true;
-      props.current.onPick(g);
+      props.current.onPick(p.listed, p.unlisted !== null);
     };
     const wheel = (e: WheelEvent) => {
       if (!live.current) return;

@@ -18,6 +18,8 @@ import { Findings } from './page/Findings';
 import { shownGroups, SpecRow } from './page/SpecRow';
 import { Focus3dContext, type Focus3d } from './page/focus3d';
 import { Show3D } from './page/Show3D';
+import { SceneKeeper } from '../core/sceneKeeper';
+import { loadScene } from '../runner';
 import { mark, modelMark, TitleBlock } from './page/TitleBlock';
 import { ToFix } from './page/ToFix';
 import { usePage } from './page/usePage';
@@ -44,6 +46,10 @@ export function App() {
   const [spec3d, setSpec3d] = useState<number | null>(null);
   const [focus3d, setFocus3d] = useState<{ globalIds: string[]; n: number } | null>(null);
   const [picked3d, setPicked3d] = useState<string | null>(null);
+  // The shapes outlive the view's rebuilds (every edit makes one), not the view being closed or the model being replaced.
+  const scenes = useRef<SceneKeeper | null>(null);
+  scenes.current ??= new SceneKeeper(loadScene);
+  useEffect(() => () => scenes.current?.release(), [model, view3d]);
   useEffect(() => { setFocus3d(null); setPicked3d(null); }, [model]);
   const selected3d = spec3d !== null && spec3d < (result?.specs.length ?? 0) ? spec3d : null;
   useEffect(() => {
@@ -343,7 +349,7 @@ export function App() {
           )}
           {view3d && result && rows && model && page.idsFile && (
             <Show3D
-              idsFile={page.idsFile} model={model} result={result} busy={page.comparingNow}
+              idsFile={page.idsFile} model={model} keeper={scenes.current} result={result} busy={page.comparingNow}
               spec={selected3d} focus={focus3d} listed={listed3d}
               onSpec={(i) => { setSpec3d(i); setFocus3d(null); setPicked3d(null); }} onPick={setPicked3d}
             />

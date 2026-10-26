@@ -136,13 +136,24 @@ export function stopWorker(): void {
  * The shapes of the model the worker holds, for the 3D view. The worker reads the file once more and makes them in a
  * pass of its own; the model and its result are not touched. Rejects with a sentence for the reader.
  */
-export function loadScene(file: File): Promise<Scene> {
-  return new Promise<Scene>((resolve, reject) => {
+export function loadScene(file: File): { promise: Promise<Scene>; cancel: () => void } {
+  let id = 0;
+  const promise = new Promise<Scene>((resolve, reject) => {
     if (!worker) { reject(new Error('The model is not held any more. Check it again, then open 3D.')); return; }
-    const id = nextId++;
+    id = nextId++;
     sceneWaiters.set(id, { resolve, reject });
     worker.postMessage({ type: 'scene', id, model: refOf(file), file } satisfies WorkerRequest);
   });
+  // A pass over a large model takes tens of seconds and the worker does one thing at a time: a request nobody waits for
+  // any more (3D closed, another model) is cancelled, so that it does not stand in front of the next check.
+  const cancel = () => {
+    const waiter = sceneWaiters.get(id);
+    if (!waiter) return;
+    sceneWaiters.delete(id);
+    worker?.postMessage({ type: 'cancel', id } satisfies WorkerRequest);
+    waiter.reject(new RunCancelled());
+  };
+  return { promise, cancel };
 }
 
 /**
