@@ -6,6 +6,7 @@ import { mapError } from './core/errors';
 import { keeperFor, ModelKeeper, runSession, type ModelBytes, type ModelRef } from './core/session';
 import { RunStopped, type Phase } from './core/validate';
 import type { IDSDocument } from '@ifc-lite/ids';
+import { buildScene, SCENE_MAX_BYTES, SCENE_TOO_BIG, SceneTooLarge, type Scene } from './core/scene';
 import type { AppErrorInfo, RunResult } from './core/types';
 
 export type WorkerRequest =
@@ -15,6 +16,8 @@ export type WorkerRequest =
    */
   | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean; sentences: string[] | null; slot?: Slot; collect?: boolean }
   | { type: 'cancel'; id: number }
+  /** The shapes of the page's model for the 3D view (see core/scene.ts). The model must be the one the worker holds. */
+  | { type: 'scene'; id: number; model: ModelRef; file: File }
   /** The page no longer needs the model the worker holds in `slot` (the page's model when absent), unless it is the one of file `except`: let go of its memory. */
   | { type: 'forget'; except: number | null; slot?: Slot };
 /** Which model a run is of: the page's model, or the earlier delivery it is compared with. */
@@ -25,6 +28,8 @@ export type WorkerMessage =
   | { type: 'phase'; id: number; phase: Phase }
   | { type: 'done'; id: number; result: RunResult; reused: boolean; model: ModelBytes }
   | { type: 'cancelled'; id: number }
+  | { type: 'scene-done'; id: number; scene: Scene }
+  | { type: 'scene-error'; id: number; message: string }
   | { type: 'error'; id: number; error: AppErrorInfo };
 
 const post = (m: WorkerMessage) => (self as unknown as Worker).postMessage(m);
@@ -80,9 +85,26 @@ async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
   }
 }
 
+async function scene(m: Extract<WorkerRequest, { type: 'scene' }>): Promise<void> {
+  try {
+    const loaded = keeper.get(m.model);
+    if (!loaded) { post({ type: 'scene-error', id: m.id, message: 'The model is not held any more. Check it again, then open 3D.' }); return; }
+    if (m.model.size > SCENE_MAX_BYTES) { post({ type: 'scene-error', id: m.id, message: SCENE_TOO_BIG(m.model.size) }); return; }
+    const s = await buildScene(await m.file.arrayBuffer(), loaded, beat);
+    // The shapes are handed over, not copied.
+    const transfer = s.meshes.flatMap((x) => [x.positions.buffer, x.normals.buffer, x.indices.buffer] as ArrayBuffer[]);
+    (self as unknown as Worker).postMessage({ type: 'scene-done', id: m.id, scene: s } satisfies WorkerMessage, [...new Set(transfer)]);
+  } catch (e) {
+    if (e instanceof SceneTooLarge) { post({ type: 'scene-error', id: m.id, message: e.message }); return; }
+    console.error(e);
+    post({ type: 'scene-error', id: m.id, message: 'The shapes of the model could not be made. The check is not affected.' });
+  }
+}
+
 self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
   const m = ev.data;
   if (m.type === 'cancel') { cancelled.add(m.id); return; }
+  if (m.type === 'scene') { queue = queue.then(() => scene(m)); return; }
   if (m.type === 'forget') { queue = queue.then(() => (m.slot === 'earlier' ? earlierKeeper : keeper).forgetOthers(m.except)); return; }
   // Runs go one after the other; a run asked for while another is going waits, and finds the model kept if it is the same.
   queue = queue.then(() => run(m));

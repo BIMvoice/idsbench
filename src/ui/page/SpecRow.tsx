@@ -1,6 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import { useContext, useEffect, useRef } from 'react';
 import type { Finding } from '@idsbench/check';
 import { failureTotalOf } from '../../core/csv';
 import { capGroups, groupFailures, ownValues } from '../../core/groups';
@@ -13,22 +14,38 @@ import { plural } from '../../core/shape';
 import { FAILURE_CAP, type SpecRow as Result, type SpecState } from '../../core/types';
 import { SpecEditor } from '../write/SpecEditor';
 import { Findings } from './Findings';
+import { Focus3dContext } from './focus3d';
 
 const STATE_TEXT: Record<SpecState, string> = { pass: 'Pass', fail: 'Fail', nothing: 'Nothing to check', unchecked: 'Not checked' };
 
-/** The failing elements of one specification, one group per reason, so each reason is read once. */
-export function FailureGroups({ spec }: { spec: Result }) {
+/** The groups of failing elements a row lists, and how many failing elements it does not list. */
+export function shownGroups(spec: Result) {
   // A row made in the worker carries its groups, counted over every failing element; one built by hand is grouped here.
-  const { shown, notShown } = spec.groups ? { shown: spec.groups, notShown: spec.notListed ?? 0 } : capGroups(groupFailures(spec.failures), FAILURE_CAP);
+  return spec.groups ? { shown: spec.groups, notShown: spec.notListed ?? 0 } : capGroups(groupFailures(spec.failures), FAILURE_CAP);
+}
+
+/** The failing elements of one specification, one group per reason, so each reason is read once. */
+export function FailureGroups({ spec, index }: { spec: Result; index: number }) {
+  const { shown, notShown } = shownGroups(spec);
+  const view = useContext(Focus3dContext);
+  const details = useRef<HTMLDetailsElement>(null);
+  // An element clicked in 3D: this list opens and the row scrolls into view.
+  const pickedHere = view.open && view.spec === index ? view.picked : null;
+  useEffect(() => {
+    if (!pickedHere || !details.current) return;
+    details.current.open = true;
+    details.current.querySelector('tr.picked')?.scrollIntoView({ block: 'nearest' });
+  }, [pickedHere]);
   if (shown.length === 0) return null;
   const total = failureTotalOf(spec);
   const listed = total - notShown;
   return (
-    <details className="more fails">
+    <details className="more fails" ref={details}>
       <summary>Show the {plural(total, 'failing element')}, by reason</summary>
       {shown.map((g, i) => (
         <section key={i} className="fail-group" aria-label={g.reason}>
           <h5 className="group-reason">{plural(g.total, 'element')}: {g.reason}{g.varies ? ' Each element\'s own value is in the last column.' : ''}</h5>
+          {view.open && <button type="button" className="btn small show-group-3d" onClick={() => view.show(index, g.elements.map((f) => f.globalId ?? ''))}>Show {g.elements.length === g.total ? 'these' : `the ${g.elements.length.toLocaleString('en')} listed`} in 3D</button>}
           <div className="table-wrap">
             {/* The roles keep this a table for screen readers on a narrow screen, where each row is laid out as a block. */}
             <table role="table">
@@ -37,7 +54,15 @@ export function FailureGroups({ spec }: { spec: Result }) {
               </thead>
               <tbody role="rowgroup">
                 {g.elements.map((f, j) => (
-                  <tr key={j} role="row">
+                  <tr
+                    key={j} role="row"
+                    className={`${view.open && f.globalId ? 'in3d ' : ''}${pickedHere && f.globalId === pickedHere ? 'picked' : ''}`}
+                    data-global-id={f.globalId ?? undefined}
+                    aria-current={pickedHere && f.globalId === pickedHere ? 'true' : undefined}
+                    tabIndex={view.open && f.globalId ? 0 : undefined}
+                    onClick={view.open && f.globalId ? () => view.show(index, [f.globalId as string]) : undefined}
+                    onKeyDown={view.open && f.globalId ? (e) => { if (e.key === 'Enter') view.show(index, [f.globalId as string]); } : undefined}
+                  >
                     <td role="cell">{f.ifcClass}</td>
                     <td role="cell">{f.name ?? '(no name)'}</td>
                     <td role="cell" className="mono">{f.globalId ?? '(none)'}</td>
@@ -115,7 +140,7 @@ export function SpecRow({ spec: s, index, count, result, waiting, findings, xml,
       {result && !editing && result.note && <p className="note">{result.note}</p>}
       {result && !editing && result.schemaNote && <p className="note schema-note">{result.schemaNote}</p>}
       <Findings findings={findings} xml={xml} label={`What was found in ${label}`} />
-      {result && !editing && <FailureGroups spec={result} />}
+      {result && !editing && <FailureGroups spec={result} index={index} />}
       {editing && (
         <div id={`body-${s.uid}`}>
           <SpecEditor spec={s} issues={issues} onChange={onChange} focusKey={focusKey} subtypes={subtypes ?? null} onAddSubtypes={onAddSubtypes} />

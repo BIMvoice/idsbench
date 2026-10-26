@@ -8,6 +8,7 @@ import { checkSize } from './core/limits';
 import { sentencesFor } from './core/sentences';
 import type { AppErrorInfo, RunResult } from './core/types';
 import type { ModelBytes, ModelRef } from './core/session';
+import type { Scene } from './core/scene';
 import type { Slot, WorkerMessage, WorkerRequest } from './worker';
 
 export class RunFailed extends Error {
@@ -64,6 +65,8 @@ const refOf = (f: File): ModelRef => ({ token: tokenOf(f), name: f.name, size: f
 
 interface Pending { id: number; onMessage: (m: WorkerMessage) => void; onDead: (why: 'error' | 'gone') => void; phase: Phase | null; modelBytes: number }
 let pending: Pending | null = null;
+/** Requests for the shapes of the model (the 3D view), by id. They are answered apart from the runs. */
+const sceneWaiters = new Map<number, { resolve: (s: Scene) => void; reject: (e: Error) => void }>();
 let heardAt = Date.now();
 /** Told how long the worker has been allowed to be silent when it has been silent longer (milliseconds), and null when it speaks again. */
 const listeners = new Set<(silentForMs: number | null) => void>();
@@ -80,6 +83,12 @@ function start(): Worker {
     const m = ev.data;
     if (m.type === 'alive') { watchLock(w, m.lock); return; }
     if (m.type === 'beat') return;
+    if (m.type === 'scene-done' || m.type === 'scene-error') {
+      const w3 = sceneWaiters.get(m.id);
+      sceneWaiters.delete(m.id);
+      if (w3) { if (m.type === 'scene-done') w3.resolve(m.scene); else w3.reject(new Error(m.message)); }
+      return;
+    }
     if (pending && 'id' in m && m.id === pending.id) pending.onMessage(m);
   };
   // A worker that crashes (for example when the browser cannot give it more memory) may report here, not through a message.
@@ -103,6 +112,12 @@ function died(w: Worker, why: 'error' | 'gone') {
   const p = pending;
   pending = null;
   p?.onDead(why);
+  failScenes();
+}
+
+function failScenes(): void {
+  for (const w of sceneWaiters.values()) w.reject(new Error(WORKER_STOPPED));
+  sceneWaiters.clear();
 }
 
 /** End the worker (and the model it has read). Used by "Stop and try again". */
@@ -114,6 +129,20 @@ export function stopWorker(): void {
   const p = pending;
   pending = null;
   p?.onDead('gone');
+  failScenes();
+}
+
+/**
+ * The shapes of the model the worker holds, for the 3D view. The worker reads the file once more and makes them in a
+ * pass of its own; the model and its result are not touched. Rejects with a sentence for the reader.
+ */
+export function loadScene(file: File): Promise<Scene> {
+  return new Promise<Scene>((resolve, reject) => {
+    if (!worker) { reject(new Error('The model is not held any more. Check it again, then open 3D.')); return; }
+    const id = nextId++;
+    sceneWaiters.set(id, { resolve, reject });
+    worker.postMessage({ type: 'scene', id, model: refOf(file), file } satisfies WorkerRequest);
+  });
 }
 
 /**

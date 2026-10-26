@@ -12,6 +12,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import zlib from 'node:zlib';
 import { chromium } from 'playwright';
 
 const root = process.argv[2];
@@ -763,6 +764,129 @@ try {
   check('scale: reasons are readable', /^The property "FireRating" is missing: the property set "Pset_WallCommon" is not on this element/.test(repBig.json.run.specs[0].failures[0].reasons.join(' ')), repBig.json.run.specs[0].failures[0].reasons.join(' '));
   const csvBig = await download('Download failing elements', 'failing-big.csv');
   check('scale: the CSV holds every failing element, not only the 200 on the page', csvBig.text.split('\r\n').length === WALLS + 2 && new Set(csvBig.text.split('\r\n').slice(1, -1).map((l) => l.split(',').at(-4))).size === WALLS, `${csvBig.text.split('\r\n').length - 2} rows, ${csvBig.bytes} bytes`);
+
+  // ---- 3D: off by default, then red / green / grey, framing, picking ------------------------------------------------
+  // The renderer needs WebGPU. Headless Chromium has none unless it is asked for (here it is software-rendered, so the
+  // pixels are the same on every machine). The same local-only rule applies: whatever this browser asks for goes into
+  // `blocked` or `local` with the requests of the rest of the script.
+  {
+    // A PNG as Playwright writes it (8 bits, no interlacing) to its pixels, to count the ones that are coloured.
+    const pixelsOf = (png) => {
+      let o = 8, w = 0, h = 0, ct = 0; const idat = [];
+      while (o < png.length) {
+        const len = png.readUInt32BE(o), type = png.toString('latin1', o + 4, o + 8), data = png.subarray(o + 8, o + 8 + len);
+        if (type === 'IHDR') { w = data.readUInt32BE(0); h = data.readUInt32BE(4); ct = data[9]; }
+        if (type === 'IDAT') idat.push(data);
+        o += 12 + len;
+      }
+      const bpp = ct === 6 ? 4 : 3, raw = zlib.inflateSync(Buffer.concat(idat)), stride = w * bpp, px = Buffer.alloc(h * stride);
+      for (let y = 0; y < h; y++) {
+        const f = raw[y * (stride + 1)];
+        for (let x = 0; x < stride; x++) {
+          const v = raw[y * (stride + 1) + 1 + x], a = x >= bpp ? px[y * stride + x - bpp] : 0, b = y ? px[(y - 1) * stride + x] : 0, c = x >= bpp && y ? px[(y - 1) * stride + x - bpp] : 0;
+          const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+          px[y * stride + x] = (v + (f === 0 ? 0 : f === 1 ? a : f === 2 ? b : f === 3 ? (a + b) >> 1 : (pa <= pb && pa <= pc ? a : pb <= pc ? b : c))) & 255;
+        }
+      }
+      return { w, h, at: (i) => [px[i * bpp], px[i * bpp + 1], px[i * bpp + 2]] };
+    };
+    const colours = (png) => {
+      const { w, h, at } = pixelsOf(png);
+      let red = 0, green = 0, other = 0;
+      for (let i = 0; i < w * h; i++) {
+        const [r, g, b] = at(i);
+        if (r > 140 && g < 80 && b < 80) red++;
+        else if (g > 110 && r < 80 && b < 110) green++;
+        else if (Math.abs(r - 247) + Math.abs(g - 247) + Math.abs(b - 245) > 24) other++;
+      }
+      return { red, green, other };
+    };
+    const wallsIfc = path.join(root, 'property', 'fail-properties_can_be_associated_to_relevant_object_types.ifc');
+    const wallsIds = write('3d-walls.ids', idsText(
+      spec('Walls are named WALL 1', app(1, 'unbounded', 'IFCWALL'), nameIs('WALL 1')) +
+      spec('Wall types are named x', app(1, 'unbounded', 'IFCWALLTYPE'), nameIs('x')),
+    ));
+    const gpuBrowser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--enable-unsafe-webgpu', '--use-gl=angle', '--use-angle=swiftshader'] });
+    try {
+      const gctx = await gpuBrowser.newContext({ viewport: { width: 1000, height: 900 } });
+      await gctx.route('**/*', (route) => {
+        const u = route.request().url();
+        if (u.startsWith(origin + '/') || u.startsWith('blob:') || u.startsWith('data:')) { local.push(u); return route.continue(); }
+        blocked.push(u); return route.abort();
+      });
+      const g = await gctx.newPage();
+      const asked = [];
+      const gErrors = [];
+      g.on('request', (r) => asked.push(new URL(r.url()).pathname));
+      g.on('pageerror', (e) => gErrors.push(String(e)));
+      g.on('console', (m) => { if (m.type() === 'error') gErrors.push(m.text()); });
+      await g.goto(origin + '/');
+      await g.locator('input[type=file]').nth(0).setInputFiles(wallsIds);
+      await g.locator('input[type=file]').nth(1).setInputFiles(wallsIfc);
+      await g.locator('.title-block[data-kind="run"] .headline').waitFor({ timeout: 60000 });
+      await new Promise((r) => setTimeout(r, 800));
+      const isRenderer = (p) => /\/assets\/(Viewer-|ifc-lite_bg)/.test(p);
+      check('3D is off when a model is checked: no renderer chunk and no geometry engine is requested', asked.filter(isRenderer).length === 0 && (await g.locator('canvas').count()) === 0, asked.filter(isRenderer).join(' '));
+      check('3D is offered as a toggle, not pressed', (await g.locator('#toggle-3d').getAttribute('aria-pressed')) === 'false' && (await g.locator('#toggle-3d').innerText()) === 'Show in 3D');
+      await g.locator('#toggle-3d').click();
+      const canvas = g.locator('canvas.view3d-canvas');
+      await canvas.waitFor({ timeout: 60000 });
+      await g.locator('canvas.view3d-canvas[data-ready=true]').waitFor({ timeout: 60000 });
+      check('opening 3D requests the renderer chunk and the geometry engine', asked.some((p) => /\/assets\/Viewer-/.test(p)) && asked.some((p) => /\/assets\/ifc-lite_bg/.test(p)), asked.filter(isRenderer).join(' '));
+      await new Promise((r) => setTimeout(r, 1200));
+      const shot = colours(await canvas.screenshot());
+      console.log(`3D pixels (specification 1): red ${shot.red}, green ${shot.green}, other ${shot.other}`);
+      check('3D: the canvas is not blank; failing walls are red and the passing wall is green', shot.red > 500 && shot.green > 500, JSON.stringify(shot));
+      // The second specification applies to wall types, which have no shape: every wall is then ghosted, none red or green.
+      await g.locator('.view3d-bar select').selectOption('1');
+      await new Promise((r) => setTimeout(r, 1000));
+      const ghost = colours(await canvas.screenshot());
+      check('3D: a specification that applies to no wall leaves the walls ghosted (neither red nor green)', ghost.red === 0 && ghost.green === 0 && ghost.other > 0, JSON.stringify(ghost));
+      await g.locator('.view3d-bar select').selectOption('0');
+      await new Promise((r) => setTimeout(r, 800));
+      // Framing: pressing a failing row moves the camera to that element.
+      const target = () => canvas.getAttribute('data-target');
+      const t0 = await target();
+      await g.locator('.spec').first().locator('details.fails > summary').click();
+      const rows = g.locator('.spec').first().locator('tr.in3d');
+      const nRows = await rows.count();
+      check('3D: the failing rows of the selected specification can be pressed', nRows >= 2, `rows=${nRows}`);
+      await rows.nth(0).click();
+      await g.waitForFunction((was) => document.querySelector('canvas.view3d-canvas')?.getAttribute('data-target') !== was, t0, { timeout: 10000 }).catch(() => {});
+      const t1 = await target();
+      check('3D: pressing a failing row frames it (the camera target changes)', t1 !== null && t1 !== t0, `${t0} -> ${t1}`);
+      await rows.nth(1).click();
+      await g.waitForFunction((was) => document.querySelector('canvas.view3d-canvas')?.getAttribute('data-target') !== was, t1, { timeout: 10000 }).catch(() => {});
+      const t2 = await target();
+      check('3D: pressing another row frames that one (the target moves again)', t2 !== t1, `${t1} -> ${t2}`);
+      // The group button frames every listed element of the group and clears the highlighted row.
+      await g.locator('.show-group-3d').first().click();
+      await new Promise((r) => setTimeout(r, 1200));
+      check('3D: after a group is pressed no row is highlighted', (await g.locator('tr.picked').count()) === 0);
+      // Picking: a click on an element in 3D highlights its row when the element is listed.
+      const box = await canvas.boundingBox();
+      let pickedRow = null;
+      for (const [fx, fy] of [[0.5, 0.5], [0.4, 0.5], [0.6, 0.5], [0.5, 0.4], [0.5, 0.6], [0.3, 0.5], [0.7, 0.5]]) {
+        await canvas.click({ position: { x: box.width * fx, y: box.height * fy } });
+        await new Promise((r) => setTimeout(r, 600));
+        if ((await g.locator('tr.picked').count()) > 0) { pickedRow = fx + ',' + fy; break; }
+      }
+      const picked = await g.locator('tr.picked').first().getAttribute('data-global-id').catch(() => null);
+      const listedIds = await g.locator('.spec').first().locator('tr[data-global-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-global-id')));
+      check('3D: clicking a failing element in 3D highlights its row, which is one of the listed ones', pickedRow !== null && picked !== null && listedIds.includes(picked), `at ${pickedRow}, row ${picked}`);
+      check('3D: the highlighted row is shown (its list is open)', await g.locator('.spec').first().locator('details.fails').evaluate((d) => d.open));
+      await canvas.click({ position: { x: 4, y: 4 } });
+      await new Promise((r) => setTimeout(r, 600));
+      check('3D: clicking empty space highlights no row', (await g.locator('tr.picked').count()) === 0);
+      check('3D: the page saw no error while the view ran', gErrors.length === 0, gErrors.slice(0, 2).join(' | '));
+      // Closing 3D takes the canvas away again.
+      await g.locator('#toggle-3d').click();
+      check('3D: the toggle closes the view', (await g.locator('canvas').count()) === 0);
+      await g.close();
+    } finally {
+      await gpuBrowser.close();
+    }
+  }
 
   // ---- offline and privacy ----------------------------------------------------
   const stored = await page.evaluate(async () => ({
