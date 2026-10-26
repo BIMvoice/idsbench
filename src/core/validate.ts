@@ -6,6 +6,8 @@ import { parseIDS, validateIDS, createTranslationService } from '@ifc-lite/ids';
 import type { IDSRequirementResult, IDSDocument } from '@ifc-lite/ids';
 import { createDataAccessor } from '@ifc-lite/ids/bridge';
 import { AppError, mapError } from './errors';
+import { bcfBlob } from './bcf';
+import { offersFailingDownload } from './csv';
 import { checkIdsDocument, precheckIdsText } from './idsfile';
 import { inspectIfc } from './ifcfile';
 import { assembleReport, hasIdsOccurs, hasNoApplicability, KeyBudget, SpecAccumulator, specKind, type ReportLike, type ShapeOptions } from './shape';
@@ -205,6 +207,9 @@ export async function runValidation(input: RunInput): Promise<RunResult> {
       input.spill ? done.map((d) => d.spilled) : null,
       { idsFile: input.idsName, ifcFile: input.ifcName, schema: loaded.schema, entityCount: loaded.entityCount, ...elementsIn(store, tables), seconds: (performance.now() - t0) / 1000 },
     );
+    result.idsTitle = input.ids.info?.title ?? '';
+    // The BCF file is made here, in the worker, from the groups gathered as the failures went by (a few thousand GlobalIds at most).
+    if (input.spill && offersFailingDownload(result)) result.bcf = await bcfBlob(result);
     if (budget) {
       const globalIds = globalIdsOf(store, input.onTick, budget);
       // Over the budget nothing is sent: a comparison of part of the keys would call elements fixed or new that are not.

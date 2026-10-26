@@ -7,6 +7,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { COMPARE_LIMIT, compareDeliveries, tooManyToCompare, comparisonReportParts, comparisonCsvName, comparisonCsvParts, comparisonForReport, diffElements, specChange, COMPARE_COLUMNS, type Comparison } from '../src/core/compare';
+import { bcfTopicPlans } from '../src/core/bcf';
 import { parseCsv } from '../src/core/csv';
 import { EXAMPLE_IDS, EXAMPLE_IFC } from '../src/core/example';
 import { reportParts } from '../src/core/format';
@@ -214,8 +215,10 @@ describe('one model and no earlier delivery: the run is the run it was', () => {
     const collected = await runText(EXAMPLE_IDS, V2, { spill: true, collect: true });
     expect('keys' in plain).toBe(false);
     const { keys: _k, ...rest } = collected;
-    const strip = (r: Omit<RunResult, 'keys'>) => ({ ...r, seconds: 0, spilled: undefined });
+    const strip = (r: Omit<RunResult, 'keys'>) => ({ ...r, seconds: 0, spilled: undefined, bcf: undefined });
     expect(strip(rest)).toEqual(strip(plain));
+    // The BCF file holds topic GUIDs made at random: what it holds is compared as the topics it is made of.
+    expect(bcfTopicPlans(rest as RunResult)).toEqual(bcfTopicPlans(plain));
   });
   it('the report of a run does not hold the keys', async () => {
     const collected = await runText(EXAMPLE_IDS, V2, { collect: true });

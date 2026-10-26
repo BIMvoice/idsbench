@@ -1,6 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import type { BcfGroup } from './bcf';
 import type { ShownGroup } from './groups';
 
 /**
@@ -87,6 +88,10 @@ export interface Spilled {
   csv: Blob[];
   /** The elements as JSON objects separated by commas, to go between the brackets of the "failures" list in the report. */
   failures: Blob[];
+  /** The groups of failing elements for the BCF file: exact counts and the first GlobalIds of each (see core/bcf.ts). Small whatever the number of failures. */
+  bcf: BcfGroup[];
+  /** Failing elements whose reason was not told apart (see BcfGroupAccumulator.untold). */
+  bcfUntold: number;
 }
 
 /**
@@ -119,7 +124,11 @@ export interface RunResult {
    * only on a run made in the worker, where holding millions of elements would not fit; null where there are none.
    */
   spilled?: (Spilled | null)[];
+  /** The BCF 2.1 file of the failures, made in the worker beside the other two downloads. Present only on a run made there, and only when something failed; not part of the report. */
+  bcf?: Blob;
   idsFile: string;
+  /** The title in the IDS file's <info>; the BCF file's GUIDs are made from it. Not part of the report. */
+  idsTitle?: string;
   ifcFile: string;
   schema: string;
   /** Every record of the file: elements, but also geometry, properties and relationships. */
