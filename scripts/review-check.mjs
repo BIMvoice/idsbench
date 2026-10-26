@@ -553,8 +553,12 @@ try {
     return false;
   };
   const kbButton = (name) => kb.getByRole('button', { name, exact: true });
-  const chooseByKey = async (button, file) => { await tabTo(button, `reach ${file}`); const [fc] = await Promise.all([kb.waitForEvent('filechooser'), kb.keyboard.press('Enter')]); await fc.setFiles(file); };
-  const saveByKey = async (button, name, what) => { await tabTo(button, what); const [d] = await Promise.all([kb.waitForEvent('download'), kb.keyboard.press('Enter')]); const to = path.join(out, name); await d.saveAs(to); return { path: to, text: fs.readFileSync(to, 'utf8') }; };
+  // The listener is registered BEFORE the Tab presses, not in the same breath as Enter: Playwright starts intercepting file
+  // choosers and downloads only once a listener exists, and a press that lands first opens the real dialog (headless: nothing
+  // is reported), so under load the event was lost although the page had called input.click(). Registering it first waits on
+  // the event itself and needs no longer timeout.
+  const chooseByKey = async (button, file) => { const chooser = kb.waitForEvent('filechooser'); chooser.catch(() => {}); await tabTo(button, `reach ${file}`); const [fc] = await Promise.all([chooser, kb.keyboard.press('Enter')]); await fc.setFiles(file); };
+  const saveByKey = async (button, name, what) => { const download = kb.waitForEvent('download'); download.catch(() => {}); await tabTo(button, what); const [d] = await Promise.all([download, kb.keyboard.press('Enter')]); const to = path.join(out, name); await d.saveAs(to); return { path: to, text: fs.readFileSync(to, 'utf8') }; };
 
   // J1: a model against an IDS file, to a downloaded CSV
   await kb.goto(origin + '/');
@@ -601,6 +605,9 @@ try {
     await tabTo(kbButton(pattern), `J3: the pattern "${pattern}"`);
     await kb.keyboard.press('Enter');
   }
+  // "Valid" alone is not the signal: the document with the first specification is already Valid, so under load the wait was
+  // satisfied by that stale verdict and Download .ids saved one specification. Wait for the second to be on the page first.
+  await kb.locator('ol.page-specs > li').nth(1).waitFor({ timeout: 30000 });
   await kb.locator('.verdict.pass, .verdict.incomplete').filter({ hasText: 'Valid' }).waitFor({ timeout: 30000 }).catch(async (e) => { console.log(`J3 stopped: ${(await kb.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 1500)}`); throw e; });
   const j3 = await saveByKey(kbButton('Download .ids'), 'j3.ids', 'J3: Download .ids', true);
   check('J3 by keyboard alone: New, a title, two specifications from patterns, download a file the engine accepts', cannot.length === 0 && (j3.text.match(/<specification /g) ?? []).length === 2 && j3.text.includes('<title>Made by keyboard</title>') && engine(j3.path).valid === true, cannot.join(', '));
