@@ -240,7 +240,14 @@ export function App() {
   };
   // goTo reads the document as it was when this render ran; a specification that was just added is focused here instead.
   const menu = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (adding) menu.current?.querySelector<HTMLElement>('button')?.focus(); }, [adding]);
+  // Closing the menu without choosing leaves the keyboard on the button that opened it.
+  const addButton = useRef<HTMLButtonElement>(null);
+  const refocusAdd = useRef(false);
+  const cancelAdding = () => { refocusAdd.current = true; setAdding(false); };
+  useEffect(() => {
+    if (adding) menu.current?.querySelector<HTMLElement>('button')?.focus();
+    else if (refocusAdd.current) { refocusAdd.current = false; addButton.current?.focus(); }
+  }, [adding]);
   const pendingFocus = useRef<string | null>(null);
   useEffect(() => {
     if (!pendingFocus.current) return;
@@ -374,7 +381,7 @@ export function App() {
               ))}
             </ol>
             {adding ? (
-              <div ref={menu} className="add-menu patterns" role="group" aria-label="Start a specification from">
+              <div ref={menu} className="add-menu patterns" role="group" aria-label="Start a specification from" onKeyDown={(e) => { if (e.key === 'Escape') cancelAdding(); }}>
                 <p className="hint">Start from the shape closest to what you need, then change the choices.</p>
                 <ul>
                   {PATTERNS.map((p) => (
@@ -388,10 +395,10 @@ export function App() {
                     <span className="hint">Fill in everything yourself.</span>
                   </li>
                 </ul>
-                <button type="button" className="btn small" onClick={() => setAdding(false)}>Cancel</button>
+                <button type="button" className="btn small" onClick={cancelAdding}>Cancel</button>
               </div>
             ) : (
-              <button type="button" className={primary === 'add' ? 'btn primary' : 'btn'} onClick={() => setAdding(true)}>Add a specification</button>
+              <button type="button" ref={addButton} className={primary === 'add' ? 'btn primary' : 'btn'} onClick={() => setAdding(true)}>Add a specification</button>
             )}
           </section>
         </>}
