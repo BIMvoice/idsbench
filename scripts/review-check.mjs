@@ -319,7 +319,8 @@ try {
   await ifcInput.setInputFiles(wilmaWalls);
   await page.locator('.verdict-word', { hasText: 'Checking' }).waitFor();
   await page.getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('button', { name: 'Try an example' }).click();
+  await page.getByRole('button', { name: 'Example', exact: true }).click();
+  await page.getByRole('button', { name: 'Small demo, with a model' }).click();
   await runVerdict.waitFor({ timeout: 60000 });
   check('closing and loading the example during a run: the result is the example\'s, under the example\'s names', /IDS file\s+example-requirements\.ids/.test(await page.locator('.record').innerText()) && /Model\s+example-building\.ifc/.test(await page.locator('.record').innerText()) && !/wilma|other\.ids/.test(await page.locator('.record').innerText()), (await page.locator('.record').innerText()).replace(/\s+/g, ' '));
   workerDelay = 0;
@@ -407,7 +408,7 @@ try {
     await page.reload();
     await page.getByRole('button', { name: 'Open', exact: true }).waitFor();
     const said = await page.locator('#page-notice').innerText().catch(() => '');
-    check(`a stored draft that is ${label}: the page loads, says the changes could not be restored, and works`, pageErrors.length === errorsBefore && /could not be read, so they were not restored/.test(said) && (await page.getByRole('button', { name: 'Try an example' }).count()) === 1, `${said} ${pageErrors.slice(errorsBefore).join(' ')}`);
+    check(`a stored draft that is ${label}: the page loads, says the changes could not be restored, and works`, pageErrors.length === errorsBefore && /could not be read, so they were not restored/.test(said) && (await page.getByRole('button', { name: 'Example', exact: true }).count()) === 1, `${said} ${pageErrors.slice(errorsBefore).join(' ')}`);
   }
   // a draft from the build before this one: no opened text in it
   await fresh();

@@ -1,9 +1,13 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { fetchExampleFile, fetchExampleList, type ExampleEntry } from '../../core/examples';
 import { formatSize } from '../../core/format';
 import type { Page } from './usePage';
+
+const DEMO_TITLE = 'Small demo, with a model';
+const DEMO_DESCRIPTION = 'Three specifications and a small model, to see Fail, Pass and Nothing to check. It ships inside the page.';
 
 interface Props { page: Page; primary: string; onDownloadIds: () => void }
 
@@ -14,6 +18,20 @@ export function FileBar({ page, primary, onDownloadIds }: Props) {
   const earlierPicker = useRef<HTMLInputElement>(null);
   const cls = (id: string) => (primary === id ? 'btn small primary' : 'btn small');
   const has = page.doc !== null || page.source !== null;
+  // The Example menu: null while closed; the list is fetched from the page's own origin when it is first opened.
+  const [menu, setMenu] = useState<{ list: ExampleEntry[] | null; problem: string | null } | null>(null);
+  const toggleExamples = () => {
+    if (menu) { setMenu(null); return; }
+    setMenu({ list: null, problem: null });
+    fetchExampleList().then((list) => setMenu({ list, problem: null }), () => setMenu({ list: null, problem: 'The examples could not be loaded.' }));
+  };
+  const chooseExample = async (entry: ExampleEntry) => {
+    try {
+      const file = await fetchExampleFile(entry);
+      setMenu(null);
+      await page.openIds(file);
+    } catch { setMenu({ list: menu?.list ?? null, problem: 'That example could not be loaded.' }); }
+  };
   return (
     <div className="drops">
       <div className={`drop static${has ? ' has-file' : ''}${page.refusal ? ' invalid' : ''}`} role="group" aria-label="IDS file">
@@ -26,10 +44,26 @@ export function FileBar({ page, primary, onDownloadIds }: Props) {
         <span className="drop-actions">
           <button type="button" className={cls('open')} onClick={() => idsPicker.current?.click()}>Open</button>
           <button type="button" className="btn small" onClick={page.startNew}>New</button>
+          <button type="button" className="btn small" aria-expanded={!!menu} aria-controls="example-menu" onClick={toggleExamples}>Example</button>
           {page.doc && <button type="button" className={cls('download')} disabled={!!page.downloadBlocked} aria-describedby="ids-reason" onClick={onDownloadIds}>Download .ids</button>}
-          {!has && <button type="button" className="btn small" onClick={page.tryExample}>Try an example</button>}
           {has && <button type="button" className="btn small quiet" onClick={page.closeAll}>{page.source?.example ? 'Clear the example' : 'Close'}</button>}
         </span>
+        {menu && (
+          <div className="example-menu" id="example-menu" role="group" aria-label="Examples">
+            <div className="example-item">
+              <button type="button" className="btn small" onClick={() => { setMenu(null); page.tryExample(); }}>{DEMO_TITLE}</button>
+              <span className="drop-hint">{DEMO_DESCRIPTION}</span>
+            </div>
+            {menu.list === null && !menu.problem && <span className="drop-hint" role="status">Loading the examples...</span>}
+            {menu.problem && <span className="drop-hint" role="alert">{menu.problem}</span>}
+            {menu.list?.map((e) => (
+              <div className="example-item" key={e.file}>
+                <button type="button" className="btn small" onClick={() => void chooseExample(e)}>{e.title}</button>
+                <span className="drop-hint">{e.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {page.source?.example && page.asOpened && <span className="drop-hint">This is the example that ships with idsbench, not a file of yours.</span>}
         <span className="drop-hint" id="ids-reason" role="status">{page.doc ? page.downloadBlocked : ''}</span>
         {page.saveNote && <span className="drop-hint" id="save-note">{page.saveNote}</span>}
