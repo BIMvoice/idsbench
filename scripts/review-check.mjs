@@ -408,7 +408,7 @@ try {
     await page.reload();
     await page.getByRole('button', { name: 'Open', exact: true }).waitFor();
     const said = await page.locator('#page-notice').innerText().catch(() => '');
-    check(`a stored draft that is ${label}: the page loads, says the changes could not be restored, and works`, pageErrors.length === errorsBefore && /could not be read, so they were not restored/.test(said) && (await page.getByRole('button', { name: 'Try an example' }).count()) === 1, `${said} ${pageErrors.slice(errorsBefore).join(' ')}`);
+    check(`a stored draft that is ${label}: the page loads, says the changes could not be restored, and works`, pageErrors.length === errorsBefore && /could not be read, so they were not restored/.test(said) && (await page.getByRole('button', { name: 'Example', exact: true }).count()) === 1, `${said} ${pageErrors.slice(errorsBefore).join(' ')}`);
   }
   // a draft from the build before this one: no opened text in it
   await fresh();
