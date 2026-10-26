@@ -338,7 +338,7 @@ Three assertions of `scripts/browser-check.mjs` changed what they expect, becaus
 - no request to anywhere but the local server
 - no uncaught page errors
 - ...and the CSV holds that specification as a row marked "Whole specification", with the reason and no element
-- a result whose only row that is not a Pass is withheld: Incomplete, the row is Not checked, no Download failing elements, and the one primary action is Download report
+- a result whose only row that is not a Pass is not checked: Incomplete, the row is Not checked, no Download failing elements, and the one primary action is Download report
 - with a failure beside it: Fail, the rows are Not checked, Fail, Fail, Pass; the CSV marks one row Not checked, one Element and one Whole specification; the report counts the same
 
 ## scripts/scale-check.mjs (25, all new)

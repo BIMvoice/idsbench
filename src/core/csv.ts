@@ -35,7 +35,7 @@ export const elementCsvRow = (specName: string, f: FailingElement, ifcFile: stri
 export const wholeCsvRow = (specName: string, why: string, ifcFile: string, idsFile: string, requirement = '', toFix = '') =>
   rowOf([ROW_KINDS.specification, specName, requirement, why, toFix, '', '', '', '', ifcFile, idsFile]);
 
-/** The row of a specification that has no result (see SpecRow.withheld): why, and no element. It is not a failure. */
+/** The row of a specification that has no result (see SpecRow.state): why, and no element. It is not a failure. */
 export const notCheckedCsvRow = (specName: string, why: string, ifcFile: string, idsFile: string, requirement = '', toFix = '') =>
   rowOf([ROW_KINDS.notChecked, specName, requirement, why, toFix, '', '', '', '', ifcFile, idsFile]);
 
@@ -58,7 +58,7 @@ export function offersFailingDownload(result: Pick<RunResult, 'specs'>): boolean
  * read names with accents correctly, and uses CRLF line ends. Every failing element is in it, not only those listed
  * on the page, and so is every specification that failed as a whole, as a row of its own marked "Whole specification"
  * in the first column (the element rows are marked "Element"), so that a filter on that column separates the two. A
- * specification that has no result (withheld, or not checked for another reason) has a row marked "Not checked": it did
+ * specification that has no result (not checked for any reason) has a row marked "Not checked": it did
  * not fail, and the file has as many such rows as the headline counts specifications that could not be checked.
  */
 export function failuresCsvParts(result: RunResult): BlobPart[] {
@@ -66,7 +66,6 @@ export function failuresCsvParts(result: RunResult): BlobPart[] {
   result.specs.forEach((s, i) => {
     const mine: BlobPart[] = [];
     if (s.wholeFailure) mine.push(wholeCsvRow(s.name, s.wholeFailure, result.ifcFile, result.idsFile, s.requirement ?? '', s.wholeFix ?? ''));
-    else if (s.withheld) mine.push(notCheckedCsvRow(s.name, s.withheld, result.ifcFile, result.idsFile, s.requirement ?? '', 'Wait for the fixed engine, or check this specification with another tool'));
     // Not checked for another reason (no applicability, a pattern that is not safe to run): the row's note says why and what to do.
     else if (s.state === 'unchecked') mine.push(notCheckedCsvRow(s.name, s.note ?? '', result.ifcFile, result.idsFile, s.requirement ?? ''));
     const spilled = result.spilled?.[i];

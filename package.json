@@ -5,8 +5,8 @@
   "type": "module",
   "dependencies": {
     "@idsbench/check": "*",
-    "@ifc-lite/ids": "^3.2.0",
-    "@ifc-lite/parser": "^9.2.0",
+    "@ifc-lite/ids": "^3.4.0",
+    "@ifc-lite/parser": "^9.6.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

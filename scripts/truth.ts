@@ -28,7 +28,7 @@ const walk = (d: string) => {
 walk(root);
 files.sort();
 
-interface Row { file: string; expected: string; verdict: string; detail: string; schemaNotes: number; withheld: number }
+interface Row { file: string; expected: string; verdict: string; detail: string; schemaNotes: number }
 const rows: Row[] = [];
 for (const idsPath of files) {
   const base = path.basename(idsPath, '.ids');
@@ -38,7 +38,7 @@ for (const idsPath of files) {
   if (!fs.existsSync(ifcPath)) continue;
   const b = fs.readFileSync(ifcPath);
   mute();
-  let verdict: string, detail = '', schemaNotes = 0, withheld = 0;
+  let verdict: string, detail = '', schemaNotes = 0;
   try {
     const r = await runValidation({
       ids: (await prepareIds(fs.readFileSync(idsPath, 'utf8'))).doc, idsName: base + '.ids',
@@ -47,13 +47,12 @@ for (const idsPath of files) {
     verdict = r.verdict;
     detail = r.specs.map((s) => `${s.state}(${s.applicable}/${s.passed}/${s.failed})${s.note ? ' ' + s.note : ''}`).join('; ');
     schemaNotes = r.specs.filter((s) => s.schemaNote).length;
-    withheld = r.specs.filter((s) => s.withheld).length;
   } catch (e) {
     const err = e as { kind?: string; message?: string };
     verdict = 'error:' + (err.kind ?? 'unexpected'); detail = err.message ?? '';
   }
   unmute();
-  rows.push({ file: path.relative(root, idsPath), expected: prefix, verdict, detail, schemaNotes, withheld });
+  rows.push({ file: path.relative(root, idsPath), expected: prefix, verdict, detail, schemaNotes });
 }
 
 // Run opens every IDS file through the Check engine first (prepareIds). A pair whose IDS the engine rejects gets
@@ -68,7 +67,6 @@ console.log(`disagreeing: ${dis.length}`);
 for (const d of dis) console.log(`  DISAGREE ${d.file}: expected ${d.expected}, got ${d.verdict} | ${d.detail}`);
 console.log(`pass/fail pairs whose IDS file the Check engine rejects (no verdict): ${refusedPairs.length}`);
 for (const r of refusedPairs) console.log(`  REJECTED ${r.file}: ${r.verdict} | ${r.detail}`);
-console.log(`pairs where the fold guard withheld a specification (core/foldguard.ts): ${rows.filter((r) => r.withheld > 0).length}`);
 console.log(`pairs where the model's IFC version is not one the specification lists (checked anyway, with a note): ${pf.filter((r) => r.schemaNotes > 0).length}`);
 const count = (v: string) => inv.filter((r) => r.verdict === v).length;
 console.log(`invalid-* pairs found: ${inv.length}; refused with a message: ${inv.filter((r) => r.verdict.startsWith('error:')).length}, verdict fail: ${count('fail')}, verdict pass: ${count('pass')}, verdict incomplete: ${count('incomplete')}`);

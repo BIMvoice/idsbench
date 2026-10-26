@@ -154,8 +154,6 @@ export interface ShapeOptions {
   reasons?: ReasonContext;
   /** The storey or space an element is in, by its express id, when the model says. Set by the run for the part of the model being checked. */
   place?: (expressId: number) => string;
-  /** Set when the result of this specification is not given because the engine would answer it wrongly (see core/foldguard.ts): the sentence that says so. The row is then "Not checked". */
-  withheld?: string;
   /** Also keep every failing element and what the specification applies to, for comparing two deliveries, as long as the budget lasts. */
   collect?: KeyBudget;
 }
@@ -292,7 +290,6 @@ export class SpecAccumulator<R extends { status: string }> {
     const no = (note: string) => ({ row: unchecked(raw, kind, note, modelSchema), spilled: null });
     if (hasNoApplicability(spec)) return no(NO_APPLICABILITY);
     if (!hasIdsOccurs(spec)) return no(OCCURS_NOT_IDS);
-    if (this.options.withheld) return { row: { ...unchecked(raw, kind, this.options.withheld, modelSchema), withheld: this.options.withheld, ...(this.options.sentence ? { requirement: this.options.sentence } : {}) }, spilled: null };
     if (this.error) return no(/pattern|regex/i.test(this.error) ? PATTERN_REJECTED : NOT_CHECKED);
     // One part of the model: the library's own cardinality and status. Several: the same rules over the added-up counts.
     const merged = this.parts > 1;
