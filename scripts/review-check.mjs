@@ -509,33 +509,32 @@ try {
   check('...and the CSV holds that specification as a row marked "Whole specification", with the reason and no element', wholeRows.length === 2 && wholeRows[1][0] === 'Whole specification' && wholeRows[1][1] === 'There is a door' && /needs at least one matching element, and the model has none/.test(wholeRows[1][3]) && wholeRows[1][5] === '' && wholeRows[1][6] === '' && wholeRows[1][7] === '' && wholeRows[1][2] === 'Every door must have the attribute Name set to "x". The model must contain at least one door.' && wholeRows[1][4] !== '', JSON.stringify(wholeRows[1]));
 
   // ---- E19: a specification that is not checked is not a failure, and the page, the CSV and the report count it alike ----
-  // A model with a standard case door: the engine of this version reads it as a door, so a specification with a
-  // predefined type beside the class is withheld (src/core/foldguard.ts).
+  // A specification the engine accepts and the page will not run is not checked; the nearest to hand is a text pattern that could take too long to work out (the engine accepts it, the page will not run it).
   const line = (i, cls, name) => `#${i}=${cls}('${String(i).padStart(22, '0')}',$,'${name}',$,$,$,$,$,$);\n`;
   const caseDoor = write('case-door.ifc', ifcText(line(1, 'IFCDOORSTANDARDCASE', 'D1') + line(2, 'IFCDOOR', 'D2') + wall(3)));
-  const withheldSpec = `    <specification name="Standard case doors of type DOOR" ifcVersion="IFC4">\n      <applicability minOccurs="0" maxOccurs="unbounded"><entity><name><simpleValue>IFCDOORSTANDARDCASE</simpleValue></name><predefinedType><simpleValue>DOOR</simpleValue></predefinedType></entity></applicability>\n      ${nameIs('x')}\n    </specification>`;
+  const unusableSpec = `    <specification name="Walls with an unsafe pattern" ifcVersion="IFC4">\n      <applicability minOccurs="1" maxOccurs="unbounded"><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability>\n      <requirements><attribute><name><simpleValue>Name</simpleValue></name><value><xs:restriction base="xs:string"><xs:pattern value="(a+)+$"/></xs:restriction></value></attribute></requirements>\n    </specification>`;
   await fresh();
-  await idsInput.setInputFiles(write('withheld-only.ids', idsText([withheldSpec, spec('Walls are named Waldo', 'IFCWALL', nameIs('Waldo'))])));
+  await idsInput.setInputFiles(write('unusable-only.ids', idsText([unusableSpec, spec('Walls are named Waldo', 'IFCWALL', nameIs('Waldo'))])));
   await ifcInput.setInputFiles(caseDoor);
   await runVerdict.waitFor({ timeout: 60000 });
   const onlyStep = await page.locator('#next-step').innerText();
-  check('a result whose only row that is not a Pass is withheld: Incomplete, the row is Not checked, no Download failing elements, and the one primary action is Download report',
+  check('a result whose only row that is not a Pass is not checked: Incomplete, the row is Not checked, no Download failing elements, and the one primary action is Download report',
     (await word()) === 'Incomplete' && (await stateOf(0)) === 'Not checked' && (await stateOf(1)) === 'Pass' && (await page.getByRole('button', { name: 'Download failing elements' }).count()) === 0
     && (await page.locator('.btn.primary').allInnerTexts()).join(',') === 'Download report' && /Download the report/.test(onlyStep) && !/Download failing elements/.test(onlyStep), `${await word()} | ${await stateOf(0)} | ${onlyStep}`);
   await fresh();
-  await idsInput.setInputFiles(write('withheld-mixed.ids', idsText([withheldSpec, spec('Walls are named Wilma', 'IFCWALL', nameIs('Wilma')), spec('There is a slab', 'IFCSLAB', nameIs('x')), spec('Walls are named Waldo', 'IFCWALL', nameIs('Waldo'))])));
+  await idsInput.setInputFiles(write('unusable-mixed.ids', idsText([unusableSpec, spec('Walls are named Wilma', 'IFCWALL', nameIs('Wilma')), spec('There is a slab', 'IFCSLAB', nameIs('x')), spec('Walls are named Waldo', 'IFCWALL', nameIs('Waldo'))])));
   await ifcInput.setInputFiles(caseDoor);
   await runVerdict.waitFor({ timeout: 60000 });
   const mixedStates = [await stateOf(0), await stateOf(1), await stateOf(2), await stateOf(3)];
-  const mixedRows = rowsOf((await download('Download failing elements', 'withheld-mixed.csv')).text).slice(1);
-  const mixedReport = JSON.parse((await download('Download report', 'withheld-mixed.json')).text);
+  const mixedRows = rowsOf((await download('Download failing elements', 'unusable-mixed.csv')).text).slice(1);
+  const mixedReport = JSON.parse((await download('Download report', 'unusable-mixed.json')).text);
   const reportRun = mixedReport.run ?? mixedReport;
   check('with a failure beside it: Fail, the rows are Not checked, Fail, Fail, Pass; the CSV marks one row Not checked, one Element and one Whole specification; the report counts the same',
     (await word()) === 'Fail' && mixedStates.join(',') === 'Not checked,Fail,Fail,Pass'
-    && mixedRows.map((r) => `${r[0]}:${r[1]}`).join(' | ') === 'Not checked:Standard case doors of type DOOR | Element:Walls are named Wilma | Whole specification:There is a slab'
-    && /cannot tell that class from its parent class IfcDoor/.test(mixedRows[0][3])
+    && mixedRows.map((r) => `${r[0]}:${r[1]}`).join(' | ') === 'Not checked:Walls with an unsafe pattern | Element:Walls are named Wilma | Whole specification:There is a slab'
+    && /text pattern that could take too long/.test(mixedRows[0][3])
     && JSON.stringify(reportRun.counts) === JSON.stringify({ specifications: 4, passed: 1, failed: 2, notChecked: 1, nothingToCheck: 0 })
-    && reportRun.specs.map((r) => r.state).join(',') === 'unchecked,fail,fail,pass' && typeof reportRun.specs[0].withheld === 'string',
+    && reportRun.specs.map((r) => r.state).join(',') === 'unchecked,fail,fail,pass',
     `${mixedStates.join(',')} | ${mixedRows.map((r) => `${r[0]}:${r[1]}`).join(' | ')} | ${JSON.stringify(reportRun.counts)}`);
 
   // ---- G: the three journeys without a mouse -----------------------------------------------------
