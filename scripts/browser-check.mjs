@@ -209,7 +209,7 @@ try {
   await cold.close();
   check('one page: no tabs', (await page.getByRole('tab').count()) === 0 && (await page.getByRole('tablist').count()) === 0);
   check('empty page: two file boxes, IDS file and IFC model', (await page.locator('.drop').count()) === 2 && (await page.locator('.drop-label').allInnerTexts()).join(',') === 'IDS file,IFC model');
-  check('empty page: Open, New and Try an example are offered; nothing else to press but Choose a model', (await page.locator('button').allInnerTexts()).join(',') === 'Open,New,Try an example,Choose a model', (await page.locator('button').allInnerTexts()).join(','));
+  check('empty page: Open, New, Example and Try an example are offered; nothing else to press but Choose a model', (await page.locator('button').allInnerTexts()).join(',') === 'Open,New,Example,Try an example,Choose a model', (await page.locator('button').allInnerTexts()).join(','));
   check('empty page: no verdict, no rows, no report, no fake content', (await page.locator('.verdict, .spec, .finding, .record').count()) === 0 && (await page.getByRole('button', { name: /Download/ }).count()) === 0);
   check('empty page says what to do next in one line', /^Open an IDS file, or drop an IDS file and an IFC model anywhere on this page\./.test(await page.locator('#next-step').innerText()));
   check('empty page: one primary action, Open', (await page.locator('.btn.primary').allInnerTexts()).join(',') === 'Open');
@@ -437,6 +437,20 @@ try {
   check('the example is marked as an example and can be cleared in one press', (await page.locator('.drop').first().innerText()).includes('This is the example that ships with idsbench, not a file of yours.') && (await page.getByRole('button', { name: 'Clear the example' }).count()) === 1);
   await page.getByRole('button', { name: 'Clear the example' }).click();
   check('clearing the example gives the empty page back', (await page.locator('.verdict, .spec').count()) === 0 && (await page.getByRole('button', { name: 'Try an example' }).count()) === 1 && (await page.locator('.drop-detail').nth(1).innerText()).startsWith('Optional.'));
+
+  // ---- the Example menu: ready-made IDS files fetched from the page's own origin on choice ----
+  await fresh();
+  const requestsBefore = local.length;
+  check('the Example menu is closed, and nothing of the examples was fetched, before it is opened', (await page.locator('#example-menu').count()) === 0 && !local.some((u) => /\/examples\//.test(u)));
+  await page.getByRole('button', { name: 'Example', exact: true }).click();
+  await page.locator('#example-menu .example-item').first().waitFor();
+  const exItems = await page.locator('#example-menu .example-item').allInnerTexts();
+  check('the Example menu lists the bundled files with their source, date and caveats', exItems.length >= 2 && exItems[0].includes('Norway — ByggesaksBIM (DiBK), hard requirements') && /DiBK/.test(exItems[0]) && exItems[0].includes('2026-10-26') && exItems[0].includes('presence only'), exItems[0]);
+  await page.getByRole('button', { name: 'Norway — ByggesaksBIM (DiBK), hard requirements' }).click();
+  await headline.filter({ hasText: 'This IDS file is valid.' }).waitFor({ timeout: 60000 });
+  check('choosing an example opens it as a file: Valid, 8 specifications listed, file name shown, menu closed', (await word()) === 'Valid' && (await specs.count()) === 8 && (await page.locator('.drop-detail').first().innerText()).includes('byggesaksbim.ids') && (await page.locator('#example-menu').count()) === 0, `${await word()} ${await specs.count()}`);
+  check('an opened example is a file of the page like any other: it can be closed, not "cleared as an example"', (await page.getByRole('button', { name: 'Close', exact: true }).count()) === 1);
+  check('the examples came from the page\'s own origin, and nothing was blocked', local.slice(requestsBefore).filter((u) => /\/examples\//.test(u)).every((u) => u.startsWith(origin)) && blocked.length === 0, blocked.join(' '));
 
   // ---- failing elements: grouped by reason, and the CSV hand-over ----------------------
   const mixedIfc = write('mixed walls.ifc', ifcText('IFC4', "#1=IFCWALL('0000000000000000000001',$,'Waldo','has a description',$,$,$,$,$);\n" + wall(2, 'Wand "Süd", außen') + wall(3, 'Ușă, perete') + wall(4, 'Wilma')));

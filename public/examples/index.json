@@ -1,0 +1,14 @@
+{
+  "examples": [
+    {
+      "file": "byggesaksbim.ids",
+      "title": "Norway — ByggesaksBIM (DiBK), hard requirements",
+      "description": "8 specifications, one for each requirement the DiBK P13 eByggesak report marks Obligatorisk (ARK, Forprosjekt). Our own reading of that report, written 2026-10-26; DiBK has not published it. Data types are the IFC4 ones where DiBK gives none, and the building type is checked for presence only."
+    },
+    {
+      "file": "byggesaksbim-warnings.ids",
+      "title": "Norway — ByggesaksBIM (DiBK), warnings",
+      "description": "24 specifications for the 27 items the DiBK P13 eByggesak report marks Advarsel (not all can be written in IDS). Our own reading of that report, written 2026-10-26; DiBK has not published it. IDS has no severity, so treat every failure here as a warning. Data types are the IFC4 ones where DiBK gives none."
+    }
+  ]
+}

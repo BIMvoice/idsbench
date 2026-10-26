@@ -406,6 +406,8 @@ summary.finding-head::after { grid-column: 3; grid-row: 1; align-self: center; }
 .drop.static:hover { border-color: var(--rule-strong); background: var(--field); }
 .drop.static.has-file:hover { border-color: var(--ink); }
 .drop.static.invalid:hover { border-color: var(--fail); }
+.example-menu { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+.example-item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s1); }
 .drop-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
 .file-refusal, .model-refusal { margin-top: var(--s4); }
 .btn.small.primary { min-width: 0; }
