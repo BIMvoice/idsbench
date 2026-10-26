@@ -136,7 +136,7 @@ export const BCF_AUTHOR = 'idsbench';
  * the viewer somewhere. In 2.1 both cameras and Components are optional, so a viewpoint can be a Selection alone.
  */
 export async function bcfBlob(result: RunResult, now: Date = new Date()): Promise<Blob> {
-  const project = createBCFProject({ name: `idsbench: ${result.ifcFile}`, version: '2.1' });
+  const project = createBCFProject({ name: xmlText(`idsbench: ${result.ifcFile}`), version: '2.1' });
   const date = now.toISOString();
   for (const plan of bcfTopicPlans(result)) {
     const topic: BCFTopic = {
