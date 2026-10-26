@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { afterRun, failuresCsvName, failuresCsvParts, failureTotalOf, offersFailingDownload } from '../core/csv';
+import { afterRun, bcfName, failuresCsvName, failuresCsvParts, failureTotalOf, offersFailingDownload } from '../core/csv';
 import { newSpecification, type Specification } from '../core/ids/model';
 import { PATTERNS } from '../core/ids/patterns';
 import { pageReportName, pageReportParts, sha256Of } from '../core/report';
@@ -231,6 +231,13 @@ export function App() {
     return guarded('The list', () => { const name = failuresCsvName(result.ifcFile); saveFile(failuresCsvParts(result), name, 'text/csv;charset=utf-8'); return name; });
   });
 
+  const downloadBcf = () => download('The BCF file', async () => {
+    if (!result || outdated('The BCF file', { ranText: shown.ranText, ranModel: shown.ranModel, ranNonce: shown.ranNonce })) return null;
+    // Made in the worker with the result; only a result made elsewhere (it holds every element) is made here.
+    const blob = result.bcf ?? await (await import('../core/bcf')).bcfBlob(result);
+    return guarded('The BCF file', () => { const name = bcfName(result.ifcFile); saveFile([blob], name, 'application/zip'); return name; });
+  });
+
   // ---- the document ----
   const setSpec = (s: Specification) => page.edit((d) => ({ ...d, specifications: d.specifications.map((x) => (x.uid === s.uid ? s : x)) }));
   const addSpec = (s: Specification) => {
@@ -308,6 +315,7 @@ export function App() {
           {(report || result) && (
             <div className="actions">
               {result && hasFailures && <button type="button" className={primary === 'csv' ? 'btn primary' : 'btn'} onClick={() => void downloadCsv()}>Download failing elements</button>}
+              {result && hasFailures && <button type="button" className="btn" onClick={() => void downloadBcf()}>Download as BCF</button>}
               {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
           )}

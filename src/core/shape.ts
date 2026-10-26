@@ -14,6 +14,7 @@ import {
 import { schemaFamily } from './ifcfile';
 import { GroupAccumulator } from './groups';
 import { elementCsvRow } from './csv';
+import { BcfGroupAccumulator } from './bcf';
 import { reasonOf, REMOVE_ELEMENT, whatToFix, type ReasonContext, type RequirementOutcome } from './reasons';
 
 /**
@@ -180,6 +181,7 @@ class Failures {
   /** Every failing element, kept only when ShapeOptions.collect is set. */
   readonly all: FailingElement[] = [];
   readonly groups = new GroupAccumulator(FAILURE_CAP);
+  private bcf = new BcfGroupAccumulator();
   private csv: Chunks | null;
   private json: Chunks | null;
   constructor(private name: string, private options: ShapeOptions) {
@@ -190,6 +192,7 @@ class Failures {
     if (this.options.spill && this.csv && this.json) {
       this.csv.add(elementCsvRow(this.name, f, this.options.spill.ifcFile, this.options.spill.idsFile, this.options.sentence ?? ''));
       this.json.add(`${this.total ? ',' : ''}${JSON.stringify(f)}`);
+      this.bcf.add(f);
       if (this.held.length < FAILURE_CAP) this.held.push(f);
     } else {
       this.held.push(f);
@@ -202,7 +205,7 @@ class Failures {
     if (!this.csv || !this.json || this.total === 0) return null;
     this.csv.flush();
     this.json.flush();
-    return { csv: this.csv.blobs, failures: this.json.blobs };
+    return { csv: this.csv.blobs, failures: this.json.blobs, bcf: this.bcf.result(), bcfUntold: this.bcf.untold };
   }
 }
 
