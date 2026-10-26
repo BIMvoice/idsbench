@@ -6,7 +6,6 @@ import { prepareIds, IdsInvalid } from './core/prepare';
 import { AppError, FILE_UNREADABLE, UNEXPECTED } from './core/errors';
 import { checkSize } from './core/limits';
 import { sentencesFor } from './core/sentences';
-import { sha256Of } from './core/report';
 import type { AppErrorInfo, RunResult } from './core/types';
 import type { ModelBytes, ModelRef } from './core/session';
 import type { Slot, WorkerMessage, WorkerRequest } from './worker';
@@ -177,8 +176,6 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
         return;
       }
       if (cancelled) return;
-      const idsSha256 = await sha256Of(files.ids);
-      if (cancelled) return;
       // The Check engine decides first: a file it rejects is never run.
       let ids, idsWarnings: number;
       try {
@@ -215,7 +212,7 @@ export function runInWorker(files: { ids: File; ifc: File }, onPhase: (p: Phase)
           modelBytes: files.ifc.size,
         };
         heardAt = Date.now();
-        worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, idsSha256, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true, sentences, ...(options.slot ? { slot: options.slot } : {}), ...(options.collect ? { collect: true } : {}) } satisfies WorkerRequest);
+        worker.postMessage({ type: 'run', id: myId, ids, idsName: files.ids.name, model: refOf(files.ifc), file: files.ifc, fresh: options.fresh === true, sentences, ...(options.slot ? { slot: options.slot } : {}), ...(options.collect ? { collect: true } : {}) } satisfies WorkerRequest);
       } catch (e) {
         console.error(e);
         pending = null;

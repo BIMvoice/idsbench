@@ -234,7 +234,7 @@ export function App() {
   const downloadBcf = () => download('The BCF file', async () => {
     if (!result || outdated('The BCF file', { ranText: shown.ranText, ranModel: shown.ranModel, ranNonce: shown.ranNonce })) return null;
     // Made in the worker with the result; only a result made elsewhere (it holds every element) is made here.
-    const blob = result.bcf ?? await (await import('../core/bcf')).bcfBlob(result.idsSha256 === undefined ? { ...result, idsSha256: await sha256Of(page.idsBlob() ?? new Blob([])) } : result);
+    const blob = result.bcf ?? await (await import('../core/bcf')).bcfBlob(result);
     return guarded('The BCF file', () => { const name = bcfName(result.ifcFile); saveFile([blob], name, 'application/zip'); return name; });
   });
 

@@ -13,7 +13,7 @@ export type WorkerRequest =
    * `slot` 'earlier' is the earlier delivery a comparison is made with: it is read and kept apart from the page's model,
    * so that neither pushes the other out. `collect` asks for what a comparison needs (RunResult.keys).
    */
-  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; idsSha256?: string | null; model: ModelRef; file: File; fresh: boolean; sentences: string[] | null; slot?: Slot; collect?: boolean }
+  | { type: 'run'; id: number; ids: IDSDocument; idsName: string; model: ModelRef; file: File; fresh: boolean; sentences: string[] | null; slot?: Slot; collect?: boolean }
   | { type: 'cancel'; id: number }
   /** The page no longer needs the model the worker holds in `slot` (the page's model when absent), unless it is the one of file `except`: let go of its memory. */
   | { type: 'forget'; except: number | null; slot?: Slot };
@@ -62,7 +62,6 @@ async function run(m: Extract<WorkerRequest, { type: 'run' }>): Promise<void> {
       held: chosen.held,
       ids: m.ids,
       idsName: m.idsName,
-      idsSha256: m.idsSha256,
       model: m.model,
       read: () => m.file.arrayBuffer(),
       fresh: m.fresh,

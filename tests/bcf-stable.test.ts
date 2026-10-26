@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-// The GUIDs of the BCF file are made from what the topic is about, not drawn at random: two downloads of one result
+// The GUIDs of the BCF file (from the IDS title, the specification's index and name and the group's key) are made from what the topic is about, not drawn at random: two downloads of one result
 // agree (but for the creation date), a later run of the same IDS file gives the same failing group the same topic GUID,
 // and a coordinator who imports it again gets updates, not copies. Duplicated GlobalIds do not use up the cap.
 import { unzipSync, strFromU8 } from 'fflate';
@@ -17,15 +17,15 @@ afterAll(() => { Object.assign(console, saved); });
 
 const gid = (i: number) => String(i).padStart(22, '0');
 const wall = (i: number, name: string, g = i) => `#${i}=IFCWALL('${gid(g)}',$,'${name}',$,$,$,$,$,$);\n`;
-const SHA = 'a'.repeat(64);
+const TITLE = 't';
 const ids = idsText(
   specXml('Walls are named Waldo', 'IFCWALL', undefined, nameIs('Waldo')),
   specXml('Walls are named Waldo', 'IFCWALL', undefined, nameIs('Wilma')), // the same name again, another index
   specXml('A window is there', 'IFCWINDOW'),
 );
-const made = async (model: string, sha: string | null = SHA, spec = ids) => {
+const made = async (model: string, title: string = TITLE, spec = ids) => {
   const r: RunResult = await runText(spec, ifcText(model), { spill: true });
-  r.idsSha256 = sha;
+  r.idsTitle = title;
   return r;
 };
 const unzipped = async (b: Blob) => Object.fromEntries(Object.entries(unzipSync(new Uint8Array(await b.arrayBuffer()))).map(([k, v]) => [k, strFromU8(v)]));
@@ -57,7 +57,7 @@ describe('the GUIDs of the BCF file', () => {
 
   const guidsOf = async (r: RunResult) => (await readBcf(await bcfBlob(r))).topics.map((t) => t.guid).sort();
 
-  it('stay the same for the same failing group in a later run of another model, and differ between groups, same-named specifications and IDS files', async () => {
+  it('stay the same for the same failing group in a later run of another model, and differ between groups, same-named specifications and IDS titles', async () => {
     // Specification 0 fails on walls 1 and 2, specification 1 (same name) on wall 3, specification 2 as a whole: three topics.
     const first = await guidsOf(await made(model));
     expect(first).toHaveLength(3);
@@ -65,16 +65,29 @@ describe('the GUIDs of the BCF file', () => {
     // Another delivery: wall 1 is fixed, a wall 9 and a different name appear elsewhere. The same three groups fail.
     const later = await guidsOf(await made(wall(2, 'Wilma') + wall(3, 'Waldo') + wall(9, 'Wilma') + wall(10, 'Wilma')));
     expect(later).toEqual(first);
-    // Another IDS file (other bytes) is another set of topics.
-    const other = await guidsOf(await made(model, 'b'.repeat(64)));
+    // Another IDS title is another set of topics.
+    const other = await guidsOf(await made(model, 'another'));
     expect(other.filter((g) => first.includes(g))).toEqual([]);
+  });
+
+  it('stay the same for a group when another specification of the file is edited, and two specifications of one name still differ by their index', async () => {
+    const waldo = specXml('Walls are named Waldo', 'IFCWALL', undefined, nameIs('Waldo'));
+    const wilma = specXml('Walls are named Waldo', 'IFCWALL', undefined, nameIs('Wilma'));
+    const before = await guidsOf(await made(model, TITLE, idsText(waldo, wilma)));
+    // The second specification is edited, so the IDS file has other bytes.
+    const edited = specXml('Walls are named Waldo', 'IFCWALL', undefined, nameIs('Wilmo'));
+    const after = await guidsOf(await made(model, TITLE, idsText(waldo, edited)));
+    expect(before).toHaveLength(2);
+    expect(new Set(before).size).toBe(2); // same name, different index
+    // Specification 0 keeps the topic GUID it had.
+    expect(before.filter((g) => after.includes(g))).toHaveLength(1);
   });
 
   it('stay the same when the elements of a group come to have values of their own in the reason, or stop having them', async () => {
     const one = idsText(specXml('Walls have a description', 'IFCWALL', undefined, '<requirements><attribute><name><simpleValue>Description</simpleValue></name><value><simpleValue>ok</simpleValue></value></attribute></requirements>'));
     const d = (i: number, v: string) => `#${i}=IFCWALL('${gid(i)}',$,'x','${v}',$,$,$,$,$);\n`;
-    const same = await guidsOf(await made(d(1, 'a') + d(2, 'a'), SHA, one));
-    const differ = await guidsOf(await made(d(1, 'a') + d(2, 'b'), SHA, one));
+    const same = await guidsOf(await made(d(1, 'a') + d(2, 'a'), TITLE, one));
+    const differ = await guidsOf(await made(d(1, 'a') + d(2, 'b'), TITLE, one));
     expect(same).toHaveLength(1);
     expect(differ).toEqual(same);
   });

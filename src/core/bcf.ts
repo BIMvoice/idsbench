@@ -162,15 +162,15 @@ export async function uuidV5(name: string, namespace: string = BCF_NAMESPACE): P
  * viewpoint (an xs:choice of OrthogonalCamera and PerspectiveCamera with no minOccurs), and a made-up camera would send
  * the viewer somewhere. In 2.1 both cameras and Components are optional, so a viewpoint can be a Selection alone.
  *
- * Every GUID in it (project, topic, viewpoint) is a version 5 UUID made from the IDS file's SHA-256 (`result.idsSha256`),
- * the specification's index and name and the group's key, so the same failing group of the same IDS file has the same
- * topic GUID in every download, run and model, and a coordinator who imports a later download gets updates, not copies.
+ * Every GUID in it (project, topic, viewpoint) is a version 5 UUID made from the IDS title (`result.idsTitle`),
+ * the specification's index and name and the group's key, so the same failing group of the same IDS has the same
+ * topic GUID in every download, run and model, and an edit to another specification leaves it as it is, and a coordinator who imports a later download gets updates, not copies.
  * The creation date is the time of the download (`now`), so two downloads of one result differ in it alone.
  */
 export async function bcfBlob(result: RunResult, now: Date = new Date()): Promise<Blob> {
-  const base = result.idsSha256 ?? `no digest: ${result.idsFile}`;
+  const base = result.idsTitle ?? '';
   const project = createBCFProject({ name: xmlText(`idsbench: ${result.ifcFile}`), version: '2.1' });
-  project.projectId = await uuidV5(`${base}\nproject`);
+  project.projectId = await uuidV5(`${base}\nproject`); // from the title alone
   const date = now.toISOString();
   for (const plan of bcfTopicPlans(result)) {
     const guid = await uuidV5(`${base}\n${plan.identity}`);
