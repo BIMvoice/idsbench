@@ -820,6 +820,15 @@ try {
       g.on('request', (r) => asked.push(new URL(r.url()).pathname));
       g.on('pageerror', (e) => gErrors.push(String(e)));
       g.on('console', (m) => { if (m.type() === 'error') gErrors.push(m.text()); });
+      // A spy on the graphics context: the renderer asks the canvas for one when it is made, so the count is the number of viewers made.
+      await g.addInitScript(() => {
+        window.__gpuContexts = 0;
+        const getContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+          if (type === 'webgpu' && this.classList.contains('view3d-canvas')) window.__gpuContexts++;
+          return getContext.call(this, type, ...rest);
+        };
+      });
       await g.goto(origin + '/');
       await g.locator('input[type=file]').nth(0).setInputFiles(wallsIds);
       await g.locator('input[type=file]').nth(1).setInputFiles(wallsIfc);
@@ -878,6 +887,23 @@ try {
       await canvas.click({ position: { x: 4, y: 4 } });
       await new Promise((r) => setTimeout(r, 600));
       check('3D: clicking empty space highlights no row', (await g.locator('tr.picked').count()) === 0);
+      // An edit and the run that follows: the viewer is not made again, the camera stays, the elements are painted again.
+      await g.evaluate(() => { document.querySelector('canvas.view3d-canvas').__kept = true; });
+      const made0 = await g.evaluate(() => window.__gpuContexts);
+      const cam0 = [await canvas.getAttribute('data-target'), await canvas.getAttribute('data-position')];
+      await g.getByRole('button', { name: 'Edit Walls are named WALL 1' }).click();
+      await g.locator('.spec').first().getByRole('combobox', { name: 'Value', exact: true }).fill('no wall is named this');
+      let after = shot;
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        after = colours(await canvas.screenshot());
+        if (after.green === 0 && after.red > 500) break;
+      }
+      await new Promise((r) => setTimeout(r, 800));
+      check('3D: after an edit and its run every wall is red (painted again for the new result)', after.green === 0 && after.red > 500, JSON.stringify(after));
+      check('3D: after an edit and its run no viewer was made again: the same canvas, one graphics context', (await g.locator('canvas.view3d-canvas').count()) === 1 && (await g.evaluate(() => document.querySelector('canvas.view3d-canvas').__kept === true)) && (await g.evaluate(() => window.__gpuContexts)) === made0 && made0 === 1, `contexts ${made0} -> ${await g.evaluate(() => window.__gpuContexts)}`);
+      const cam1 = [await canvas.getAttribute('data-target'), await canvas.getAttribute('data-position')];
+      check('3D: after an edit and its run the camera is where it was (target and position)', cam0[0] !== null && cam0[1] !== null && cam1[0] === cam0[0] && cam1[1] === cam0[1], `${cam0.join(' ')} -> ${cam1.join(' ')}`);
       check('3D: the page saw no error while the view ran', gErrors.length === 0, gErrors.slice(0, 2).join(' | '));
       // Closing 3D takes the canvas away again.
       await g.locator('#toggle-3d').click();

@@ -18,6 +18,7 @@ import { Findings } from './page/Findings';
 import { shownGroups, SpecRow } from './page/SpecRow';
 import { Focus3dContext, type Focus3d } from './page/focus3d';
 import { Show3D } from './page/Show3D';
+import type { RunResult } from '../core/types';
 import { SceneKeeper } from '../core/sceneKeeper';
 import { loadScene } from '../runner';
 import { mark, modelMark, TitleBlock } from './page/TitleBlock';
@@ -51,6 +52,14 @@ export function App() {
   scenes.current ??= new SceneKeeper(loadScene);
   useEffect(() => () => scenes.current?.release(), [model, view3d]);
   useEffect(() => { setFocus3d(null); setPicked3d(null); }, [model]);
+  // While an edit is being checked again `result` is gone at once (the page never shows an older result as the answer),
+  // but the 3D view is kept, out of sight, with the result it had: its renderer, camera and selection stay, and it is
+  // painted again when the new result comes. Another model, or closing the view, lets it go.
+  const kept3d = useRef<{ model: File; result: RunResult } | null>(null);
+  const answered = result && rows ? result : null;
+  if (view3d && model && answered) kept3d.current = { model, result: answered };
+  else if (!view3d || kept3d.current?.model !== model || (run && 'error' in run)) kept3d.current = null;
+  const result3d = answered ?? kept3d.current?.result ?? null;
   const selected3d = spec3d !== null && spec3d < (result?.specs.length ?? 0) ? spec3d : null;
   useEffect(() => {
     if (!view3d || !result || selected3d !== null) return;
@@ -347,9 +356,9 @@ export function App() {
               {report && <button type="button" className={primary === 'report' ? 'btn primary' : 'btn'} onClick={() => void downloadReport()}>Download report</button>}
             </div>
           )}
-          {view3d && result && rows && model && page.idsFile && (
+          {view3d && result3d && model && page.idsFile && (
             <Show3D
-              idsFile={page.idsFile} model={model} keeper={scenes.current} result={result} busy={page.comparingNow}
+              idsFile={page.idsFile} model={model} keeper={scenes.current} result={result3d} stale={answered === null} busy={page.comparingNow}
               spec={selected3d} focus={focus3d} listed={listed3d}
               onSpec={(i) => { setSpec3d(i); setFocus3d(null); setPicked3d(null); }} onPick={setPicked3d}
             />

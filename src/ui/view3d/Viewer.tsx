@@ -49,7 +49,9 @@ export function Viewer({ scene, states, listed, focus, onPick, onProblem }: View
   props.current = { states, listed, onPick };
   const [ready, setReady] = useState(false);
 
-  // The renderer is made once for the scene and let go of when the scene changes or the view closes.
+  // The renderer is made once for the scene and let go of when the scene changes or the view closes. A new result
+  // (the same model checked again after an edit) is not a new scene: the renderer and the camera stay, and the colours
+  // follow `states` (below); so does the selection, whose elements are the model's and are still in it.
   useEffect(() => {
     const el = canvas.current;
     if (!el) return;
@@ -67,7 +69,8 @@ export function Viewer({ scene, states, listed, focus, onPick, onProblem }: View
         applyColours();
         onDeviceLost(renderer.getGPUDevice(), () => stopped, onProblem);
         setReady(true);
-        el.dataset.target = JSON.stringify(renderer.getCamera().getTarget());
+        const report = () => { el.dataset.target = JSON.stringify(renderer.getCamera().getTarget()); el.dataset.position = JSON.stringify(renderer.getCamera().getPosition()); };
+        report();
         let last = performance.now();
         const loop = (now: number) => {
           if (stopped) return;
@@ -78,7 +81,7 @@ export function Viewer({ scene, states, listed, focus, onPick, onProblem }: View
             l.dirty = false;
             renderer.render({ selectedIds: l.selected, clearColor: [0.97, 0.97, 0.96, 1] });
             if (animating) l.dirty = true;
-            else el.dataset.target = JSON.stringify(renderer.getCamera().getTarget());
+            else report();
           }
           frame = requestAnimationFrame(loop);
         };
